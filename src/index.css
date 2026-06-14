@@ -1,0 +1,127 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Outfit', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+}
+
+body {
+  background-color: var(--color-zinc-950);
+  color: var(--color-zinc-100);
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  font-family: 'Outfit', sans-serif;
+}
+
+/* Scrollbars Globales Premium (Riff Forge) */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.08);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-amber-500);
+}
+
+/* Permitir ocultar scrollbar completamente si se necesita en algunos casos muy específicos */
+.hide-scrollbar-absolute::-webkit-scrollbar {
+  display: none;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  height: 14px;
+  width: 14px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: var(--color-zinc-950);
+  border-radius: 8px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: var(--color-amber-600);
+  border-radius: 8px;
+  border: 3px solid var(--color-zinc-950);
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-amber-500);
+}
+
+/* AlphaTab Cursors - Temática Forge (Naranja/Ámbar) */
+.at-cursor-bar {
+  background: transparent; /* A petición del usuario, eliminamos el fondo del compás */
+}
+
+.at-cursor-beat {
+  background: rgba(245, 158, 11, 0.6); /* amber-500 tint */
+  width: 3px;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
+}
+
+.at-selection div {
+  background: rgba(245, 158, 11, 0.2); /* amber-500 tint */
+}
+
+/* Permitir desbordamiento horizontal real en Modo Cinta */
+.custom-scrollbar {
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+}
+
+.custom-scrollbar .at-wrap {
+  width: max-content !important;
+  display: inline-block !important;
+  min-width: 100% !important;
+  height: auto !important;
+  overflow: visible !important;
+  position: relative !important;
+}
+
+.custom-scrollbar .at-canvas,
+.custom-scrollbar .at-surface {
+  height: auto !important;
+  overflow: visible !important;
+  position: relative !important;
+}
+
+/* Estilos de Impresión (PDF) */
+@media print {
+  /* Ocultar elementos innecesarios */
+  aside, nav, .print-hide, button {
+    display: none !important;
+  }
+
+  /* Fondo blanco y texto negro para ahorrar tinta */
+  body, main, div {
+    background-color: white !important;
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Evitar cortes a la mitad de una línea o bloque */
+  .cifra-content pre {
+    page-break-inside: avoid;
+    break-inside: avoid;
+    white-space: pre-wrap !important;
+  }
+
+  /* Reiniciar scrollbars y tamaños para que la página completa se imprima */
+  .overflow-y-auto, .overflow-hidden, .custom-scrollbar, .h-full, .h-screen {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+
+  /* Los acordes (que originalmente son amber-500) se oscurecerán para mejor lectura */
+  .cifra-content .text-amber-500 {
+    color: #000 !important;
+    font-weight: 900 !important;
+    border-bottom: 1px solid #000;
+  }
+}
