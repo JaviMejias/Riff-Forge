@@ -125,6 +125,11 @@ body {
   background-color: var(--primary-500);
 }
 
+::selection {
+  background-color: var(--theme-glow-strong);
+  color: #fff;
+}
+
 /* Permitir ocultar scrollbar completamente si se necesita en algunos casos muy específicos */
 .hide-scrollbar-absolute::-webkit-scrollbar {
   display: none;

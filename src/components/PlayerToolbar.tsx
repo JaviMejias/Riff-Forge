@@ -31,7 +31,10 @@ export const PlayerToolbar = ({
   const { isImmersiveMode, toggleImmersiveMode } = useUiStore();
 
   return (
-    <div className={`bg-zinc-900/90 backdrop-blur-xl p-3 sm:p-4 md:p-5 rounded-2xl md:rounded-3xl shadow-2xl shadow-black/60 border flex flex-col md:flex-row gap-4 md:gap-6 items-center min-h-[60px] md:min-h-[80px] relative transition-colors ${isImmersiveMode ? 'border-primary-500/30' : 'border-white/10'}`}>
+    <motion.div 
+      animate={{ boxShadow: ['0px 10px 40px var(--theme-glow)', '0px 10px 80px var(--theme-glow-strong)', '0px 10px 40px var(--theme-glow)'] }}
+      transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+      className={`bg-zinc-900/90 backdrop-blur-xl p-3 sm:p-4 md:p-5 rounded-2xl md:rounded-3xl border flex flex-col md:flex-row gap-4 md:gap-6 items-center min-h-[60px] md:min-h-[80px] relative transition-colors ${isImmersiveMode ? 'border-primary-500/30' : 'border-white/10'}`}>
       {/* Decorative gradient orb */}
       <div className="absolute inset-0 overflow-hidden rounded-3xl pointer-events-none">
         <div className="absolute -top-10 -left-10 w-40 h-40 bg-primary-500/10 rounded-full blur-3xl"></div>
@@ -56,7 +59,7 @@ export const PlayerToolbar = ({
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={togglePlay}
-              className="flex items-center justify-center w-12 h-12 md:w-14 md:h-14 bg-gradient-to-br from-primary-400 to-primary-600 text-zinc-950 rounded-full shadow-[0_0_20px_rgba(245,158,11,0.3)] shrink-0 disabled:opacity-50 border border-primary-300/50"
+              className="flex items-center justify-center w-12 h-12 md:w-14 md:h-14 bg-gradient-to-br from-primary-400 to-primary-600 text-zinc-950 rounded-full shadow-[0_0_20px_var(--theme-glow-strong)] shrink-0 disabled:opacity-50 border border-primary-300/50"
               disabled={isLoading}
             >
               {isPlaying ? (
@@ -140,6 +143,6 @@ export const PlayerToolbar = ({
           
         </div>
       )}
-    </div>
+    </motion.div>
   );
 };

@@ -51,7 +51,7 @@ export const Navbar = ({ title, subtitle, onBack, children }: NavbarProps) => {
 
         <div className="flex flex-col min-w-0">
           {subtitle && <span className="text-[10px] md:text-xs font-bold text-primary-500 uppercase tracking-widest truncate block">{subtitle}</span>}
-          <h1 className="text-base md:text-xl font-extrabold text-white truncate block">{title}</h1>
+          <h1 className="text-base md:text-xl font-extrabold bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent truncate block">{title}</h1>
         </div>
       </div>
 

@@ -127,15 +127,15 @@ export const SongCard = ({ song, isActive, onPlay, onAdd, onDelete, onRemove, in
 
         <div className="mt-auto pt-2 flex items-center">
           {song.data && song.textContent ? (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-400 text-[10px] font-bold uppercase tracking-wider border border-purple-500/20">
-              <span className="w-1.5 h-1.5 rounded-full bg-purple-500" /> Tab + Acordes
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary-500/10 text-primary-400 text-[10px] font-bold uppercase tracking-wider border border-primary-500/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-primary-500" /> Tab + Acordes
             </span>
           ) : song.type === 'text' || (!song.data && song.textContent) ? (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 text-[10px] font-bold uppercase tracking-wider border border-emerald-500/20">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary-500/10 text-primary-400 text-[10px] font-bold uppercase tracking-wider border border-primary-500/20">
               <FileText size={10} /> Acordes
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-400 text-[10px] font-bold uppercase tracking-wider border border-blue-500/20">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary-500/10 text-primary-400 text-[10px] font-bold uppercase tracking-wider border border-primary-500/20">
               <Guitar size={10} /> Tab
             </span>
           )}

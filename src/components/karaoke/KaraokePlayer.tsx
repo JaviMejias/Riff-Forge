@@ -298,7 +298,11 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
             </div>
           )}
 
-          <div className="flex-1 rounded-3xl overflow-hidden bg-black border border-white/10 shadow-2xl relative">
+          <motion.div 
+            animate={{ boxShadow: ['0px 0px 20px var(--theme-glow)', '0px 0px 60px var(--theme-glow-strong)', '0px 0px 20px var(--theme-glow)'] }}
+            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+            className="flex-1 rounded-3xl overflow-hidden bg-black border border-white/10 relative"
+          >
             {!ytVideoId && !hasLocalAudio ? (
               <div className="flex-1 flex flex-col items-center justify-center text-zinc-500 h-full">
                 <AlertCircle size={48} className="mb-4 opacity-50" />
@@ -486,7 +490,7 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
                 <LocalAudioPlayer karaoke={karaoke} />
               </div>
             ) : null}
-          </div>
+          </motion.div>
         </div>
 
         {/* LADO DERECHO: LETRA */}
@@ -520,7 +524,7 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
                           transition={{ delay: Math.min(idx * 0.03, 0.5) }}
                           className="group origin-left"
                         >
-                          <p className="font-sans text-2xl sm:text-3xl lg:text-4xl font-black leading-tight text-zinc-500 hover:text-zinc-100 transition-colors duration-300">
+                          <p className="font-sans text-2xl sm:text-3xl lg:text-4xl font-black leading-tight text-zinc-500 hover:text-primary-400 transition-colors duration-300">
                             {trimmed}
                           </p>
                         </motion.div>

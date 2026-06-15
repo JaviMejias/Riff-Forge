@@ -96,12 +96,12 @@ export const KaraokeCard = ({ karaoke, index, isActive, onPlay, onDelete }: Kara
 
           <div className="absolute bottom-2 left-2 flex gap-2 z-10">
             {karaoke.youtubeUrl && (
-              <span className="flex items-center gap-1 text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded-md bg-red-600/90 text-white backdrop-blur-md shadow-sm border border-red-500/50">
+              <span className="flex items-center gap-1 text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded-md bg-primary-500/10 text-primary-400 backdrop-blur-md shadow-sm border border-primary-500/20">
                 <MonitorPlay size={12} /> YouTube
               </span>
             )}
             {karaoke.hasLocalAudio && (
-              <span className="flex items-center gap-1 text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded-md bg-blue-600/90 text-white backdrop-blur-md shadow-sm border border-blue-500/50">
+              <span className="flex items-center gap-1 text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded-md bg-primary-500/10 text-primary-400 backdrop-blur-md shadow-sm border border-primary-500/20">
                 <Disc3 size={12} /> MP3
               </span>
             )}
