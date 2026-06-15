@@ -98,28 +98,37 @@ export const KaraokeLyricsEditor = ({
         return newLines;
       });
       setSyncIndex(newIndex);
-      // Retroceder un poco la música para ayudar a cuadrar
-      const prevTime = syncLines[newIndex - 1]?.time || 0;
-      onSeek(Math.max(0, prevTime - 1)); 
+      // Buscar el tiempo de la línea anterior válida para dar contexto
+      let prevValidTime = 0;
+      for (let i = newIndex - 1; i >= 0; i--) {
+        if (syncLines[i].time >= 0) {
+          prevValidTime = syncLines[i].time;
+          break;
+        }
+      }
+      if (newIndex > 0) {
+        onSeek(Math.max(0, prevValidTime - 1)); 
+      } else {
+        onSeek(0);
+      }
     }
   };
 
   const handleJumpToLine = (targetIndex: number) => {
-    // Solo permitimos saltar a líneas que ya pasaron o la actual
-    if (targetIndex > syncIndex) return;
-
     if (isPlaying) onPause();
-
-    // Limpiar los tiempos de la línea seleccionada y posteriores
-    setSyncLines(prev => prev.map((line, i) => 
-      i >= targetIndex ? { ...line, time: 0 } : line
-    ));
     setSyncIndex(targetIndex);
 
-    // Retroceder el audio para tener contexto
+    // Buscar la línea anterior que tenga un tiempo válido para dar contexto
+    let prevValidTime = 0;
+    for (let i = targetIndex - 1; i >= 0; i--) {
+      if (syncLines[i].time >= 0) {
+        prevValidTime = syncLines[i].time;
+        break;
+      }
+    }
+    
     if (targetIndex > 0) {
-      const prevTime = syncLines[targetIndex - 1]?.time || 0;
-      onSeek(Math.max(0, prevTime - 1));
+      onSeek(Math.max(0, prevValidTime - 1));
     } else {
       onSeek(0);
     }
@@ -253,18 +262,18 @@ export const KaraokeLyricsEditor = ({
             <div ref={syncScrollRef} className="flex-1 overflow-y-auto p-6 sm:p-10 pb-[250px] hide-scrollbar scroll-smooth">
               {syncLines.map((line, idx) => {
                 const isActive = idx === syncIndex;
-                const isDone = idx < syncIndex;
+                const isDone = line.time >= 0;
 
                 return (
                   <div 
                     key={idx}
                     ref={isActive ? activeSyncRef : null}
                     onClick={() => handleJumpToLine(idx)}
-                    className={`py-3 px-4 rounded-xl mb-2 flex items-center gap-4 transition-all duration-300 ${
+                    className={`py-3 px-4 rounded-xl mb-2 flex items-center gap-4 transition-all duration-300 cursor-pointer hover:bg-white/5 hover:opacity-100 ${
                       isActive 
-                        ? 'bg-amber-500/10 border border-amber-500/30 scale-105 origin-left cursor-pointer' 
+                        ? 'bg-amber-500/10 border border-amber-500/30 scale-105 origin-left opacity-100' 
                         : isDone 
-                          ? 'opacity-50 cursor-pointer hover:bg-white/5 hover:opacity-100' 
+                          ? 'opacity-60' 
                           : 'opacity-30'
                     }`}
                   >
