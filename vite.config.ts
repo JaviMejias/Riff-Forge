@@ -2,8 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
-// @ts-ignore
-import { alphaTab } from '@coderline/alphatab-vite/dist/alphaTab.vite.mjs';
+
 
 export default defineConfig({
   optimizeDeps: {
@@ -15,7 +14,6 @@ export default defineConfig({
   plugins: [
     tailwindcss(),
     react(),
-    alphaTab(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg', 'icon-192x192.png', 'icon-512x512.png'],
