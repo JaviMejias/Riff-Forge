@@ -56,6 +56,7 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
   const [isFetchingAudio, setIsFetchingAudio] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [pitch, setPitch] = useState(0);
+  const [globalDuration, setGlobalDuration] = useState(0);
   
   const ytAudioRef = useRef<HTMLAudioElement | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -69,6 +70,9 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
       interval = setInterval(() => {
         setLocalCurrentTime(ytPlayer.getCurrentTime());
         setGlobalIsPlaying(ytPlayer.getPlayerState() === 1);
+        if (ytPlayer.getDuration && ytPlayer.getDuration() > 0) {
+          setGlobalDuration(ytPlayer.getDuration());
+        }
       }, 50); // Fast polling for smooth lyric sync
     }
     return () => clearInterval(interval);
@@ -528,7 +532,10 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
                 <LocalAudioPlayer 
                   ref={localPlayerRef} 
                   karaoke={karaoke} 
-                  onTimeUpdate={setLocalCurrentTime}
+                  onTimeUpdate={(t) => {
+                    if (activeSource === 'local') setLocalCurrentTime(t);
+                  }}
+                  onDurationUpdate={(d) => setGlobalDuration(d)}
                   onPlayStateChange={setGlobalIsPlaying}
                 />
               </div>
@@ -547,6 +554,7 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
               <KaraokeLyricsEditor 
                 initialContent={karaoke.textContent || ''}
                 currentTime={localCurrentTime}
+                duration={globalDuration}
                 isPlaying={globalIsPlaying}
                 onPlay={handleAbstractPlay}
                 onPause={handleAbstractPause}

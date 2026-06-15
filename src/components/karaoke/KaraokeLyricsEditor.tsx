@@ -6,6 +6,7 @@ import type { LrcLine } from '../../utils/lrcParser';
 export interface KaraokeLyricsEditorProps {
   initialContent: string;
   currentTime: number;
+  duration?: number;
   onSave: (content: string) => void;
   onCancel: () => void;
   onPlay: () => void;
@@ -24,7 +25,8 @@ export const KaraokeLyricsEditor = ({
   onPlay,
   onPause,
   onSeek,
-  isPlaying
+  isPlaying,
+  duration
 }: KaraokeLyricsEditorProps) => {
   // Inicialmente determinamos el modo basado en si tiene tags
   const isInitialDynamic = hasLrcTags(initialContent);
@@ -182,18 +184,18 @@ export const KaraokeLyricsEditor = ({
         {mode === 'sync' && (
           <div className="w-full h-full flex flex-col">
             
-            {/* BARRA DE CONTROLES COMPACTA */}
-            <div className="p-3 bg-zinc-900/50 border-b border-white/5 flex items-center justify-between">
-              <button
-                onClick={undoSync}
-                disabled={syncIndex === 0}
-                className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-zinc-300 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors"
-              >
-                <RotateCcw size={14} />
-                Deshacer
-              </button>
-
-              <div className="flex items-center gap-4">
+            {/* BARRA DE CONTROLES COMPACTA CON PROGRESO */}
+            <div className="p-3 bg-zinc-900/50 border-b border-white/5 flex flex-wrap items-center justify-between gap-3">
+              
+              <div className="flex items-center w-full justify-between sm:w-auto sm:justify-start gap-2">
+                <button
+                  onClick={undoSync}
+                  disabled={syncIndex === 0}
+                  className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-zinc-300 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors"
+                >
+                  <RotateCcw size={14} />
+                  Deshacer
+                </button>
                 <button
                   onClick={isPlaying ? onPause : onPlay}
                   className={`px-4 py-1.5 rounded-lg text-xs font-black flex items-center gap-1.5 transition-colors ${isPlaying ? 'bg-red-500/20 text-red-500 hover:bg-red-500/30' : 'bg-primary-500 text-zinc-950 hover:bg-primary-400'}`}
@@ -202,6 +204,28 @@ export const KaraokeLyricsEditor = ({
                   {isPlaying ? 'Pausar' : 'Reproducir'}
                 </button>
               </div>
+
+              {/* BARRA DE PROGRESO */}
+              {duration ? (
+                <div className="flex-1 w-full sm:w-auto flex items-center gap-2">
+                  <span className="text-[10px] font-mono text-zinc-500 min-w-[32px] text-right">
+                    {Math.floor(currentTime / 60)}:{(Math.floor(currentTime % 60)).toString().padStart(2, '0')}
+                  </span>
+                  <input 
+                    type="range" 
+                    min="0" 
+                    max={duration || 100} 
+                    step="0.1"
+                    value={currentTime || 0}
+                    onChange={(e) => onSeek(parseFloat(e.target.value))}
+                    className="flex-1 h-1.5 bg-zinc-800 rounded-full appearance-none cursor-pointer accent-primary-500 hover:accent-primary-400"
+                  />
+                  <span className="text-[10px] font-mono text-zinc-500 min-w-[32px]">
+                    {Math.floor(duration / 60)}:{(Math.floor(duration % 60)).toString().padStart(2, '0')}
+                  </span>
+                </div>
+              ) : null}
+
             </div>
 
             {/* LISTA DE LÍNEAS */}

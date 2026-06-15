@@ -15,6 +15,7 @@ export interface LocalAudioPlayerRef {
 interface LocalAudioPlayerProps {
   karaoke: Karaoke;
   onTimeUpdate?: (time: number) => void;
+  onDurationUpdate?: (duration: number) => void;
   onPlayStateChange?: (isPlaying: boolean) => void;
 }
 
@@ -163,6 +164,7 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
   const handleLoadedMetadata = () => {
     if (audioRef.current) {
       setDuration(audioRef.current.duration);
+      if (onDurationUpdate) onDurationUpdate(audioRef.current.duration);
       // We want to preserve pitch when changing playbackRate so we can shift it independently
       (audioRef.current as any).preservesPitch = true;
     }
