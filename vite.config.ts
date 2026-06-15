@@ -6,7 +6,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
   optimizeDeps: {
-    exclude: ['bungee-pitch-shift']
+    exclude: ['bungee-pitch-shift', '@coderline/alphatab']
   },
   server: {
     allowedHosts: true
