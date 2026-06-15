@@ -8,9 +8,10 @@ import type { Karaoke } from '../../db';
 export interface KaraokeLyricsViewProps {
   karaoke: Karaoke;
   currentTime: number;
+  onEdit?: () => void;
 }
 
-export const KaraokeLyricsView = ({ karaoke, currentTime }: KaraokeLyricsViewProps) => {
+export const KaraokeLyricsView = ({ karaoke, currentTime, onEdit }: KaraokeLyricsViewProps) => {
   const [animationsEnabled, setAnimationsEnabled] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
   const activeLineRef = useRef<HTMLDivElement>(null);
@@ -69,12 +70,14 @@ export const KaraokeLyricsView = ({ karaoke, currentTime }: KaraokeLyricsViewPro
       <div className="h-full flex flex-col items-center justify-center text-zinc-500 gap-4">
         <AlignLeft size={48} className="opacity-20" />
         <p className="text-lg text-center">No hay letra guardada aún</p>
-        <button 
-          onClick={onEdit}
-          className="px-6 py-3 bg-primary-600 hover:bg-primary-500 text-zinc-950 rounded-xl transition-colors text-sm font-black uppercase tracking-wider"
-        >
-          Añadir Letra
-        </button>
+        {onEdit && (
+          <button 
+            onClick={onEdit}
+            className="px-6 py-3 bg-primary-600 hover:bg-primary-500 text-zinc-950 rounded-xl transition-colors text-sm font-black uppercase tracking-wider"
+          >
+            Añadir Letra
+          </button>
+        )}
       </div>
     );
   }
