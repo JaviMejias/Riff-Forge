@@ -182,6 +182,14 @@ export const KaraokeLyricsEditor = ({
         {mode === 'sync' && (
           <div className="w-full h-full flex flex-col">
             
+            {/* AVISO RECOMENDACIÓN MP3 */}
+            <div className="bg-blue-500/10 border-b border-blue-500/20 p-2 sm:p-3 flex justify-center">
+              <p className="text-[10px] sm:text-xs text-blue-400 font-medium text-center max-w-2xl">
+                <strong className="font-bold">💡 Recomendación:</strong> Selecciona el <strong className="font-bold text-blue-300">MP3</strong> como fuente de audio antes de sincronizar. 
+                Los videos de YouTube suelen tener "Intros" largas o pausas que descuadrarán la letra respecto a tu MP3 original de estudio.
+              </p>
+            </div>
+
             {/* INSTRUCCIONES y CONTROLES */}
             <div className="p-3 bg-amber-500/10 border-b border-amber-500/20 flex flex-col sm:flex-row items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-amber-500/80">
