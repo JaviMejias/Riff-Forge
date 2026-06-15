@@ -1,9 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { AlertCircle, Edit3, Save, AlignLeft, MonitorPlay, Music, Settings, Loader2 } from 'lucide-react';
+import { AlertCircle, Edit3, AlignLeft, MonitorPlay, Music, Settings, Loader2 } from 'lucide-react';
 import * as Tone from 'tone';
 import { Navbar } from '../Navbar';
 import { LocalAudioPlayer } from './LocalAudioPlayer';
+import type { LocalAudioPlayerRef } from './LocalAudioPlayer';
+import { KaraokeLyricsView } from './KaraokeLyricsView';
+import { KaraokeLyricsEditor } from './KaraokeLyricsEditor';
 import { db } from '../../db';
 import type { Karaoke } from '../../db';
 import Swal from 'sweetalert2';
@@ -18,9 +21,13 @@ interface KaraokePlayerProps {
 
 export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar }: KaraokePlayerProps) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [editContent, setEditContent] = useState(karaoke.textContent || '');
   const [showLyrics, setShowLyrics] = useState(!!karaoke.textContent);
   const [showYtSettings, setShowYtSettings] = useState(false);
+
+  // Estados de audio unificados para las letras
+  const [localCurrentTime, setLocalCurrentTime] = useState(0);
+  const [globalIsPlaying, setGlobalIsPlaying] = useState(false);
+  const localPlayerRef = useRef<LocalAudioPlayerRef>(null);
 
 
 
@@ -55,6 +62,33 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
   const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   const pitchShiftRef = useRef<Tone.PitchShift | null>(null);
   const isInitializingRef = useRef(false);
+
+  useEffect(() => {
+    let interval: any;
+    if (activeSource === 'youtube' && ytPlayer) {
+      interval = setInterval(() => {
+        setLocalCurrentTime(ytPlayer.getCurrentTime());
+        setGlobalIsPlaying(ytPlayer.getPlayerState() === 1);
+      }, 50); // Fast polling for smooth lyric sync
+    }
+    return () => clearInterval(interval);
+  }, [activeSource, ytPlayer]);
+
+  // Audio Control Methods for Sync Editor
+  const handleAbstractPlay = () => {
+    if (activeSource === 'youtube' && ytPlayer) ytPlayer.playVideo();
+    else if (activeSource === 'local' && localPlayerRef.current) localPlayerRef.current.play();
+  };
+
+  const handleAbstractPause = () => {
+    if (activeSource === 'youtube' && ytPlayer) ytPlayer.pauseVideo();
+    else if (activeSource === 'local' && localPlayerRef.current) localPlayerRef.current.pause();
+  };
+
+  const handleAbstractSeek = (time: number) => {
+    if (activeSource === 'youtube' && ytPlayer) ytPlayer.seekTo(time, true);
+    else if (activeSource === 'local' && localPlayerRef.current) localPlayerRef.current.seek(time);
+  };
 
   // Fetch audio from RapidAPI (youtube-mp36)
   useEffect(() => {
@@ -177,7 +211,6 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
   }, [activeSource]);
 
   useEffect(() => {
-    setEditContent(karaoke.textContent || '');
     if (karaoke.textContent && !showLyrics && !isEditing) {
       setShowLyrics(true);
     }
@@ -186,13 +219,14 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
     else if (!ytVideoId && hasLocalAudio) setActiveSource('local');
   }, [karaoke.textContent, ytVideoId, hasLocalAudio]);
 
-  const handleSaveLyrics = async () => {
+  const handleSaveLyrics = async (content: string) => {
     try {
       await db.karaokes.update(karaoke.id!, {
-        textContent: editContent
+        textContent: content
       });
+      karaoke.textContent = content; // mutate local copy
       setIsEditing(false);
-      setShowLyrics(!!editContent.trim());
+      setShowLyrics(!!content.trim());
       Swal.fire({
         toast: true,
         position: 'top-end',
@@ -234,10 +268,10 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
 
           {isEditing ? (
             <button
-              onClick={handleSaveLyrics}
-              className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-emerald-950 px-3 sm:px-4 py-2 rounded-xl transition-all cursor-pointer font-bold text-xs sm:text-sm shadow-[0_0_20px_rgba(16,185,129,0.2)]"
+              onClick={() => setIsEditing(false)}
+              className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 sm:px-4 py-2 rounded-xl transition-all cursor-pointer font-bold text-xs sm:text-sm"
             >
-              <Save size={16} /> <span className="hidden sm:inline">Guardar Letra</span>
+              Cerrar Editor
             </button>
           ) : (
             <button
@@ -487,7 +521,12 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
               </div>
             ) : activeSource === 'local' && hasLocalAudio ? (
               <div className="flex-1 w-full h-full">
-                <LocalAudioPlayer karaoke={karaoke} />
+                <LocalAudioPlayer 
+                  ref={localPlayerRef} 
+                  karaoke={karaoke} 
+                  onTimeUpdate={setLocalCurrentTime}
+                  onPlayStateChange={setGlobalIsPlaying}
+                />
               </div>
             ) : null}
           </motion.div>
@@ -501,49 +540,22 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-24 bg-primary-500/5 blur-3xl pointer-events-none rounded-full" />
             
             {isEditing ? (
-              <textarea
-                value={editContent}
-                onChange={(e) => setEditContent(e.target.value)}
-                className="flex-1 w-full p-6 sm:p-8 bg-transparent text-zinc-100 font-mono text-sm sm:text-base resize-none focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500/50"
-                placeholder="Pega aquí la letra de la canción..."
-                spellCheck={false}
+              <KaraokeLyricsEditor 
+                initialContent={karaoke.textContent || ''}
+                currentTime={localCurrentTime}
+                isPlaying={globalIsPlaying}
+                onPlay={handleAbstractPlay}
+                onPause={handleAbstractPause}
+                onSeek={handleAbstractSeek}
+                onSave={handleSaveLyrics}
+                onCancel={() => setIsEditing(false)}
               />
             ) : (
-              <div className="flex-1 overflow-y-auto p-6 sm:p-8 hide-scrollbar">
-                {karaoke.textContent ? (
-                  <div className="flex flex-col gap-4 sm:gap-6 pb-20">
-                    {karaoke.textContent.split('\n').map((line, idx) => {
-                      const trimmed = line.trim();
-                      if (!trimmed) return <div key={idx} className="h-2 sm:h-4" />;
-                      
-                      return (
-                        <motion.div 
-                          key={idx}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: Math.min(idx * 0.03, 0.5) }}
-                          className="group origin-left"
-                        >
-                          <p className="font-sans text-2xl sm:text-3xl lg:text-4xl font-black leading-tight text-zinc-500 hover:text-primary-400 transition-colors duration-300">
-                            {trimmed}
-                          </p>
-                        </motion.div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="h-full flex flex-col items-center justify-center text-zinc-500 gap-4">
-                    <AlignLeft size={48} className="opacity-20" />
-                    <p className="text-lg">No hay letra guardada aún</p>
-                    <button 
-                      onClick={() => setIsEditing(true)}
-                      className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-xl transition-colors text-sm font-bold"
-                    >
-                      Añadir Letra
-                    </button>
-                  </div>
-                )}
-              </div>
+              <KaraokeLyricsView 
+                karaoke={karaoke}
+                currentTime={localCurrentTime}
+                onEdit={() => setIsEditing(true)}
+              />
             )}
           </div>
         )}

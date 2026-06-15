@@ -1,14 +1,24 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Play, Pause, Volume2, VolumeX, RotateCcw, Loader2, FastForward, Music, Settings } from 'lucide-react';
 import { db } from '../../db';
 import type { Karaoke } from '../../db';
 import * as Tone from 'tone';
 
-interface LocalAudioPlayerProps {
-  karaoke: Karaoke;
+export interface LocalAudioPlayerRef {
+  play: () => void;
+  pause: () => void;
+  getCurrentTime: () => number;
+  seek: (time: number) => void;
+  getDuration: () => number;
 }
 
-export const LocalAudioPlayer = ({ karaoke }: LocalAudioPlayerProps) => {
+interface LocalAudioPlayerProps {
+  karaoke: Karaoke;
+  onTimeUpdate?: (time: number) => void;
+  onPlayStateChange?: (isPlaying: boolean) => void;
+}
+
+export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayerProps>(({ karaoke, onTimeUpdate, onPlayStateChange }, ref) => {
   const audioRef = useRef<HTMLAudioElement>(null);
   
   const [isPlaying, setIsPlaying] = useState(false);
@@ -22,6 +32,24 @@ export const LocalAudioPlayer = ({ karaoke }: LocalAudioPlayerProps) => {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
+
+  useImperativeHandle(ref, () => ({
+    play: () => {
+      if (audioRef.current && audioRef.current.paused) togglePlay();
+    },
+    pause: () => {
+      if (audioRef.current && !audioRef.current.paused) togglePlay();
+    },
+    getCurrentTime: () => audioRef.current ? audioRef.current.currentTime : 0,
+    seek: (time: number) => {
+      if (audioRef.current) {
+        audioRef.current.currentTime = time;
+        setCurrentTime(time);
+        if (onTimeUpdate) onTimeUpdate(time);
+      }
+    },
+    getDuration: () => duration
+  }));
 
   // Fetch the huge binary file ONLY when this component mounts, 
   // with a small delay so the page transition animation finishes first.
@@ -118,13 +146,17 @@ export const LocalAudioPlayer = ({ karaoke }: LocalAudioPlayerProps) => {
         }
         audioRef.current.play();
       }
-      setIsPlaying(!isPlaying);
+      const newPlayingState = !isPlaying;
+      setIsPlaying(newPlayingState);
+      if (onPlayStateChange) onPlayStateChange(newPlayingState);
     }
   };
 
   const handleTimeUpdate = () => {
     if (audioRef.current) {
-      setCurrentTime(audioRef.current.currentTime);
+      const time = audioRef.current.currentTime;
+      setCurrentTime(time);
+      if (onTimeUpdate) onTimeUpdate(time);
     }
   };
 
@@ -206,7 +238,10 @@ export const LocalAudioPlayer = ({ karaoke }: LocalAudioPlayerProps) => {
         src={audioUrl}
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
-        onEnded={() => setIsPlaying(false)}
+        onEnded={() => {
+          setIsPlaying(false);
+          if (onPlayStateChange) onPlayStateChange(false);
+        }}
       />
 
       {/* Animated Vinyl Area */}
@@ -399,4 +434,4 @@ export const LocalAudioPlayer = ({ karaoke }: LocalAudioPlayerProps) => {
       </div>
     </div>
   );
-};
+});
