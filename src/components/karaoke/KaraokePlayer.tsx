@@ -230,6 +230,10 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
       });
       karaoke.textContent = content; // mutate local copy
       setShowLyrics(!!content.trim());
+      
+      if (!content.trim()) {
+        setIsEditing(false);
+      }
       Swal.fire({
         toast: true,
         position: 'top-end',
