@@ -568,7 +568,6 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
               <KaraokeLyricsView 
                 karaoke={karaoke}
                 currentTime={localCurrentTime}
-                onEdit={() => setIsEditing(true)}
               />
             )}
           </div>

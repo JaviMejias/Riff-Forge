@@ -5,13 +5,12 @@ import { parseLrc, hasLrcTags } from '../../utils/lrcParser';
 import type { LrcLine } from '../../utils/lrcParser';
 import type { Karaoke } from '../../db';
 
-interface KaraokeLyricsViewProps {
+export interface KaraokeLyricsViewProps {
   karaoke: Karaoke;
   currentTime: number;
-  onEdit: () => void;
 }
 
-export const KaraokeLyricsView = ({ karaoke, currentTime, onEdit }: KaraokeLyricsViewProps) => {
+export const KaraokeLyricsView = ({ karaoke, currentTime }: KaraokeLyricsViewProps) => {
   const [animationsEnabled, setAnimationsEnabled] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
   const activeLineRef = useRef<HTMLDivElement>(null);
@@ -168,16 +167,6 @@ export const KaraokeLyricsView = ({ karaoke, currentTime, onEdit }: KaraokeLyric
             })}
           </div>
         )}
-      </div>
-
-      {/* Floating Edit Button */}
-      <div className="absolute bottom-6 right-6">
-        <button 
-          onClick={onEdit}
-          className="px-5 py-2.5 bg-zinc-800/80 hover:bg-zinc-700 backdrop-blur-md text-white rounded-full shadow-xl transition-colors text-xs font-bold border border-white/10"
-        >
-          Editar Letra
-        </button>
       </div>
     </div>
   );
