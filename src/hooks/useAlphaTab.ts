@@ -60,7 +60,7 @@ export function useAlphaTab(song: Song | null) {
     apiRef.current = new alphaTab.AlphaTabApi(containerRef.current, {
       core: {
         fontDirectory: 'https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/font/',
-        scriptFile: 'https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/alphaTab.worker.js'
+        useWorker: false
       },
       player: {
         enablePlayer: true,
