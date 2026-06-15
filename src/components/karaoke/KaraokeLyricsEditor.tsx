@@ -104,6 +104,27 @@ export const KaraokeLyricsEditor = ({
     }
   };
 
+  const handleJumpToLine = (targetIndex: number) => {
+    // Solo permitimos saltar a líneas que ya pasaron o la actual
+    if (targetIndex > syncIndex) return;
+
+    if (isPlaying) onPause();
+
+    // Limpiar los tiempos de la línea seleccionada y posteriores
+    setSyncLines(prev => prev.map((line, i) => 
+      i >= targetIndex ? { ...line, time: 0 } : line
+    ));
+    setSyncIndex(targetIndex);
+
+    // Retroceder el audio para tener contexto
+    if (targetIndex > 0) {
+      const prevTime = syncLines[targetIndex - 1]?.time || 0;
+      onSeek(Math.max(0, prevTime - 1));
+    } else {
+      onSeek(0);
+    }
+  };
+
   const handleSave = () => {
     if (mode === 'sync') {
       // Filtrar líneas sincronizadas y construir el LRC final
@@ -238,11 +259,12 @@ export const KaraokeLyricsEditor = ({
                   <div 
                     key={idx}
                     ref={isActive ? activeSyncRef : null}
+                    onClick={() => handleJumpToLine(idx)}
                     className={`py-3 px-4 rounded-xl mb-2 flex items-center gap-4 transition-all duration-300 ${
                       isActive 
-                        ? 'bg-amber-500/10 border border-amber-500/30 scale-105 origin-left' 
+                        ? 'bg-amber-500/10 border border-amber-500/30 scale-105 origin-left cursor-pointer' 
                         : isDone 
-                          ? 'opacity-50' 
+                          ? 'opacity-50 cursor-pointer hover:bg-white/5 hover:opacity-100' 
                           : 'opacity-30'
                     }`}
                   >
