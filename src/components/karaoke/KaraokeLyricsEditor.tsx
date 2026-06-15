@@ -259,7 +259,7 @@ export const KaraokeLyricsEditor = ({
             </div>
 
             {/* LISTA DE LÍNEAS */}
-            <div ref={syncScrollRef} className="flex-1 overflow-y-auto p-6 sm:p-10 pb-[250px] hide-scrollbar scroll-smooth">
+            <div ref={syncScrollRef} className="flex-1 overflow-y-auto p-6 sm:p-10 pb-10 hide-scrollbar scroll-smooth">
               {syncLines.map((line, idx) => {
                 const isActive = idx === syncIndex;
                 const isDone = line.time >= 0;
@@ -298,6 +298,9 @@ export const KaraokeLyricsEditor = ({
                   <p className="text-zinc-400">Guarda los cambios arriba a la derecha.</p>
                 </div>
               )}
+              
+              {/* Spacer invisible para que el último elemento pueda subir por encima del botón gigante */}
+              <div className="h-48 sm:h-56 w-full flex-shrink-0" />
             </div>
 
             {/* BOTÓN GIGANTE FLOTANTE */}
