@@ -79,7 +79,7 @@ export const AddSongsModal = ({
               placeholder="Buscar por título, artista o álbum..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-zinc-950/80 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-zinc-200 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all placeholder:text-zinc-600"
+              className="w-full bg-zinc-950/80 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-zinc-200 focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/50 transition-all placeholder:text-zinc-600"
             />
           </div>
         </div>
@@ -95,7 +95,7 @@ export const AddSongsModal = ({
                 onClick={() => toggleSelection(item.id)}
                 className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
                   selectedIds.has(item.id) 
-                    ? 'bg-amber-500/20 border-amber-500 text-amber-400' 
+                    ? 'bg-primary-500/20 border-primary-500 text-primary-400' 
                     : 'bg-zinc-900 border-white/5 text-zinc-300 hover:bg-zinc-800'
                 }`}
               >
@@ -104,7 +104,7 @@ export const AddSongsModal = ({
                   <p className="text-xs opacity-70">{item.artist || 'Desconocido'}</p>
                 </div>
                 <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                  selectedIds.has(item.id) ? 'border-amber-500 bg-amber-500' : 'border-zinc-500'
+                  selectedIds.has(item.id) ? 'border-primary-500 bg-primary-500' : 'border-zinc-500'
                 }`}>
                   {selectedIds.has(item.id) && <div className="w-2.5 h-2.5 rounded-full bg-zinc-950" />}
                 </div>
@@ -115,7 +115,7 @@ export const AddSongsModal = ({
           {visibleCount < filteredItems.length && (
             <button
               onClick={() => setVisibleCount(v => v + 10)}
-              className="mt-2 py-2 text-zinc-400 hover:text-amber-400 font-bold transition-colors text-sm"
+              className="mt-2 py-2 text-zinc-400 hover:text-primary-400 font-bold transition-colors text-sm"
             >
               Cargar más...
             </button>
@@ -137,7 +137,7 @@ export const AddSongsModal = ({
             <button
               onClick={handleConfirm}
               disabled={selectedIds.size === 0}
-              className="px-6 py-2.5 rounded-xl font-bold bg-amber-500 text-zinc-950 hover:bg-amber-400 transition-all shadow-[0_0_20px_rgba(245,158,11,0.2)] disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-2.5 rounded-xl font-bold bg-primary-500 text-zinc-950 hover:bg-primary-400 transition-all shadow-[0_0_20px_var(--theme-glow)] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Añadir a la lista
             </button>

@@ -47,8 +47,8 @@ export const KaraokeCard = ({ karaoke, index, isActive, onPlay, onDelete }: Kara
       whileHover={{ y: -5, scale: 1.02 }}
       className={`group relative overflow-hidden rounded-2xl border transition-all duration-300 cursor-pointer opacity-0 ${
         isActive 
-          ? 'bg-amber-500/10 border-amber-500/50 shadow-[0_0_30px_rgba(245,158,11,0.15)]' 
-          : 'bg-zinc-900/40 border-white/5 hover:bg-zinc-800/60 hover:border-white/10 hover:shadow-xl'
+          ? 'bg-primary-500/10 border-primary-500/50 shadow-[0_0_30px_var(--theme-glow)]' 
+          : 'bg-zinc-900/40 border-white/5 hover:bg-zinc-800/60 hover:border-primary-500/30 hover:shadow-[0_0_15px_var(--theme-glow)]'
       }`}
       onClick={onPlay}
       onMouseMove={handleMouseMove}
@@ -60,7 +60,7 @@ export const KaraokeCard = ({ karaoke, index, isActive, onPlay, onDelete }: Kara
           background: useMotionTemplate`
             radial-gradient(
               300px circle at ${mouseX}px ${mouseY}px,
-              rgba(245, 158, 11, 0.15),
+              var(--theme-glow),
               transparent 80%
             )
           `,
@@ -90,8 +90,8 @@ export const KaraokeCard = ({ karaoke, index, isActive, onPlay, onDelete }: Kara
             <div className="absolute inset-0 bg-gradient-to-br from-zinc-800 to-zinc-900 opacity-50"></div>
           )}
           
-          <div className="relative z-10 p-4 rounded-full bg-zinc-950/50 backdrop-blur-sm border border-white/10 text-white shadow-2xl group-hover:scale-110 group-hover:bg-amber-500 group-hover:text-zinc-950 group-hover:border-amber-400 transition-all duration-300">
-            <Play size={24} className={isActive ? 'text-amber-500' : ''} />
+          <div className="relative z-10 p-4 rounded-full bg-zinc-950/50 backdrop-blur-sm border border-white/10 text-white shadow-2xl group-hover:scale-110 group-hover:bg-primary-500 group-hover:text-zinc-950 group-hover:border-primary-400 transition-all duration-300">
+            <Play size={24} className={isActive ? 'text-primary-500' : ''} />
           </div>
 
           <div className="absolute bottom-2 left-2 flex gap-2 z-10">
@@ -110,7 +110,7 @@ export const KaraokeCard = ({ karaoke, index, isActive, onPlay, onDelete }: Kara
 
         {/* Info Area */}
         <div className="p-4 flex flex-col flex-1 relative z-10 pointer-events-none">
-          <h3 className="font-bold text-base sm:text-lg text-zinc-100 truncate group-hover:text-amber-400 transition-colors mb-1">
+          <h3 className="font-bold text-base sm:text-lg text-zinc-100 truncate group-hover:text-primary-400 transition-colors mb-1">
             {karaoke.name}
           </h3>
           <p className="text-zinc-400 text-xs sm:text-sm truncate font-medium flex items-center gap-2">

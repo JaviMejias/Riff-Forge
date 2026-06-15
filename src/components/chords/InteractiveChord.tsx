@@ -22,7 +22,7 @@ export const InteractiveChord = ({ text, onClick }: InteractiveChordProps) => {
   const chordDef = getChord(trimmed);
 
   if (!chordDef) {
-    return <span className="text-amber-600 font-bold">{text}</span>;
+    return <span className="text-primary-600 font-bold">{text}</span>;
   }
 
   return (
@@ -32,7 +32,7 @@ export const InteractiveChord = ({ text, onClick }: InteractiveChordProps) => {
       onMouseLeave={() => setIsHovered(false)}
       onClick={() => onClick && onClick(trimmed)}
     >
-      <span className="text-amber-400 font-bold cursor-help border-b-[1.5px] border-dashed border-amber-500/30 hover:border-amber-400 hover:text-amber-300 transition-colors">
+      <span className="text-primary-400 font-bold cursor-help border-b-[1.5px] border-dashed border-primary-500/30 hover:border-primary-400 hover:text-primary-300 transition-colors">
         {text}
       </span>
       <AnimatePresence>
@@ -53,7 +53,7 @@ export const InteractiveChord = ({ text, onClick }: InteractiveChordProps) => {
                     e.stopPropagation();
                     playChordAudio(chordDef.frets);
                   }}
-                  className="flex-1 flex items-center justify-center gap-2 py-1.5 bg-zinc-800 hover:bg-amber-500 hover:text-zinc-950 text-zinc-400 rounded-xl transition-all font-bold text-xs group"
+                  className="flex-1 flex items-center justify-center gap-2 py-1.5 bg-zinc-800 hover:bg-primary-500 hover:text-zinc-950 text-zinc-400 rounded-xl transition-all font-bold text-xs group"
                 >
                   <Volume2 size={14} className="group-hover:scale-110 transition-transform" />
                   Sonar
@@ -65,7 +65,7 @@ export const InteractiveChord = ({ text, onClick }: InteractiveChordProps) => {
                       setIsHovered(false);
                       onClick(trimmed);
                     }}
-                    className="flex-1 flex items-center justify-center gap-2 py-1.5 bg-zinc-800 hover:bg-amber-500 hover:text-zinc-950 text-zinc-400 rounded-xl transition-all font-bold text-xs group"
+                    className="flex-1 flex items-center justify-center gap-2 py-1.5 bg-zinc-800 hover:bg-primary-500 hover:text-zinc-950 text-zinc-400 rounded-xl transition-all font-bold text-xs group"
                   >
                     <Edit2 size={14} className="group-hover:scale-110 transition-transform" />
                     Editar

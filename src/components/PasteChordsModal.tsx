@@ -101,7 +101,7 @@ export const PasteChordsModal = ({ isOpen, onClose, onSuccess }: PasteChordsModa
               placeholder="Ej: Wonderwall"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full bg-zinc-950/80 border border-white/10 rounded-xl py-3 px-4 text-zinc-200 focus:outline-none focus:border-amber-500/50"
+              className="w-full bg-zinc-950/80 border border-white/10 rounded-xl py-3 px-4 text-zinc-200 focus:outline-none focus:border-primary-500/50"
             />
           </div>
           <div className="flex-1">
@@ -111,7 +111,7 @@ export const PasteChordsModal = ({ isOpen, onClose, onSuccess }: PasteChordsModa
               placeholder="Ej: Oasis"
               value={artist}
               onChange={(e) => setArtist(e.target.value)}
-              className="w-full bg-zinc-950/80 border border-white/10 rounded-xl py-3 px-4 text-zinc-200 focus:outline-none focus:border-amber-500/50"
+              className="w-full bg-zinc-950/80 border border-white/10 rounded-xl py-3 px-4 text-zinc-200 focus:outline-none focus:border-primary-500/50"
             />
           </div>
         </div>
@@ -122,7 +122,7 @@ export const PasteChordsModal = ({ isOpen, onClose, onSuccess }: PasteChordsModa
             <select
               value={originalKey}
               onChange={(e) => setOriginalKey(e.target.value)}
-              className="w-full bg-zinc-950/80 border border-white/10 rounded-xl py-3 px-4 text-zinc-200 focus:outline-none focus:border-amber-500/50 cursor-pointer appearance-none"
+              className="w-full bg-zinc-950/80 border border-white/10 rounded-xl py-3 px-4 text-zinc-200 focus:outline-none focus:border-primary-500/50 cursor-pointer appearance-none"
             >
               <option value="">Desconocida / No especificada</option>
               <optgroup label="Mayores">
@@ -144,7 +144,7 @@ export const PasteChordsModal = ({ isOpen, onClose, onSuccess }: PasteChordsModa
               placeholder="Ej: Estándar, Drop D (Opcional)"
               value={tuning}
               onChange={(e) => setTuning(e.target.value)}
-              className="w-full bg-zinc-950/80 border border-white/10 rounded-xl py-3 px-4 text-zinc-200 focus:outline-none focus:border-amber-500/50"
+              className="w-full bg-zinc-950/80 border border-white/10 rounded-xl py-3 px-4 text-zinc-200 focus:outline-none focus:border-primary-500/50"
             />
           </div>
         </div>
@@ -157,7 +157,7 @@ export const PasteChordsModal = ({ isOpen, onClose, onSuccess }: PasteChordsModa
               placeholder="Ej: Traste 2, Capo 5 (Opcional)"
               value={capo}
               onChange={(e) => setCapo(e.target.value)}
-              className="w-full bg-zinc-950/80 border border-white/10 rounded-xl py-3 px-4 text-zinc-200 focus:outline-none focus:border-amber-500/50"
+              className="w-full bg-zinc-950/80 border border-white/10 rounded-xl py-3 px-4 text-zinc-200 focus:outline-none focus:border-primary-500/50"
             />
           </div>
           <div className="flex-1">
@@ -167,7 +167,7 @@ export const PasteChordsModal = ({ isOpen, onClose, onSuccess }: PasteChordsModa
               placeholder="Ej: D D U U D U (Opcional)"
               value={strummingPattern}
               onChange={(e) => setStrummingPattern(e.target.value)}
-              className="w-full bg-zinc-950/80 border border-white/10 rounded-xl py-3 px-4 text-zinc-200 focus:outline-none focus:border-amber-500/50 font-mono"
+              className="w-full bg-zinc-950/80 border border-white/10 rounded-xl py-3 px-4 text-zinc-200 focus:outline-none focus:border-primary-500/50 font-mono"
             />
           </div>
         </div>
@@ -178,7 +178,7 @@ export const PasteChordsModal = ({ isOpen, onClose, onSuccess }: PasteChordsModa
             value={textContent}
             onChange={(e) => setTextContent(e.target.value)}
             placeholder="[C]Today is [Em]gonna be the day..."
-            className="flex-1 w-full bg-zinc-950/80 border border-white/10 rounded-xl py-3 px-4 text-zinc-200 focus:outline-none focus:border-amber-500/50 resize-none font-mono text-sm leading-relaxed"
+            className="flex-1 w-full bg-zinc-950/80 border border-white/10 rounded-xl py-3 px-4 text-zinc-200 focus:outline-none focus:border-primary-500/50 resize-none font-mono text-sm leading-relaxed"
           />
         </div>
 
@@ -192,7 +192,7 @@ export const PasteChordsModal = ({ isOpen, onClose, onSuccess }: PasteChordsModa
           </button>
           <button
             type="submit"
-            className="px-6 py-2.5 rounded-xl font-bold bg-amber-500 text-zinc-950 hover:bg-amber-400 transition-all shadow-[0_0_20px_rgba(245,158,11,0.2)]"
+            className="px-6 py-2.5 rounded-xl font-bold bg-primary-500 text-zinc-950 hover:bg-primary-400 transition-all shadow-[0_0_20px_var(--theme-glow)]"
           >
             Guardar Canción
           </button>

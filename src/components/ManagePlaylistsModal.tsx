@@ -50,7 +50,7 @@ export const ManagePlaylistsModal = ({ isOpen, onClose, songId }: ManagePlaylist
                   onClick={() => togglePlaylist(playlist)}
                   className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
                     isIncluded 
-                      ? 'bg-amber-500/10 border-amber-500/50 text-amber-500' 
+                      ? 'bg-primary-500/10 border-primary-500/50 text-primary-500' 
                       : 'bg-zinc-900 border-white/5 text-zinc-300 hover:bg-zinc-800'
                   }`}
                 >

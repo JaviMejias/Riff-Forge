@@ -130,7 +130,7 @@ export const CreateChordModal = ({ isOpen, onClose }: CreateChordModalProps) => 
                   placeholder="ej. Cmaj7/E"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="bg-zinc-950 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-amber-500 transition-colors"
+                  className="bg-zinc-950 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary-500 transition-colors"
                 />
               </div>
 
@@ -139,7 +139,7 @@ export const CreateChordModal = ({ isOpen, onClose }: CreateChordModalProps) => 
                 <select
                   value={root}
                   onChange={(e) => setRoot(e.target.value)}
-                  className="bg-zinc-950 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-amber-500 transition-colors"
+                  className="bg-zinc-950 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary-500 transition-colors"
                 >
                   {ROOTS.map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
@@ -157,13 +157,13 @@ export const CreateChordModal = ({ isOpen, onClose }: CreateChordModalProps) => 
                     max="15" 
                     value={baseFret} 
                     onChange={(e) => setBaseFret(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="w-16 bg-zinc-900 border border-white/10 rounded-lg px-2 py-1 text-center text-white focus:outline-none focus:border-amber-500"
+                    className="w-16 bg-zinc-900 border border-white/10 rounded-lg px-2 py-1 text-center text-white focus:outline-none focus:border-primary-500"
                   />
                 </div>
               </div>
 
-              <p className="text-[11px] font-medium text-amber-500/70 bg-amber-500/5 px-3 py-2 rounded-lg border border-amber-500/10 mb-2">
-                <strong className="text-amber-500">Nota sobre las cuerdas:</strong> La Cuerda 6 (E, más gruesa/grave) está a la izquierda y la Cuerda 1 (e, más delgada/aguda) a la derecha.
+              <p className="text-[11px] font-medium text-primary-500/70 bg-primary-500/5 px-3 py-2 rounded-lg border border-primary-500/10 mb-2">
+                <strong className="text-primary-500">Nota sobre las cuerdas:</strong> La Cuerda 6 (E, más gruesa/grave) está a la izquierda y la Cuerda 1 (e, más delgada/aguda) a la derecha.
               </p>
 
               <div className="flex justify-center mt-2 overflow-x-auto pb-4">
@@ -207,7 +207,7 @@ export const CreateChordModal = ({ isOpen, onClose }: CreateChordModalProps) => 
                                 {isActive && (
                                   <motion.div 
                                     initial={{ scale: 0 }} animate={{ scale: 1 }}
-                                    className="relative z-10 w-6 h-6 rounded-full bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)] flex items-center justify-center"
+                                    className="relative z-10 w-6 h-6 rounded-full bg-primary-500 shadow-[0_0_10px_rgba(245,158,11,0.5)] flex items-center justify-center"
                                   >
                                     <div className="w-2 h-2 rounded-full bg-zinc-900" />
                                   </motion.div>
@@ -235,16 +235,16 @@ export const CreateChordModal = ({ isOpen, onClose }: CreateChordModalProps) => 
             <div className="flex flex-col items-center">
               <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-widest mb-8">Previsualización</h3>
               
-              <div className="bg-zinc-900 p-8 rounded-3xl border border-amber-500/30 shadow-[0_0_30px_rgba(245,158,11,0.1)]">
+              <div className="bg-zinc-900 p-8 rounded-3xl border border-primary-500/30 shadow-[0_0_30px_rgba(245,158,11,0.1)]">
                 <ChordBox chord={currentPreview} width={140} height={180} hideName={true} />
               </div>
-              <div className="text-2xl font-black text-amber-500 mt-6 text-center">
+              <div className="text-2xl font-black text-primary-500 mt-6 text-center">
                 {currentPreview.name || 'Sin Nombre'}
               </div>
 
               <button
                 onClick={() => playChordAudio(currentPreview.frets)}
-                className="mt-6 flex items-center justify-center gap-2 w-full py-3 bg-zinc-800 hover:bg-amber-500 hover:text-zinc-950 text-white rounded-xl transition-all font-bold"
+                className="mt-6 flex items-center justify-center gap-2 w-full py-3 bg-zinc-800 hover:bg-primary-500 hover:text-zinc-950 text-white rounded-xl transition-all font-bold"
               >
                 <Volume2 size={18} />
                 Sonar Acorde
@@ -254,7 +254,7 @@ export const CreateChordModal = ({ isOpen, onClose }: CreateChordModalProps) => 
             <div className="mt-8 pt-8 border-t border-white/10">
               <button
                 onClick={handleSave}
-                className="flex items-center justify-center gap-2 w-full py-4 bg-amber-500 hover:bg-amber-400 text-zinc-950 rounded-2xl transition-all font-black text-lg shadow-[0_0_20px_rgba(245,158,11,0.2)]"
+                className="flex items-center justify-center gap-2 w-full py-4 bg-primary-500 hover:bg-primary-400 text-zinc-950 rounded-2xl transition-all font-black text-lg shadow-[0_0_20px_var(--theme-glow)]"
               >
                 <Save size={20} />
                 Guardar Acorde

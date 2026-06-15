@@ -37,7 +37,7 @@ const Tooltip = ({ text, children }: { text: string; children: React.ReactNode }
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.15 }}
-            className="absolute bottom-full mb-2 px-3 py-1.5 bg-zinc-800 text-xs text-amber-50 border border-white/10 rounded-lg whitespace-nowrap shadow-xl z-50 font-bold tracking-wide pointer-events-none"
+            className="absolute bottom-full mb-2 px-3 py-1.5 bg-zinc-800 text-xs text-primary-50 border border-white/10 rounded-lg whitespace-nowrap shadow-xl z-50 font-bold tracking-wide pointer-events-none"
           >
             {text}
           </motion.div>
@@ -143,7 +143,7 @@ export const PracticeControls = ({
             onClick={toggleMetronome}
             className={`flex items-center justify-center w-10 h-10 rounded-lg border transition-all disabled:opacity-50 ${
               isMetronomeActive
-                ? 'bg-amber-500/20 border-amber-500/50 text-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.2)]'
+                ? 'bg-primary-500/20 border-primary-500/50 text-primary-400 shadow-[0_0_10px_var(--theme-glow)]'
                 : 'bg-zinc-900 border-transparent text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'
             }`}
           >
@@ -195,7 +195,7 @@ export const PracticeControls = ({
           onClick={toggleMixer}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all disabled:opacity-50 ml-auto w-full md:w-auto mt-2 md:mt-0 ${
             isMixerOpen
-              ? 'bg-amber-500/20 border-amber-500/50 text-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.2)]'
+              ? 'bg-primary-500/20 border-primary-500/50 text-primary-400 shadow-[0_0_10px_var(--theme-glow)]'
               : 'bg-zinc-950/80 border-white/5 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
           }`}
         >

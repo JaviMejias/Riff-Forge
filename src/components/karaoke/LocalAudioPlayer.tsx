@@ -212,7 +212,7 @@ export const LocalAudioPlayer = ({ karaoke }: LocalAudioPlayerProps) => {
       {/* Animated Vinyl Area */}
       <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 to-black flex items-center justify-center">
         {/* Decorative background glow */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] aspect-square bg-amber-500/5 blur-3xl rounded-full pointer-events-none" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] aspect-square bg-primary-500/5 blur-3xl rounded-full pointer-events-none" />
         
         {/* Vinyl Record */}
         <div className="relative group w-48 h-48 sm:w-64 sm:h-64 lg:w-80 lg:h-80 -mt-16 sm:-mt-10">
@@ -239,10 +239,10 @@ export const LocalAudioPlayer = ({ karaoke }: LocalAudioPlayerProps) => {
             <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-transparent via-white/5 to-transparent rotate-45 pointer-events-none" />
 
             {/* Center Label */}
-            <div className="w-1/3 h-1/3 bg-amber-500 rounded-full shadow-inner flex flex-col items-center justify-center p-2 text-center relative border-[3px] border-amber-600">
+            <div className="w-1/3 h-1/3 bg-primary-500 rounded-full shadow-inner flex flex-col items-center justify-center p-2 text-center relative border-[3px] border-primary-600">
               <div className="w-3 h-3 bg-zinc-950 rounded-full absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10" />
-              <p className="text-[0.5rem] sm:text-[0.6rem] font-black text-amber-950 uppercase tracking-widest truncate w-full mb-1">{karaoke.artist || 'Unknown'}</p>
-              <p className="text-[0.4rem] sm:text-[0.5rem] font-bold text-amber-900 uppercase truncate w-full leading-tight">{karaoke.name}</p>
+              <p className="text-[0.5rem] sm:text-[0.6rem] font-black text-primary-950 uppercase tracking-widest truncate w-full mb-1">{karaoke.artist || 'Unknown'}</p>
+              <p className="text-[0.4rem] sm:text-[0.5rem] font-bold text-primary-900 uppercase truncate w-full leading-tight">{karaoke.name}</p>
             </div>
           </div>
         </div>
@@ -267,7 +267,7 @@ export const LocalAudioPlayer = ({ karaoke }: LocalAudioPlayerProps) => {
             <div className="flex flex-col gap-2">
               <div className="flex justify-between text-xs text-zinc-400 font-bold">
                 <span className="flex items-center gap-1"><Music size={12}/> Tono</span>
-                <span className={pitch !== 0 ? 'text-amber-400' : ''}>
+                <span className={pitch !== 0 ? 'text-primary-400' : ''}>
                   {pitch > 0 ? '+' : ''}{pitch} st
                 </span>
               </div>
@@ -279,14 +279,14 @@ export const LocalAudioPlayer = ({ karaoke }: LocalAudioPlayerProps) => {
                   step="1"
                   value={pitch}
                   onChange={handlePitchChange}
-                  className="flex-1 h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                  className="flex-1 h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-primary-500"
                 />
                 <button 
                   onClick={resetPitch}
                   className="p-1 hover:bg-zinc-700 rounded-md transition-colors"
                   title="Restablecer"
                 >
-                  <RotateCcw size={12} className="text-zinc-400 hover:text-amber-400" />
+                  <RotateCcw size={12} className="text-zinc-400 hover:text-primary-400" />
                 </button>
               </div>
             </div>
@@ -295,7 +295,7 @@ export const LocalAudioPlayer = ({ karaoke }: LocalAudioPlayerProps) => {
             <div className="flex flex-col gap-2">
               <div className="flex justify-between text-xs text-zinc-400 font-bold">
                 <span className="flex items-center gap-1"><FastForward size={12}/> Velocidad</span>
-                <span className={speed !== 1.0 ? 'text-amber-400' : ''}>
+                <span className={speed !== 1.0 ? 'text-primary-400' : ''}>
                   {speed.toFixed(2)}x
                 </span>
               </div>
@@ -307,14 +307,14 @@ export const LocalAudioPlayer = ({ karaoke }: LocalAudioPlayerProps) => {
                   step="0.05"
                   value={speed}
                   onChange={handleSpeedChange}
-                  className="flex-1 h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                  className="flex-1 h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-primary-500"
                 />
                 <button 
                   onClick={resetSpeed}
                   className="p-1 hover:bg-zinc-700 rounded-md transition-colors"
                   title="Restablecer"
                 >
-                  <RotateCcw size={12} className="text-zinc-400 hover:text-amber-400" />
+                  <RotateCcw size={12} className="text-zinc-400 hover:text-primary-400" />
                 </button>
               </div>
             </div>
@@ -334,7 +334,7 @@ export const LocalAudioPlayer = ({ karaoke }: LocalAudioPlayerProps) => {
             max={duration || 100}
             value={currentTime}
             onChange={handleSeek}
-            className="w-full h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer accent-amber-500 hover:h-2 transition-all"
+            className="w-full h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer accent-primary-500 hover:h-2 transition-all"
           />
         </div>
 
@@ -345,7 +345,7 @@ export const LocalAudioPlayer = ({ karaoke }: LocalAudioPlayerProps) => {
             {/* Play Button */}
             <button
               onClick={togglePlay}
-              className="text-white hover:text-amber-400 transition-colors"
+              className="text-white hover:text-primary-400 transition-colors"
             >
               {isPlaying ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" />}
             </button>
@@ -356,7 +356,7 @@ export const LocalAudioPlayer = ({ karaoke }: LocalAudioPlayerProps) => {
                 const newMute = !isMuted;
                 setIsMuted(newMute);
                 if (audioRef.current) audioRef.current.muted = newMute;
-              }} className="text-white hover:text-amber-400 transition-colors">
+              }} className="text-white hover:text-primary-400 transition-colors">
                 {isMuted || volume === 0 ? <VolumeX size={20} /> : <Volume2 size={20} />}
               </button>
               {/* Expandable volume slider on desktop, fixed small on mobile */}
@@ -388,7 +388,7 @@ export const LocalAudioPlayer = ({ karaoke }: LocalAudioPlayerProps) => {
             {/* Settings Button */}
             <button
               onClick={() => setShowSettings(!showSettings)}
-              className={`text-white transition-colors ${showSettings || pitch !== 0 || speed !== 1 ? 'text-amber-500' : 'hover:text-amber-400'}`}
+              className={`text-white transition-colors ${showSettings || pitch !== 0 || speed !== 1 ? 'text-primary-500' : 'hover:text-primary-400'}`}
               title="Configuración de audio"
             >
               <Settings size={20} className={`transition-transform duration-500 ${showSettings ? 'rotate-90' : ''}`} />

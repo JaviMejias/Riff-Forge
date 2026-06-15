@@ -12,7 +12,7 @@ export const TonalidadTooltip = ({ tonalidad }: { tonalidad: string }) => {
       onMouseLeave={() => setIsHovered(false)}
     >
       <span className="text-zinc-500 font-bold">Tonalidad:</span>
-      <span className="text-amber-400 font-bold">{tonalidad}</span>
+      <span className="text-primary-400 font-bold">{tonalidad}</span>
       <AnimatePresence>
         {isHovered && (
           <motion.div
@@ -22,7 +22,7 @@ export const TonalidadTooltip = ({ tonalidad }: { tonalidad: string }) => {
             transition={{ duration: 0.15 }}
             className="absolute z-[100] top-full mt-3 left-0 w-64 bg-zinc-900 border border-white/10 p-4 rounded-2xl shadow-2xl"
           >
-            <h4 className="text-amber-500 font-bold mb-2 flex items-center gap-2"><Mic2 size={16}/> Tono Original</h4>
+            <h4 className="text-primary-500 font-bold mb-2 flex items-center gap-2"><Mic2 size={16}/> Tono Original</h4>
             <p className="text-zinc-400 text-xs leading-relaxed">
               Este es el tono original de la canción. Si te queda muy agudo o muy grave para cantar, puedes usar los controles de "Tono" a la derecha para transportar los acordes a una cómoda tonalidad.
             </p>

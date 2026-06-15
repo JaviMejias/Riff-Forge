@@ -164,7 +164,7 @@ export const KaraokePlaylistView = ({ playlistId, activeKaraokeId, onPlayKaraoke
             </button>
             <button
               onClick={() => setIsAddModalOpen(true)}
-              className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-zinc-950 px-4 py-2 rounded-xl transition-all font-bold text-sm"
+              className="flex items-center gap-2 bg-primary-500 hover:bg-primary-400 text-zinc-950 px-4 py-2 rounded-xl transition-all font-bold text-sm"
             >
               <Plus size={18} /> Añadir Karaokes
             </button>
@@ -180,7 +180,7 @@ export const KaraokePlaylistView = ({ playlistId, activeKaraokeId, onPlayKaraoke
             placeholder="Buscar en esta lista..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-zinc-900 border border-white/5 rounded-xl py-3 pl-12 pr-4 text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all shadow-inner"
+            className="w-full bg-zinc-900 border border-white/5 rounded-xl py-3 pl-12 pr-4 text-white placeholder-zinc-500 focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/50 transition-all shadow-inner"
           />
         </div>
       </div>
@@ -194,9 +194,9 @@ export const KaraokePlaylistView = ({ playlistId, activeKaraokeId, onPlayKaraoke
             <motion.div
               animate={{ y: [0, -10, 0] }}
               transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-              className="bg-amber-500/10 w-20 h-20 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(245,158,11,0.2)] border border-amber-500/30"
+              className="bg-primary-500/10 w-20 h-20 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_var(--theme-glow)] border border-primary-500/30"
             >
-              <Library size={40} className="text-amber-500" />
+              <Library size={40} className="text-primary-500" />
             </motion.div>
             <p className="text-xl font-bold text-zinc-300 mb-2">La lista está vacía</p>
             <p className="text-sm max-w-sm text-center">
@@ -234,7 +234,7 @@ export const KaraokePlaylistView = ({ playlistId, activeKaraokeId, onPlayKaraoke
 
         {hasMore && (
           <div ref={loadMoreRef} className="h-20 flex items-center justify-center mt-6">
-            <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin opacity-50"></div>
+            <div className="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin opacity-50"></div>
           </div>
         )}
       </div>

@@ -39,15 +39,15 @@ export const KaraokeLibraryView = ({ karaokes, activeKaraokeId, onPlayKaraoke, i
         <div class="flex flex-col gap-4 text-left">
           <div>
             <label class="text-zinc-400 text-sm font-bold mb-1 block">Título</label>
-            <input id="swal-input-title" class="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-amber-500 focus:outline-none" placeholder="Ej: Bohemian Rhapsody">
+            <input id="swal-input-title" class="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-primary-500 focus:outline-none" placeholder="Ej: Bohemian Rhapsody">
           </div>
           <div>
             <label class="text-zinc-400 text-sm font-bold mb-1 block">Artista</label>
-            <input id="swal-input-artist" class="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-amber-500 focus:outline-none" placeholder="Ej: Queen">
+            <input id="swal-input-artist" class="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-primary-500 focus:outline-none" placeholder="Ej: Queen">
           </div>
           <div>
             <label class="text-zinc-400 text-sm font-bold mb-1 block">Enlace de YouTube</label>
-            <input id="swal-input-url" type="url" class="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-amber-500 focus:outline-none" placeholder="Ej: https://www.youtube.com/watch?v=...">
+            <input id="swal-input-url" type="url" class="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-primary-500 focus:outline-none" placeholder="Ej: https://www.youtube.com/watch?v=...">
           </div>
         </div>
       `,
@@ -127,11 +127,11 @@ export const KaraokeLibraryView = ({ karaokes, activeKaraokeId, onPlayKaraoke, i
         <div class="flex flex-col gap-4 text-left">
           <div>
             <label class="text-zinc-400 text-sm font-bold mb-1 block">Título</label>
-            <input id="swal-file-title" value="${defaultTitle}" class="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-amber-500 focus:outline-none" placeholder="Ej: Bohemian Rhapsody">
+            <input id="swal-file-title" value="${defaultTitle}" class="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-primary-500 focus:outline-none" placeholder="Ej: Bohemian Rhapsody">
           </div>
           <div>
             <label class="text-zinc-400 text-sm font-bold mb-1 block">Artista</label>
-            <input id="swal-file-artist" class="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-amber-500 focus:outline-none" placeholder="Ej: Queen">
+            <input id="swal-file-artist" class="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-primary-500 focus:outline-none" placeholder="Ej: Queen">
           </div>
         </div>
       `,
@@ -281,7 +281,7 @@ export const KaraokeLibraryView = ({ karaokes, activeKaraokeId, onPlayKaraoke, i
           
           <button
             onClick={handleAddKaraoke}
-            className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-zinc-950 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl transition-all cursor-pointer font-bold text-xs sm:text-sm shadow-[0_0_20px_rgba(245,158,11,0.2)]"
+            className="flex items-center gap-2 bg-primary-500 hover:bg-primary-400 text-zinc-950 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl transition-all cursor-pointer font-bold text-xs sm:text-sm shadow-[0_0_20px_var(--theme-glow)]"
             title="Añadir nuevo Karaoke de YouTube"
           >
             <Mic2 size={16} className="hidden sm:block" /> <span className="hidden sm:inline">Añadir de YouTube</span><span className="sm:hidden">YouTube</span>
@@ -301,7 +301,7 @@ export const KaraokeLibraryView = ({ karaokes, activeKaraokeId, onPlayKaraoke, i
                 placeholder="Buscar karaoke o artista..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-zinc-900/50 border border-white/5 rounded-xl py-3 pl-11 pr-4 text-sm text-zinc-200 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all placeholder:text-zinc-600 shadow-inner"
+                className="w-full bg-zinc-900/50 border border-white/5 rounded-xl py-3 pl-11 pr-4 text-sm text-zinc-200 focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/50 transition-all placeholder:text-zinc-600 shadow-inner"
               />
             </div>
           </div>
@@ -314,9 +314,9 @@ export const KaraokeLibraryView = ({ karaokes, activeKaraokeId, onPlayKaraoke, i
               <motion.div
                 animate={{ y: [0, -10, 0] }}
                 transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                className="bg-amber-500/10 w-20 h-20 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(245,158,11,0.2)] border border-amber-500/30"
+                className="bg-primary-500/10 w-20 h-20 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_var(--theme-glow)] border border-primary-500/30"
               >
-                <Mic2 size={40} className="text-amber-500" />
+                <Mic2 size={40} className="text-primary-500" />
               </motion.div>
               <p className="text-xl font-bold text-zinc-300 mb-2">Aún no hay karaokes</p>
               <p className="text-sm">Añade enlaces de YouTube o archivos locales.</p>
@@ -344,7 +344,7 @@ export const KaraokeLibraryView = ({ karaokes, activeKaraokeId, onPlayKaraoke, i
 
               {hasMore && (
                 <div ref={loadMoreRef} className="col-span-full h-20 flex items-center justify-center">
-                  <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin opacity-50"></div>
+                  <div className="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin opacity-50"></div>
                 </div>
               )}
 

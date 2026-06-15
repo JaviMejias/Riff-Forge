@@ -6,6 +6,7 @@ import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 import { useUiStore } from '../store/uiStore';
 import { Button } from './ui/Button';
+import { Palette } from 'lucide-react';
 
 const MySwal = withReactContent(Swal);
 
@@ -15,7 +16,7 @@ interface SettingsViewProps {
 }
 
 export const SettingsView = (_props: SettingsViewProps) => {
-  const { setMobileMenuOpen } = useUiStore();
+  const { setMobileMenuOpen, theme, setTheme } = useUiStore();
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
 
@@ -45,6 +46,17 @@ export const SettingsView = (_props: SettingsViewProps) => {
       const songs = await db.songs.toArray();
       const playlists = await db.playlists.toArray();
       const customChords = await db.customChords.toArray();
+      const karaokes = await db.karaokes.toArray();
+      const karaokePlaylists = await db.karaokePlaylists.toArray();
+      const karaokeFiles = await db.karaokeFiles.toArray();
+
+      const settings: Record<string, string> = {};
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key) {
+          settings[key] = localStorage.getItem(key) || '';
+        }
+      }
 
       // Optimize JSON: Convert Uint8Array data to base64
       const optimizedSongs = songs.map(s => {
@@ -54,13 +66,24 @@ export const SettingsView = (_props: SettingsViewProps) => {
         return s;
       });
 
+      const optimizedKaraokeFiles = karaokeFiles.map(f => {
+        if (f.data) {
+          return { ...f, dataBase64: uint8ToBase64(f.data), data: undefined };
+        }
+        return f;
+      });
+
       const backupData = {
-        version: 1,
+        version: 2,
         timestamp: Date.now(),
         data: {
           songs: optimizedSongs,
           playlists,
-          customChords
+          customChords,
+          karaokes,
+          karaokePlaylists,
+          karaokeFiles: optimizedKaraokeFiles,
+          settings
         }
       };
 
@@ -100,11 +123,11 @@ export const SettingsView = (_props: SettingsViewProps) => {
   const processImport = async (jsonStr: string) => {
     try {
       const backupData = JSON.parse(jsonStr);
-      if (!backupData.data || !backupData.data.songs) {
+      if (!backupData.data) {
         throw new Error("Formato de archivo inválido");
       }
 
-      const { songs, playlists, customChords } = backupData.data;
+      const { songs = [], playlists = [], customChords = [], karaokes = [], karaokePlaylists = [], karaokeFiles = [], settings = {} } = backupData.data;
 
       // Reconstruct Uint8Array from base64
       const restoredSongs = songs.map((s: any) => {
@@ -116,9 +139,18 @@ export const SettingsView = (_props: SettingsViewProps) => {
         return s;
       });
 
+      const restoredKaraokeFiles = karaokeFiles.map((f: any) => {
+        if (f.dataBase64) {
+          const data = base64ToUint8(f.dataBase64);
+          delete f.dataBase64;
+          return { ...f, data };
+        }
+        return f;
+      });
+
       const result = await MySwal.fire({
         title: 'Opciones de Restauración',
-        text: '¿Deseas reemplazar tu biblioteca actual completamente o añadir los nuevos datos (fusionar)?',
+        text: '¿Deseas reemplazar tu biblioteca actual completamente o añadir los nuevos datos (fusionar)? Si se restauran ajustes de usuario, la página se recargará automáticamente.',
         icon: 'question',
         showCancelButton: true,
         showDenyButton: true,
@@ -138,20 +170,31 @@ export const SettingsView = (_props: SettingsViewProps) => {
 
       if (result.isConfirmed) {
         // Replace all
-        await db.transaction('rw', [db.songs, db.playlists, db.customChords], async () => {
+        await db.transaction('rw', [db.songs, db.playlists, db.customChords, db.karaokes, db.karaokePlaylists, db.karaokeFiles], async () => {
           await db.songs.clear();
           await db.playlists.clear();
           await db.customChords.clear();
+          await db.karaokes.clear();
+          await db.karaokePlaylists.clear();
+          await db.karaokeFiles.clear();
           
           if (restoredSongs.length > 0) await db.songs.bulkAdd(restoredSongs);
-          if (playlists && playlists.length > 0) await db.playlists.bulkAdd(playlists);
-          if (customChords && customChords.length > 0) await db.customChords.bulkAdd(customChords);
+          if (playlists.length > 0) await db.playlists.bulkAdd(playlists);
+          if (customChords.length > 0) await db.customChords.bulkAdd(customChords);
+          if (karaokes.length > 0) await db.karaokes.bulkAdd(karaokes);
+          if (karaokePlaylists.length > 0) await db.karaokePlaylists.bulkAdd(karaokePlaylists);
+          if (restoredKaraokeFiles.length > 0) await db.karaokeFiles.bulkAdd(restoredKaraokeFiles);
         });
+
+        if (Object.keys(settings).length > 0) {
+          localStorage.clear();
+          Object.entries(settings).forEach(([key, value]) => {
+            localStorage.setItem(key, value as string);
+          });
+        }
       } else if (result.isDenied) {
-        // Merge - we need to strip IDs to avoid conflict, but this breaks playlist references!
-        // To keep it simple but safe for merging without breaking playlist refs, we can assign new IDs to songs
-        // and update the playlists accordingly.
-        await db.transaction('rw', [db.songs, db.playlists, db.customChords], async () => {
+        // Merge
+        await db.transaction('rw', [db.songs, db.playlists, db.customChords, db.karaokes, db.karaokePlaylists, db.karaokeFiles], async () => {
           const idMapping = new Map<number, number>(); // oldId -> newId
 
           for (const s of restoredSongs) {
@@ -161,24 +204,47 @@ export const SettingsView = (_props: SettingsViewProps) => {
             if (oldId) idMapping.set(oldId, newId);
           }
 
-          if (playlists) {
-            for (const p of playlists) {
-              delete p.id;
-              p.songIds = p.songIds.map((oldId: number) => idMapping.get(oldId) || oldId);
-              await db.playlists.add(p);
-            }
+          for (const p of playlists) {
+            delete p.id;
+            p.songIds = p.songIds.map((oldId: number) => idMapping.get(oldId) || oldId);
+            await db.playlists.add(p);
           }
 
-          if (customChords) {
-            for (const c of customChords) {
-              delete c.id;
-              await db.customChords.add(c);
-            }
+          for (const c of customChords) {
+            delete c.id;
+            await db.customChords.add(c);
+          }
+
+          const kIdMapping = new Map<number, number>();
+          for (const k of karaokes) {
+             const oldId = k.id;
+             delete k.id;
+             const newId = await db.karaokes.add(k) as number;
+             if (oldId) kIdMapping.set(oldId, newId);
+          }
+
+          for (const p of karaokePlaylists) {
+             delete p.id;
+             p.songIds = p.songIds.map((oldId: number) => kIdMapping.get(oldId) || oldId);
+             await db.karaokePlaylists.add(p);
+          }
+
+          for (const f of restoredKaraokeFiles) {
+             if (f.karaokeId && kIdMapping.has(f.karaokeId)) {
+                f.karaokeId = kIdMapping.get(f.karaokeId);
+             }
+             await db.karaokeFiles.put(f);
           }
         });
+
+        if (Object.keys(settings).length > 0) {
+          Object.entries(settings).forEach(([key, value]) => {
+            localStorage.setItem(key, value as string);
+          });
+        }
       }
 
-      MySwal.fire({
+      await MySwal.fire({
         title: 'Importación Exitosa',
         text: 'Los datos han sido restaurados correctamente.',
         icon: 'success',
@@ -186,6 +252,10 @@ export const SettingsView = (_props: SettingsViewProps) => {
         color: '#fff',
         confirmButtonColor: '#f59e0b'
       });
+
+      if (Object.keys(settings).length > 0) {
+        setTimeout(() => window.location.reload(), 500);
+      }
     } catch (e) {
       console.error(e);
       MySwal.fire({
@@ -229,7 +299,7 @@ export const SettingsView = (_props: SettingsViewProps) => {
             <Menu size={20} />
           </button>
           <div className="flex items-center gap-3">
-            <Settings className="text-amber-500 hidden md:block" size={24} />
+            <Settings className="text-primary-500 hidden md:block" size={24} />
             <h1 className="text-xl md:text-2xl font-black text-white">Ajustes</h1>
           </div>
         </div>
@@ -237,6 +307,45 @@ export const SettingsView = (_props: SettingsViewProps) => {
 
       <div className="max-w-4xl mx-auto w-full p-6 md:p-12">
         
+        {/* APARIENCIA */}
+        <div className="mb-12">
+          <h2 className="text-sm font-bold text-zinc-500 uppercase tracking-widest mb-6">Apariencia</h2>
+          
+          <div className="bg-zinc-900 border border-white/5 rounded-3xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-lg">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-primary-500/10 rounded-2xl flex items-center justify-center border border-primary-500/20">
+                <Palette className="text-primary-500" size={24} />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-white mb-1">Tema Principal</h3>
+                <p className="text-zinc-400 text-sm">
+                  Personaliza el color base de toda la interfaz.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              {[
+                { id: 'amber', color: '#f59e0b', name: 'Riff Forge (Ámbar)' },
+                { id: 'rose', color: '#f43f5e', name: 'Rosa' },
+                { id: 'emerald', color: '#10b981', name: 'Esmeralda' },
+                { id: 'blue', color: '#3b82f6', name: 'Azul' },
+                { id: 'violet', color: '#8b5cf6', name: 'Violeta' }
+              ].map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => setTheme(t.id)}
+                  title={t.name}
+                  className={`w-10 h-10 rounded-full transition-all flex items-center justify-center ${theme === t.id ? 'ring-2 ring-offset-2 ring-offset-zinc-900 ring-white scale-110' : 'hover:scale-110 opacity-70 hover:opacity-100'}`}
+                  style={{ backgroundColor: t.color }}
+                >
+                  {theme === t.id && <CheckCircle2 size={16} className="text-white drop-shadow-md" />}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
         <div className="mb-12">
           <h2 className="text-sm font-bold text-zinc-500 uppercase tracking-widest mb-6">Portabilidad y Respaldo</h2>
           
@@ -260,8 +369,8 @@ export const SettingsView = (_props: SettingsViewProps) => {
               className="bg-zinc-900 border border-white/5 rounded-3xl p-6 flex flex-col justify-between shadow-lg"
             >
               <div>
-                <div className="w-12 h-12 bg-amber-500/10 rounded-2xl flex items-center justify-center mb-4 border border-amber-500/20">
-                  <Download className="text-amber-500" size={24} />
+                <div className="w-12 h-12 bg-primary-500/10 rounded-2xl flex items-center justify-center mb-4 border border-primary-500/20">
+                  <Download className="text-primary-500" size={24} />
                 </div>
                 <h3 className="text-xl font-bold text-white mb-2">Exportar Biblioteca</h3>
                 <p className="text-zinc-400 text-sm mb-6">

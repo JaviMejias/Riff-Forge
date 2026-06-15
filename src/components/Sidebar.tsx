@@ -35,11 +35,11 @@ export const Sidebar = () => {
         >
           <motion.div 
             whileHover={{ rotate: 10, scale: 1.05 }}
-            className="bg-amber-500 p-2.5 rounded-xl shadow-[0_0_20px_rgba(245,158,11,0.3)] border border-amber-400/50"
+            className="bg-primary-500 p-2.5 rounded-xl shadow-[0_0_20px_rgba(245,158,11,0.3)] border border-primary-400/50"
           >
             <Music2 size={24} className="text-zinc-950" />
           </motion.div>
-          <h1 className="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-amber-200 to-amber-500 bg-clip-text text-transparent truncate">
+          <h1 className="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-primary-200 to-primary-500 bg-clip-text text-transparent truncate">
             Riff Forge
           </h1>
         </Link>
@@ -66,20 +66,20 @@ export const Sidebar = () => {
                   onClick={() => setMobileMenuOpen(false)}
                   className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors font-medium text-sm ${
                     isActive 
-                      ? 'text-amber-400 font-bold' 
+                      ? 'text-primary-400 font-bold' 
                       : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
                   }`}
                 >
                   {isActive && (
                     <motion.div
                       layoutId="sidebarActiveIndicator"
-                      className="absolute inset-0 bg-amber-500/10 shadow-[inset_2px_0_0_var(--color-amber-500)] rounded-xl"
+                      className="absolute inset-0 bg-primary-500/10 shadow-[inset_2px_0_0_var(--primary-500)] rounded-xl"
                       initial={false}
                       transition={{ type: "spring", stiffness: 400, damping: 35 }}
                     />
                   )}
                   <div className="relative z-10 flex items-center gap-3">
-                    <Icon size={18} className={isActive ? 'text-amber-500' : 'opacity-70'} />
+                    <Icon size={18} className={isActive ? 'text-primary-500' : 'opacity-70'} />
                     {item.label}
                   </div>
                 </Link>
@@ -100,20 +100,20 @@ export const Sidebar = () => {
               onClick={() => setMobileMenuOpen(false)}
               className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors font-medium text-sm w-full text-left ${
                 location.pathname.startsWith('/playlists/tabs') || location.pathname.startsWith('/playlist/')
-                  ? 'text-amber-400 font-bold' 
+                  ? 'text-primary-400 font-bold' 
                   : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
               }`}
             >
               {(location.pathname.startsWith('/playlists/tabs') || location.pathname.startsWith('/playlist/')) && (
                 <motion.div
                   layoutId="sidebarActiveIndicator"
-                  className="absolute inset-0 bg-amber-500/10 shadow-[inset_2px_0_0_var(--color-amber-500)] rounded-xl"
+                  className="absolute inset-0 bg-primary-500/10 shadow-[inset_2px_0_0_var(--primary-500)] rounded-xl"
                   initial={false}
                   transition={{ type: "spring", stiffness: 400, damping: 35 }}
                 />
               )}
               <div className="relative z-10 flex items-center gap-3 w-full">
-                <Guitar size={18} className={`shrink-0 ${location.pathname.startsWith('/playlists/tabs') || location.pathname.startsWith('/playlist/') ? 'text-amber-500' : 'opacity-70'}`} />
+                <Guitar size={18} className={`shrink-0 ${location.pathname.startsWith('/playlists/tabs') || location.pathname.startsWith('/playlist/') ? 'text-primary-500' : 'opacity-70'}`} />
                 <span className="truncate flex-1">Listas de Tabs</span>
               </div>
             </Link>
@@ -123,20 +123,20 @@ export const Sidebar = () => {
               onClick={() => setMobileMenuOpen(false)}
               className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors font-medium text-sm w-full text-left ${
                 location.pathname.startsWith('/playlists/karaokes') || location.pathname.startsWith('/karaoke-playlist/')
-                  ? 'text-amber-400 font-bold' 
+                  ? 'text-primary-400 font-bold' 
                   : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
               }`}
             >
               {(location.pathname.startsWith('/playlists/karaokes') || location.pathname.startsWith('/karaoke-playlist/')) && (
                 <motion.div
                   layoutId="sidebarActiveIndicator"
-                  className="absolute inset-0 bg-amber-500/10 shadow-[inset_2px_0_0_var(--color-amber-500)] rounded-xl"
+                  className="absolute inset-0 bg-primary-500/10 shadow-[inset_2px_0_0_var(--primary-500)] rounded-xl"
                   initial={false}
                   transition={{ type: "spring", stiffness: 400, damping: 35 }}
                 />
               )}
               <div className="relative z-10 flex items-center gap-3 w-full">
-                <Mic2 size={18} className={`shrink-0 ${location.pathname.startsWith('/playlists/karaokes') || location.pathname.startsWith('/karaoke-playlist/') ? 'text-amber-500' : 'opacity-70'}`} />
+                <Mic2 size={18} className={`shrink-0 ${location.pathname.startsWith('/playlists/karaokes') || location.pathname.startsWith('/karaoke-playlist/') ? 'text-primary-500' : 'opacity-70'}`} />
                 <span className="truncate flex-1">Listas de Karaokes</span>
               </div>
             </Link>

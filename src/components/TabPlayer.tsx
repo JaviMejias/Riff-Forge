@@ -304,7 +304,7 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
               <button
                 onClick={() => setMainViewMode('pro')}
                 className={`px-3 sm:px-4 py-1.5 rounded-lg font-bold transition-all text-xs sm:text-sm ${mainViewMode === 'pro'
-                  ? 'bg-amber-500 text-zinc-950 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
+                  ? 'bg-primary-500 text-zinc-950 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
                   : 'text-zinc-400 hover:text-zinc-200'
                   }`}
               >
@@ -326,7 +326,7 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
             <button
               onClick={() => setShowPracticeControls(!showPracticeControls)}
               className={`p-2 rounded-xl border transition-all ${showPracticeControls
-                ? 'bg-amber-500 text-zinc-950 border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
+                ? 'bg-primary-500 text-zinc-950 border-primary-500 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
                 : 'bg-zinc-950/50 text-zinc-400 border-white/5 hover:text-zinc-200 hover:bg-zinc-800'
                 }`}
               title="Herramientas de Práctica"
@@ -423,7 +423,7 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
               <button
                 onClick={() => setIsAutoScrolling(!isAutoScrolling)}
                 className={`p-3 rounded-xl transition-all ${isAutoScrolling
-                  ? 'bg-amber-500 text-zinc-950 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
+                  ? 'bg-primary-500 text-zinc-950 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
                   : 'bg-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-700'
                   }`}
               >
@@ -433,18 +433,18 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
               <div className="flex items-center gap-2 bg-zinc-950/50 rounded-xl p-1 border border-white/5">
                 <button
                   onClick={() => setAutoScrollSpeed(Math.max(1, autoScrollSpeed - 1))}
-                  className="p-2 text-zinc-400 hover:text-amber-500 hover:bg-white/5 rounded-lg transition-colors"
+                  className="p-2 text-zinc-400 hover:text-primary-500 hover:bg-white/5 rounded-lg transition-colors"
                   disabled={autoScrollSpeed <= 1}
                 >
                   <Minus size={16} />
                 </button>
                 <div className="flex flex-col items-center justify-center min-w-[2.5rem]">
                   <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest leading-none mb-1">Vel</span>
-                  <span className="font-mono font-bold text-amber-500 leading-none text-lg">{autoScrollSpeed}</span>
+                  <span className="font-mono font-bold text-primary-500 leading-none text-lg">{autoScrollSpeed}</span>
                 </div>
                 <button
                   onClick={() => setAutoScrollSpeed(Math.min(10, autoScrollSpeed + 1))}
-                  className="p-2 text-zinc-400 hover:text-amber-500 hover:bg-white/5 rounded-lg transition-colors"
+                  className="p-2 text-zinc-400 hover:text-primary-500 hover:bg-white/5 rounded-lg transition-colors"
                   disabled={autoScrollSpeed >= 10}
                 >
                   <Plus size={16} />

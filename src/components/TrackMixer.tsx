@@ -93,16 +93,16 @@ export const TrackMixer = ({
                   className={`flex flex-col sm:flex-row sm:items-center justify-between bg-slate-800/40 p-4 rounded-xl border transition-all duration-500 gap-4 ${isEffectivelyMuted
                     ? 'border-slate-800 opacity-40 grayscale scale-[0.98]'
                     : isSolo
-                      ? 'border-amber-500/50 shadow-lg shadow-amber-500/10 scale-100 bg-slate-800/80'
+                      ? 'border-primary-500/50 shadow-lg shadow-primary-500/10 scale-100 bg-slate-800/80'
                       : 'border-slate-700/50 hover:border-slate-500 scale-100 shadow-md'
                     }`}
                 >
 
                   <div className="flex items-center gap-3 min-w-[150px] truncate transition-transform duration-300 origin-left">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 font-bold text-sm transition-colors duration-300 ${isSolo ? 'bg-amber-500/20 text-amber-400' : 'bg-indigo-500/20 text-indigo-400'}`}>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 font-bold text-sm transition-colors duration-300 ${isSolo ? 'bg-primary-500/20 text-primary-400' : 'bg-indigo-500/20 text-indigo-400'}`}>
                       {i + 1}
                     </div>
-                    <span className={`font-semibold truncate transition-colors duration-300 ${isSolo ? 'text-amber-100' : 'text-slate-200'}`}>
+                    <span className={`font-semibold truncate transition-colors duration-300 ${isSolo ? 'text-primary-100' : 'text-slate-200'}`}>
                       {track.name}
                     </span>
                   </div>
@@ -124,8 +124,8 @@ export const TrackMixer = ({
                       <button
                         onClick={() => onSoloToggle(i)}
                         className={`w-10 h-10 rounded-lg font-bold transition-all duration-300 flex items-center justify-center shadow-md active:scale-90 ${isSolo
-                          ? 'bg-amber-500 text-slate-950 shadow-[0_0_15px_rgba(245,158,11,0.5)] scale-105'
-                          : 'bg-slate-950 border border-slate-700 text-slate-400 hover:border-amber-500/50 hover:text-amber-200'
+                          ? 'bg-primary-500 text-slate-950 shadow-[0_0_15px_rgba(245,158,11,0.5)] scale-105'
+                          : 'bg-slate-950 border border-slate-700 text-slate-400 hover:border-primary-500/50 hover:text-primary-200'
                           }`}
                         title="Escuchar solo esta pista (Solo)"
                       >
@@ -133,7 +133,7 @@ export const TrackMixer = ({
                       </button>
                     </div>
                     <div className="flex items-center gap-2 flex-1 max-w-[200px] bg-slate-950 px-3 py-2 rounded-lg border border-slate-700 transition-colors duration-300">
-                      {vol === 0 || isEffectivelyMuted ? <VolumeX size={16} className="text-slate-600 transition-colors" /> : <Volume2 size={16} className={`${isSolo ? 'text-amber-400' : 'text-indigo-400'} transition-colors`} />}
+                      {vol === 0 || isEffectivelyMuted ? <VolumeX size={16} className="text-slate-600 transition-colors" /> : <Volume2 size={16} className={`${isSolo ? 'text-primary-400' : 'text-indigo-400'} transition-colors`} />}
                       <input
                         type="range"
                         min="0"
@@ -141,7 +141,7 @@ export const TrackMixer = ({
                         step="1"
                         value={vol}
                         onChange={(e) => onVolumeChange(i, parseInt(e.target.value))}
-                        className={`w-full cursor-pointer transition-all ${isSolo ? 'accent-amber-500' : 'accent-indigo-500'}`}
+                        className={`w-full cursor-pointer transition-all ${isSolo ? 'accent-primary-500' : 'accent-indigo-500'}`}
                       />
                     </div>
                   </div>

@@ -306,9 +306,9 @@ export const ChordsView = ({ track, songTitle, song }: ChordsViewProps) => {
         {/* Botón de edición movido a la barra de metadatos inferior */}
 
         {isEditing && (
-          <div className="bg-zinc-900 border border-amber-500/30 rounded-3xl p-6 shadow-xl w-full flex flex-col gap-6">
+          <div className="bg-zinc-900 border border-primary-500/30 rounded-3xl p-6 shadow-xl w-full flex flex-col gap-6">
             <div className="flex items-center justify-between">
-              <h3 className="text-amber-500 font-bold uppercase tracking-widest text-sm flex items-center gap-2">
+              <h3 className="text-primary-500 font-bold uppercase tracking-widest text-sm flex items-center gap-2">
                 <Edit2 size={16} /> Modo Edición
               </h3>
               <div className="flex gap-2">
@@ -324,25 +324,25 @@ export const ChordsView = ({ track, songTitle, song }: ChordsViewProps) => {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-zinc-950/50 p-4 rounded-2xl border border-white/5">
               <div>
                 <label className="block text-xs font-bold text-zinc-400 mb-1">Tono Original</label>
-                <input type="text" className="w-full bg-zinc-900 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-amber-500/50" value={editOriginalKey} onChange={e => setEditOriginalKey(e.target.value)} placeholder="Ej: G, Am" />
+                <input type="text" className="w-full bg-zinc-900 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-primary-500/50" value={editOriginalKey} onChange={e => setEditOriginalKey(e.target.value)} placeholder="Ej: G, Am" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-zinc-400 mb-1">Afinación</label>
-                <input type="text" className="w-full bg-zinc-900 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-amber-500/50" value={editTuning} onChange={e => setEditTuning(e.target.value)} placeholder="Ej: Drop D, Eb" />
+                <input type="text" className="w-full bg-zinc-900 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-primary-500/50" value={editTuning} onChange={e => setEditTuning(e.target.value)} placeholder="Ej: Drop D, Eb" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-zinc-400 mb-1">Capo</label>
-                <input type="text" className="w-full bg-zinc-900 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-amber-500/50" value={editCapo} onChange={e => setEditCapo(e.target.value)} placeholder="Ej: Traste 2" />
+                <input type="text" className="w-full bg-zinc-900 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-primary-500/50" value={editCapo} onChange={e => setEditCapo(e.target.value)} placeholder="Ej: Traste 2" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-zinc-400 mb-1">Rasgueo</label>
-                <input type="text" className="w-full bg-zinc-900 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-amber-500/50" value={editStrummingPattern} onChange={e => setEditStrummingPattern(e.target.value)} placeholder="Ej: D DU U DU" />
+                <input type="text" className="w-full bg-zinc-900 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-primary-500/50" value={editStrummingPattern} onChange={e => setEditStrummingPattern(e.target.value)} placeholder="Ej: D DU U DU" />
               </div>
             </div>
 
             <div className="flex flex-col gap-2">
               <textarea
-                className="w-full h-[600px] bg-zinc-950 text-zinc-100 font-mono text-sm sm:text-base p-6 rounded-xl border border-white/10 focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 resize-y custom-scrollbar whitespace-pre"
+                className="w-full h-[600px] bg-zinc-950 text-zinc-100 font-mono text-sm sm:text-base p-6 rounded-xl border border-white/10 focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/50 resize-y custom-scrollbar whitespace-pre"
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}
                 spellCheck={false}
@@ -356,12 +356,12 @@ export const ChordsView = ({ track, songTitle, song }: ChordsViewProps) => {
           <div className="bg-zinc-900/30 rounded-3xl p-6 border border-white/5 shadow-xl relative">
             <div className="flex items-center justify-between">
               <h3 className="text-zinc-500 font-bold uppercase tracking-widest text-xs flex items-center gap-2">
-                <Guitar size={14} className="text-amber-500" />
+                <Guitar size={14} className="text-primary-500" />
                 Acordes de la canción ({uniqueChords.size})
               </h3>
               <button 
                 onClick={() => setShowChordsSummary(!showChordsSummary)}
-                className="text-zinc-400 hover:text-amber-400 transition-colors text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 bg-zinc-800/80 rounded-full border border-white/5"
+                className="text-zinc-400 hover:text-primary-400 transition-colors text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 bg-zinc-800/80 rounded-full border border-white/5"
               >
                 {showChordsSummary ? 'Ocultar' : 'Mostrar'}
               </button>
@@ -381,12 +381,12 @@ export const ChordsView = ({ track, songTitle, song }: ChordsViewProps) => {
                        return (
                          <div key={chordText} className="flex flex-col">
                            {chordDef ? (
-                             <div className="bg-zinc-900/60 border border-white/5 p-4 rounded-3xl flex flex-col items-center hover:bg-zinc-800 hover:border-amber-500/30 hover:shadow-[0_0_20px_rgba(245,158,11,0.1)] transition-all group h-full">
+                             <div className="bg-zinc-900/60 border border-white/5 p-4 rounded-3xl flex flex-col items-center hover:bg-zinc-800 hover:border-primary-500/30 hover:shadow-[0_0_20px_rgba(245,158,11,0.1)] transition-all group h-full">
                                <ChordBox chord={chordDef} width={110} height={150} hideName={true} />
                                <div className="text-center mt-1 mb-2 text-white font-bold text-xl">{chordText}</div>
                                <button
                                  onClick={() => playChordAudio(chordDef.frets)}
-                                 className="mt-auto flex items-center justify-center gap-2 w-full py-2.5 bg-zinc-800 hover:bg-amber-500 hover:text-zinc-950 text-zinc-400 rounded-xl transition-all font-bold text-sm group-hover:bg-amber-500/10 group-hover:text-amber-500"
+                                 className="mt-auto flex items-center justify-center gap-2 w-full py-2.5 bg-zinc-800 hover:bg-primary-500 hover:text-zinc-950 text-zinc-400 rounded-xl transition-all font-bold text-sm group-hover:bg-primary-500/10 group-hover:text-primary-500"
                                >
                                  <Volume2 size={16} className="group-hover:scale-110 transition-transform" />
                                  Sonar
@@ -422,7 +422,7 @@ export const ChordsView = ({ track, songTitle, song }: ChordsViewProps) => {
                 {song.capo && (
                   <div className="flex items-center gap-2 bg-zinc-900 border border-white/5 px-4 py-2 rounded-xl shadow-sm text-sm">
                     <span className="text-zinc-500 font-bold">Capo:</span>
-                    <span className="text-amber-400 font-bold">{song.capo}</span>
+                    <span className="text-primary-400 font-bold">{song.capo}</span>
                   </div>
                 )}
                 {song.strummingPattern && (
@@ -430,10 +430,10 @@ export const ChordsView = ({ track, songTitle, song }: ChordsViewProps) => {
                     <span className="text-zinc-500 font-bold">Rasgueo:</span>
                     <div className="flex items-center gap-0.5">
                       {song.strummingPattern.split('').map((char, idx) => {
-                        if (char.toUpperCase() === 'D') return <ArrowDown key={idx} size={16} className="text-amber-400" strokeWidth={3} />;
-                        if (char.toUpperCase() === 'U') return <ArrowUp key={idx} size={16} className="text-amber-400" strokeWidth={3} />;
+                        if (char.toUpperCase() === 'D') return <ArrowDown key={idx} size={16} className="text-primary-400" strokeWidth={3} />;
+                        if (char.toUpperCase() === 'U') return <ArrowUp key={idx} size={16} className="text-primary-400" strokeWidth={3} />;
                         if (char.trim() === '') return <span key={idx} className="w-1.5"></span>;
-                        return <span key={idx} className="text-amber-400 font-bold px-0.5">{char}</span>;
+                        return <span key={idx} className="text-primary-400 font-bold px-0.5">{char}</span>;
                       })}
                     </div>
                   </div>
@@ -457,7 +457,7 @@ export const ChordsView = ({ track, songTitle, song }: ChordsViewProps) => {
                         title="Elegir tono exacto"
                       >
                         <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider leading-tight">Tono</span>
-                        <span className="font-mono font-bold text-amber-400 text-sm leading-none">
+                        <span className="font-mono font-bold text-primary-400 text-sm leading-none">
                           {currentRoot}
                         </span>
                       </button>
@@ -473,7 +473,7 @@ export const ChordsView = ({ track, songTitle, song }: ChordsViewProps) => {
                       {transposeDelta !== 0 && (
                         <button 
                           onClick={() => setTransposeDelta(0)}
-                          className="p-1.5 hover:bg-zinc-800 text-amber-500/80 hover:text-amber-500 rounded-lg transition-colors border-l border-white/5 ml-1"
+                          className="p-1.5 hover:bg-zinc-800 text-primary-500/80 hover:text-primary-500 rounded-lg transition-colors border-l border-white/5 ml-1"
                           title="Restaurar tono original"
                         >
                           <RotateCcw size={14} />
@@ -507,7 +507,7 @@ export const ChordsView = ({ track, songTitle, song }: ChordsViewProps) => {
                                     }}
                                     className={`py-2 rounded-xl font-bold text-sm transition-all ${
                                       isSelected 
-                                        ? 'bg-amber-500 text-zinc-950 shadow-[0_0_15px_rgba(245,158,11,0.3)]' 
+                                        ? 'bg-primary-500 text-zinc-950 shadow-[0_0_15px_rgba(245,158,11,0.3)]' 
                                         : 'bg-zinc-800/80 text-zinc-400 hover:bg-zinc-700 hover:text-white border border-white/5'
                                     }`}
                                   >
@@ -525,7 +525,7 @@ export const ChordsView = ({ track, songTitle, song }: ChordsViewProps) => {
                       onClick={handleEditClick}
                       className="flex items-center gap-2 bg-zinc-900 border border-white/5 hover:border-white/20 px-4 py-2.5 rounded-xl shadow-sm text-sm text-zinc-300 hover:text-white transition-colors font-medium"
                     >
-                      <Edit2 size={16} className="text-amber-500" />
+                      <Edit2 size={16} className="text-primary-500" />
                       Editar Letra/Acordes
                     </button>
                   </div>
@@ -537,7 +537,7 @@ export const ChordsView = ({ track, songTitle, song }: ChordsViewProps) => {
             {(!song.textContent || song.textContent.trim() === '') && (
               <div className="flex flex-col items-center justify-center py-20 text-center opacity-70">
                 <div className="bg-zinc-800/50 p-6 rounded-full mb-6 border border-white/5">
-                  <Edit2 size={48} className="text-amber-500/50" />
+                  <Edit2 size={48} className="text-primary-500/50" />
                 </div>
                 <h3 className="text-2xl font-bold text-zinc-300 mb-2">Lienzo en Blanco</h3>
                 <p className="text-zinc-500 max-w-sm mb-8">
@@ -545,7 +545,7 @@ export const ChordsView = ({ track, songTitle, song }: ChordsViewProps) => {
                 </p>
                 <button 
                   onClick={handleEditClick}
-                  className="px-6 py-3 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold rounded-xl transition-all shadow-[0_0_15px_rgba(245,158,11,0.2)]"
+                  className="px-6 py-3 bg-primary-500 hover:bg-primary-400 text-zinc-950 font-bold rounded-xl transition-all shadow-[0_0_15px_var(--theme-glow)]"
                 >
                   Empezar a Editar
                 </button>
@@ -575,7 +575,7 @@ export const ChordsView = ({ track, songTitle, song }: ChordsViewProps) => {
 
                 return (
                   <div key={i} className="mt-8 mb-4">
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-zinc-800/80 text-amber-500/80 border border-amber-500/10 uppercase tracking-widest shadow-sm">
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-zinc-800/80 text-primary-500/80 border border-primary-500/10 uppercase tracking-widest shadow-sm">
                       {tagStr}
                     </span>
                   </div>
@@ -665,7 +665,7 @@ export const ChordsView = ({ track, songTitle, song }: ChordsViewProps) => {
   return (
     <div className="bg-zinc-50 min-h-screen rounded-2xl p-8 md:p-12 shadow-2xl relative border border-white/10 text-zinc-900 font-sans">
       <div className="mx-auto">
-        <h1 className="text-4xl font-extrabold mb-8 border-b-2 border-amber-500 pb-4 inline-block">{songTitle}</h1>
+        <h1 className="text-4xl font-extrabold mb-8 border-b-2 border-primary-500 pb-4 inline-block">{songTitle}</h1>
 
         {contentLines.length === 0 ? (
           <div className="flex flex-col items-center justify-center text-zinc-400 py-20">
@@ -682,7 +682,7 @@ export const ChordsView = ({ track, songTitle, song }: ChordsViewProps) => {
               }).join('');
 
               return (
-                <div key={i} className="mb-8 hover:bg-amber-50/50 p-2 rounded-lg transition-colors">
+                <div key={i} className="mb-8 hover:bg-primary-50/50 p-2 rounded-lg transition-colors">
                   <div className="mb-1 whitespace-pre">
                     {chordItems.map((cText, idx) => (
                       <InteractiveChord key={idx} text={cText} onClick={(c) => {

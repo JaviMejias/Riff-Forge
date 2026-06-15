@@ -196,7 +196,7 @@ export const LibraryView = ({ songs, activeSongId, onPlaySong, onImport, isSideb
         <div className="flex gap-2 sm:gap-3 flex-wrap justify-end">
           <button
             onClick={handleCreateNewSong}
-            className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-amber-500 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl transition-all font-bold text-xs sm:text-sm border border-amber-500/20 hover:border-amber-500/40"
+            className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-primary-500 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl transition-all font-bold text-xs sm:text-sm border border-primary-500/20 hover:border-primary-500/40"
             title="Escribir una canción desde cero"
           >
             <Upload size={16} className="hidden sm:block" /> <span className="hidden sm:inline">Crear</span><span className="sm:hidden">Crear</span>
@@ -207,7 +207,7 @@ export const LibraryView = ({ songs, activeSongId, onPlaySong, onImport, isSideb
           >
             <Upload size={16} className="hidden sm:block" /> <span className="hidden sm:inline">Pegar Acordes</span><span className="sm:hidden">Pegar</span>
           </button>
-          <label className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-zinc-950 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl transition-all cursor-pointer font-bold text-xs sm:text-sm shadow-[0_0_20px_rgba(245,158,11,0.2)]">
+          <label className="flex items-center gap-2 bg-primary-500 hover:bg-primary-400 text-zinc-950 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl transition-all cursor-pointer font-bold text-xs sm:text-sm shadow-[0_0_20px_var(--theme-glow)]">
             <Upload size={16} className="hidden sm:block" /> <span className="hidden sm:inline">Importar Archivos</span><span className="sm:hidden">Importar</span>
             <input
               type="file"
@@ -228,19 +228,19 @@ export const LibraryView = ({ songs, activeSongId, onPlaySong, onImport, isSideb
             <div className="flex bg-zinc-900/50 border border-white/5 rounded-xl p-1 shadow-inner w-full sm:w-auto">
               <button
                 onClick={() => setFilterType('all')}
-                className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold transition-all ${filterType === 'all' ? 'bg-amber-500 text-zinc-950 shadow-sm' : 'text-zinc-400 hover:text-white'}`}
+                className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold transition-all ${filterType === 'all' ? 'bg-primary-500 text-zinc-950 shadow-sm' : 'text-zinc-400 hover:text-white'}`}
               >
                 Todos
               </button>
               <button
                 onClick={() => setFilterType('text')}
-                className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold transition-all ${filterType === 'text' ? 'bg-amber-500 text-zinc-950 shadow-sm' : 'text-zinc-400 hover:text-white'}`}
+                className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold transition-all ${filterType === 'text' ? 'bg-primary-500 text-zinc-950 shadow-sm' : 'text-zinc-400 hover:text-white'}`}
               >
                 Acordes
               </button>
               <button
                 onClick={() => setFilterType('gp')}
-                className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold transition-all ${filterType === 'gp' ? 'bg-amber-500 text-zinc-950 shadow-sm' : 'text-zinc-400 hover:text-white'}`}
+                className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold transition-all ${filterType === 'gp' ? 'bg-primary-500 text-zinc-950 shadow-sm' : 'text-zinc-400 hover:text-white'}`}
               >
                 Tabs
               </button>
@@ -253,7 +253,7 @@ export const LibraryView = ({ songs, activeSongId, onPlaySong, onImport, isSideb
                 placeholder="Buscar canción o artista..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-zinc-900/50 border border-white/5 rounded-xl py-3 pl-11 pr-4 text-sm text-zinc-200 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all placeholder:text-zinc-600 shadow-inner"
+                className="w-full bg-zinc-900/50 border border-white/5 rounded-xl py-3 pl-11 pr-4 text-sm text-zinc-200 focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/50 transition-all placeholder:text-zinc-600 shadow-inner"
               />
             </div>
           </div>
@@ -266,9 +266,9 @@ export const LibraryView = ({ songs, activeSongId, onPlaySong, onImport, isSideb
               <motion.div
                 animate={{ y: [0, -10, 0] }}
                 transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                className="bg-amber-500/10 w-20 h-20 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(245,158,11,0.2)] border border-amber-500/30"
+                className="bg-primary-500/10 w-20 h-20 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_var(--theme-glow)] border border-primary-500/30"
               >
-                <Library size={40} className="text-amber-500" />
+                <Library size={40} className="text-primary-500" />
               </motion.div>
               <p className="text-xl font-bold text-zinc-300 mb-2">Tu colección está vacía</p>
               <p className="text-sm">Importa archivos GuitarPro para empezar.</p>
@@ -297,7 +297,7 @@ export const LibraryView = ({ songs, activeSongId, onPlaySong, onImport, isSideb
 
               {hasMore && (
                 <div ref={loadMoreRef} className="col-span-full h-20 flex items-center justify-center">
-                  <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin opacity-50"></div>
+                  <div className="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin opacity-50"></div>
                 </div>
               )}
 

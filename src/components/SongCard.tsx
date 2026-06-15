@@ -31,10 +31,10 @@ export const SongCard = ({ song, isActive, onPlay, onAdd, onDelete, onRemove, in
       onMouseMove={handleMouseMove}
       whileHover={{ scale: 1.02, y: -4 }}
       whileTap={{ scale: 0.98 }}
-      className={`group flex items-center p-3 rounded-2xl cursor-pointer transition-colors border backdrop-blur-sm relative overflow-hidden opacity-0 ${
+      className={`group flex items-center p-3 rounded-2xl cursor-pointer transition-all border backdrop-blur-sm relative overflow-hidden opacity-0 ${
         isActive
-          ? 'bg-amber-500/10 border-amber-500/50 shadow-[0_0_20px_rgba(245,158,11,0.15)]'
-          : 'bg-zinc-900/60 hover:bg-zinc-800/80 border-white/10 shadow-lg'
+          ? 'bg-primary-500/10 border-primary-500/50 shadow-[0_0_20px_var(--theme-glow)]'
+          : 'bg-zinc-900/60 hover:bg-zinc-800/80 border-white/10 hover:border-primary-500/30 shadow-lg hover:shadow-[0_0_15px_var(--theme-glow)]'
       }`}
     >
       {/* Spotlight Effect */}
@@ -44,7 +44,7 @@ export const SongCard = ({ song, isActive, onPlay, onAdd, onDelete, onRemove, in
           background: useMotionTemplate`
             radial-gradient(
               300px circle at ${mouseX}px ${mouseY}px,
-              rgba(245, 158, 11, 0.15),
+              var(--theme-glow),
               transparent 80%
             )
           `,
@@ -60,7 +60,7 @@ export const SongCard = ({ song, isActive, onPlay, onAdd, onDelete, onRemove, in
           className="w-16 h-16 rounded-full bg-zinc-950 border border-zinc-800 flex items-center justify-center shadow-lg"
           style={{ background: 'repeating-radial-gradient(circle, #18181b, #18181b 2px, #27272a 3px, #18181b 4px)' }}
         >
-          <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors ${isActive ? 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.8)]' : 'bg-zinc-700'}`}>
+          <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors ${isActive ? 'bg-primary-500 shadow-[0_0_10px_var(--theme-glow-strong)]' : 'bg-zinc-700'}`}>
             <div className="w-1.5 h-1.5 bg-zinc-950 rounded-full" />
           </div>
         </motion.div>
@@ -70,14 +70,14 @@ export const SongCard = ({ song, isActive, onPlay, onAdd, onDelete, onRemove, in
       <div className="flex flex-col flex-1 min-w-0 py-1 relative z-10">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 min-w-0">
-            <h3 className={`font-black truncate text-lg leading-tight ${isActive ? 'text-amber-400' : 'text-zinc-100'}`} title={song.name}>
+            <h3 className={`font-black truncate text-lg leading-tight ${isActive ? 'text-primary-400' : 'text-zinc-100'}`} title={song.name}>
               {song.name}
             </h3>
             {isActive && (
               <div className="flex items-end gap-[2px] h-3 shrink-0 ml-1">
-                <motion.div animate={{ height: ['40%', '100%', '40%'] }} transition={{ duration: 0.7, repeat: Infinity, ease: 'easeInOut' }} className="w-[3px] bg-amber-400 rounded-t-sm" />
-                <motion.div animate={{ height: ['100%', '30%', '100%'] }} transition={{ duration: 0.8, repeat: Infinity, ease: 'easeInOut', delay: 0.1 }} className="w-[3px] bg-amber-400 rounded-t-sm" />
-                <motion.div animate={{ height: ['60%', '90%', '60%'] }} transition={{ duration: 0.6, repeat: Infinity, ease: 'easeInOut', delay: 0.2 }} className="w-[3px] bg-amber-400 rounded-t-sm" />
+                <motion.div animate={{ height: ['40%', '100%', '40%'] }} transition={{ duration: 0.7, repeat: Infinity, ease: 'easeInOut' }} className="w-[3px] bg-primary-400 rounded-t-sm" />
+                <motion.div animate={{ height: ['100%', '30%', '100%'] }} transition={{ duration: 0.8, repeat: Infinity, ease: 'easeInOut', delay: 0.1 }} className="w-[3px] bg-primary-400 rounded-t-sm" />
+                <motion.div animate={{ height: ['60%', '90%', '60%'] }} transition={{ duration: 0.6, repeat: Infinity, ease: 'easeInOut', delay: 0.2 }} className="w-[3px] bg-primary-400 rounded-t-sm" />
               </div>
             )}
           </div>
@@ -86,7 +86,7 @@ export const SongCard = ({ song, isActive, onPlay, onAdd, onDelete, onRemove, in
             {onAdd && (
               <button
                 onClick={onAdd}
-                className="p-1.5 text-zinc-500 hover:text-amber-400 hover:bg-amber-400/10 rounded-lg transition-all"
+                className="p-1.5 text-zinc-500 hover:text-primary-400 hover:bg-primary-400/10 rounded-lg transition-all"
                 title="Añadir a Playlist"
               >
                 <Plus size={16} />

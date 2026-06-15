@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 interface UiState {
   isMobileMenuOpen: boolean;
@@ -9,25 +10,52 @@ interface UiState {
   setDesktopSidebarOpen: (isOpen: boolean) => void;
   isImmersiveMode: boolean;
   toggleImmersiveMode: () => void;
+  theme: string;
+  setTheme: (theme: string) => void;
 }
 
-export const useUiStore = create<UiState>((set) => ({
-  isMobileMenuOpen: false,
-  isDesktopSidebarOpen: true,
-  toggleMobileMenu: () => set((state) => ({ isMobileMenuOpen: !state.isMobileMenuOpen })),
-  setMobileMenuOpen: (isOpen) => set({ isMobileMenuOpen: isOpen }),
-  toggleDesktopSidebar: () => set((state) => ({ isDesktopSidebarOpen: !state.isDesktopSidebarOpen })),
-  setDesktopSidebarOpen: (isOpen) => set({ isDesktopSidebarOpen: isOpen }),
-  isImmersiveMode: false,
-  toggleImmersiveMode: () => set((state) => {
-    const nextState = !state.isImmersiveMode;
-    if (nextState) {
-      document.documentElement.requestFullscreen().catch(() => {});
-    } else {
-      if (document.fullscreenElement) {
-        document.exitFullscreen().catch(() => {});
-      }
+export const useUiStore = create<UiState>()(
+  persist(
+    (set) => ({
+      isMobileMenuOpen: false,
+      isDesktopSidebarOpen: true,
+      toggleMobileMenu: () => set((state) => ({ isMobileMenuOpen: !state.isMobileMenuOpen })),
+      setMobileMenuOpen: (isOpen) => set({ isMobileMenuOpen: isOpen }),
+      toggleDesktopSidebar: () => set((state) => ({ isDesktopSidebarOpen: !state.isDesktopSidebarOpen })),
+      setDesktopSidebarOpen: (isOpen) => set({ isDesktopSidebarOpen: isOpen }),
+      isImmersiveMode: false,
+      toggleImmersiveMode: () => set((state) => {
+        const nextState = !state.isImmersiveMode;
+        if (nextState) {
+          document.documentElement.requestFullscreen().catch(() => {});
+        } else {
+          if (document.fullscreenElement) {
+            document.exitFullscreen().catch(() => {});
+          }
+        }
+        return { isImmersiveMode: nextState };
+      }),
+      theme: 'amber',
+      setTheme: (theme) => set(() => {
+        // Remove existing theme classes from html
+        const html = document.documentElement;
+        html.classList.forEach(className => {
+          if (className.startsWith('theme-')) {
+            html.classList.remove(className);
+          }
+        });
+        
+        // Add new theme class if not default (amber doesn't need class as it's the root default, but we can add theme-amber for consistency if needed, wait, root default is fine without class, but let's just add it if it's not amber)
+        if (theme !== 'amber') {
+          html.classList.add(`theme-${theme}`);
+        }
+        
+        return { theme };
+      }),
+    }),
+    {
+      name: 'ui-storage', // name of the item in the storage (must be unique)
+      partialize: (state) => ({ theme: state.theme }), // Only save the theme
     }
-    return { isImmersiveMode: nextState };
-  }),
-}));
+  )
+);

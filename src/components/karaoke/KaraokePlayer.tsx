@@ -224,7 +224,7 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
               onClick={() => setShowLyrics(!showLyrics)}
               className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl transition-all cursor-pointer font-bold text-xs sm:text-sm ${
                 showLyrics 
-                  ? 'bg-amber-500/20 text-amber-500 border border-amber-500/30' 
+                  ? 'bg-primary-500/20 text-primary-500 border border-primary-500/30' 
                   : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
               }`}
             >
@@ -242,7 +242,7 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
           ) : (
             <button
               onClick={() => { setIsEditing(true); setShowLyrics(true); }}
-              className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-zinc-950 px-3 sm:px-4 py-2 rounded-xl transition-all cursor-pointer font-bold text-xs sm:text-sm shadow-[0_0_20px_rgba(245,158,11,0.2)]"
+              className="flex items-center gap-2 bg-primary-500 hover:bg-primary-400 text-zinc-950 px-3 sm:px-4 py-2 rounded-xl transition-all cursor-pointer font-bold text-xs sm:text-sm shadow-[0_0_20px_var(--theme-glow)]"
             >
               <Edit3 size={16} /> <span className="hidden sm:inline">Editar Letra</span>
             </button>
@@ -270,7 +270,7 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
                 {activeSource === 'youtube' && (
                   <motion.div
                     layoutId="karaokeSourcePill"
-                    className="absolute inset-0 bg-amber-500 rounded-lg shadow-md -z-10"
+                    className="absolute inset-0 bg-primary-500 rounded-lg shadow-md -z-10"
                     initial={false}
                     transition={{ type: "spring", stiffness: 400, damping: 35 }}
                   />
@@ -288,7 +288,7 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
                 {activeSource === 'local' && (
                   <motion.div
                     layoutId="karaokeSourcePill"
-                    className="absolute inset-0 bg-amber-500 rounded-lg shadow-md -z-10"
+                    className="absolute inset-0 bg-primary-500 rounded-lg shadow-md -z-10"
                     initial={false}
                     transition={{ type: "spring", stiffness: 400, damping: 35 }}
                   />
@@ -372,8 +372,8 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
                 {/* Audio Status Overlay (Loading) */}
                 {isFetchingAudio && (
                   <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full flex items-center gap-2 pointer-events-none z-10">
-                    <Loader2 size={12} className="text-amber-500 animate-spin" />
-                    <span className="text-[10px] font-bold text-amber-500">Conectando motor de audio...</span>
+                    <Loader2 size={12} className="text-primary-500 animate-spin" />
+                    <span className="text-[10px] font-bold text-primary-500">Conectando motor de audio...</span>
                   </div>
                 )}
                 
@@ -388,7 +388,7 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
                       initAudioContext();
                     }}
                   >
-                    <div className="bg-amber-500 text-black px-6 py-3 rounded-full font-bold flex items-center gap-2 hover:scale-105 transition-transform shadow-[0_0_30px_rgba(245,158,11,0.5)]">
+                    <div className="bg-primary-500 text-black px-6 py-3 rounded-full font-bold flex items-center gap-2 hover:scale-105 transition-transform shadow-[0_0_30px_rgba(245,158,11,0.5)]">
                       <MonitorPlay size={20} />
                       Iniciar Karaoke
                     </div>
@@ -402,7 +402,7 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
                     className="p-2 sm:p-3 bg-black/60 hover:bg-black/80 backdrop-blur-sm rounded-full text-white transition-colors shadow-lg"
                     title="Ajustes de Audio"
                   >
-                    <Settings size={20} className={`transition-transform duration-500 ${showYtSettings ? 'rotate-90 text-amber-500' : ''}`} />
+                    <Settings size={20} className={`transition-transform duration-500 ${showYtSettings ? 'rotate-90 text-primary-500' : ''}`} />
                   </button>
                 </div>
                 {/* Info Pop-up */}
@@ -417,7 +417,7 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
                     <div className="absolute bottom-36 right-4 sm:right-8 bg-zinc-900/95 backdrop-blur-xl border border-white/10 rounded-2xl p-5 w-72 sm:w-80 shadow-2xl z-20">
                       <div className="flex justify-between items-center mb-6">
                         <h3 className="font-bold text-white text-sm flex items-center gap-2">
-                          <Settings size={16} className="text-amber-500" /> Motor de Audio
+                          <Settings size={16} className="text-primary-500" /> Motor de Audio
                         </h3>
                       <button onClick={() => setShowYtSettings(false)} className="text-zinc-400 hover:text-white">✕</button>
                     </div>
@@ -443,7 +443,7 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
                         <div>
                           <div className="flex justify-between items-center mb-2">
                             <label className="text-xs font-bold text-zinc-300">Tono (Semitonos)</label>
-                            <span className="text-xs font-mono bg-zinc-800 text-amber-500 px-2 py-0.5 rounded">
+                            <span className="text-xs font-mono bg-zinc-800 text-primary-500 px-2 py-0.5 rounded">
                               {pitch > 0 ? `+${pitch}` : pitch}
                             </span>
                           </div>
@@ -456,12 +456,12 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
                               step="1"
                               value={pitch}
                               onChange={handlePitchChange}
-                              className="flex-1 h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                              className="flex-1 h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-primary-500"
                             />
                             <span className="text-xs text-zinc-500 font-bold">+12</span>
                           </div>
                           <div className="flex justify-between mt-2">
-                            <button onClick={() => handlePitchChange({target: {value: '0'}} as any)} className="text-[10px] text-zinc-500 hover:text-amber-500 transition-colors">Resetear</button>
+                            <button onClick={() => handlePitchChange({target: {value: '0'}} as any)} className="text-[10px] text-zinc-500 hover:text-primary-500 transition-colors">Resetear</button>
                           </div>
                         </div>
                         
@@ -494,13 +494,13 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
           <div className="lg:w-1/2 h-[50vh] lg:h-full bg-gradient-to-br from-zinc-900/90 to-zinc-950/90 backdrop-blur-xl rounded-3xl border border-white/5 flex flex-col overflow-hidden shadow-2xl relative">
             
             {/* Brillo decorativo superior */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-24 bg-amber-500/5 blur-3xl pointer-events-none rounded-full" />
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-24 bg-primary-500/5 blur-3xl pointer-events-none rounded-full" />
             
             {isEditing ? (
               <textarea
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}
-                className="flex-1 w-full p-6 sm:p-8 bg-transparent text-zinc-100 font-mono text-sm sm:text-base resize-none focus:outline-none focus:ring-2 focus:ring-inset focus:ring-amber-500/50"
+                className="flex-1 w-full p-6 sm:p-8 bg-transparent text-zinc-100 font-mono text-sm sm:text-base resize-none focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500/50"
                 placeholder="Pega aquí la letra de la canción..."
                 spellCheck={false}
               />

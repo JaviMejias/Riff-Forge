@@ -61,13 +61,13 @@ export const CreateSongModal = ({ isOpen, onClose, onSuccess }: CreateSongModalP
       <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-6">
         <div>
           <label className="block text-sm font-bold text-zinc-300 mb-2 flex items-center gap-2">
-            <Music size={16} className="text-amber-500" /> Título *
+            <Music size={16} className="text-primary-500" /> Título *
           </label>
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="w-full bg-zinc-900/50 border border-white/5 rounded-xl px-4 py-3 text-zinc-200 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all placeholder:text-zinc-600 shadow-inner"
+            className="w-full bg-zinc-900/50 border border-white/5 rounded-xl px-4 py-3 text-zinc-200 focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/50 transition-all placeholder:text-zinc-600 shadow-inner"
             placeholder="Ej: Mi primera canción"
             required
             autoFocus
@@ -76,13 +76,13 @@ export const CreateSongModal = ({ isOpen, onClose, onSuccess }: CreateSongModalP
 
         <div>
           <label className="block text-sm font-bold text-zinc-300 mb-2 flex items-center gap-2">
-            <User size={16} className="text-amber-500" /> Artista (Opcional)
+            <User size={16} className="text-primary-500" /> Artista (Opcional)
           </label>
           <input
             type="text"
             value={artist}
             onChange={(e) => setArtist(e.target.value)}
-            className="w-full bg-zinc-900/50 border border-white/5 rounded-xl px-4 py-3 text-zinc-200 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all placeholder:text-zinc-600 shadow-inner"
+            className="w-full bg-zinc-900/50 border border-white/5 rounded-xl px-4 py-3 text-zinc-200 focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/50 transition-all placeholder:text-zinc-600 shadow-inner"
             placeholder="Ej: Autor Original"
           />
         </div>
@@ -97,7 +97,7 @@ export const CreateSongModal = ({ isOpen, onClose, onSuccess }: CreateSongModalP
           </button>
           <button
             type="submit"
-            className="px-6 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 font-black rounded-xl transition-all shadow-[0_0_15px_rgba(245,158,11,0.3)] hover:shadow-[0_0_25px_rgba(245,158,11,0.5)] transform hover:-translate-y-0.5"
+            className="px-6 py-2.5 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-400 hover:to-primary-500 text-zinc-950 font-black rounded-xl transition-all shadow-[0_0_15px_rgba(245,158,11,0.3)] hover:shadow-[0_0_25px_rgba(245,158,11,0.5)] transform hover:-translate-y-0.5"
           >
             Crear y Editar
           </button>

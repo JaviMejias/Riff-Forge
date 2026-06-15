@@ -14,7 +14,7 @@ export const AfinacionTooltip = ({ afinacion }: { afinacion: string }) => {
       onMouseLeave={() => setIsHovered(false)}
     >
       <span className="text-zinc-500 font-bold">Afinación:</span>
-      <span className="text-amber-400 font-bold">{afinacion}</span>
+      <span className="text-primary-400 font-bold">{afinacion}</span>
       <AnimatePresence>
         {isHovered && (
           <motion.div
@@ -24,7 +24,7 @@ export const AfinacionTooltip = ({ afinacion }: { afinacion: string }) => {
             transition={{ duration: 0.15 }}
             className="absolute z-[100] top-full mt-3 left-0 w-48 bg-zinc-900 border border-white/10 p-4 rounded-2xl shadow-2xl"
           >
-            <h4 className="text-amber-500 font-bold mb-3 flex items-center gap-2"><Guitar size={16}/> Cuerdas al aire</h4>
+            <h4 className="text-primary-500 font-bold mb-3 flex items-center gap-2"><Guitar size={16}/> Cuerdas al aire</h4>
             <p className="text-[10px] font-medium text-zinc-400 bg-zinc-950/80 px-2 py-1.5 rounded-md border border-white/5 mb-3 leading-tight">
               1 es la cuerda más delgada y 6 es la más gruesa.
             </p>
@@ -32,7 +32,7 @@ export const AfinacionTooltip = ({ afinacion }: { afinacion: string }) => {
               {displayNotas.map((nota, i) => (
                 <div key={i} className="flex items-center justify-between bg-zinc-950/50 px-3 py-1.5 rounded-lg border border-white/5">
                   <span className="text-zinc-500 text-xs font-bold">Cuerda {i + 1}</span>
-                  <span className="text-amber-400 font-black text-sm">{nota}</span>
+                  <span className="text-primary-400 font-black text-sm">{nota}</span>
                 </div>
               ))}
             </div>

@@ -48,7 +48,7 @@ export const CreatePlaylistModal = ({ isOpen, onClose, onCreate }: CreatePlaylis
             placeholder="Ej: Canciones para practicar..."
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full bg-zinc-950/80 border border-white/10 rounded-xl py-3 px-4 text-zinc-200 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all placeholder:text-zinc-600"
+            className="w-full bg-zinc-950/80 border border-white/10 rounded-xl py-3 px-4 text-zinc-200 focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/50 transition-all placeholder:text-zinc-600"
           />
         </div>
 
@@ -63,7 +63,7 @@ export const CreatePlaylistModal = ({ isOpen, onClose, onCreate }: CreatePlaylis
           <button
             type="submit"
             disabled={!name.trim()}
-            className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 disabled:hover:bg-amber-500 text-zinc-950 font-bold py-2.5 px-5 rounded-xl transition-all"
+            className="flex items-center gap-2 bg-primary-500 hover:bg-primary-400 disabled:opacity-50 disabled:hover:bg-primary-500 text-zinc-950 font-bold py-2.5 px-5 rounded-xl transition-all"
           >
             <Plus size={18} />
             Crear

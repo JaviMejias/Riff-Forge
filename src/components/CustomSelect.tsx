@@ -44,11 +44,11 @@ export const CustomSelect = ({
 
   const colorStyles = theme === 'amber' 
     ? {
-        borderHover: 'hover:border-amber-500/50',
-        focusRing: 'focus:ring-amber-500/50',
-        textHighlight: 'text-amber-400',
-        bgHover: 'hover:bg-amber-500/10 hover:text-amber-300',
-        bgSelected: 'bg-amber-500/20 text-amber-200 border-l-2 border-amber-500'
+        borderHover: 'hover:border-primary-500/50',
+        focusRing: 'focus:ring-primary-500/50',
+        textHighlight: 'text-primary-400',
+        bgHover: 'hover:bg-primary-500/10 hover:text-primary-300',
+        bgSelected: 'bg-primary-500/20 text-primary-200 border-l-2 border-primary-500'
       }
     : {
         borderHover: 'hover:border-sky-500/50',

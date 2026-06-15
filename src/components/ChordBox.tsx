@@ -147,7 +147,7 @@ export const ChordBox = ({ chord, width = 120, height = 160, hideName = false }:
                 cx={x} 
                 cy={y} 
                 r={7} 
-                fill="#f59e0b" // amber-500
+                fill="#f59e0b" // primary-500
               />
               {finger !== null && finger > 0 && (
                 <text 

@@ -100,7 +100,7 @@ export const PlaylistsIndexView = ({ type, isSidebarOpen, onToggleSidebar }: Pla
       >
         <button
           onClick={() => setIsCreateModalOpen(true)}
-          className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-zinc-950 px-4 py-2.5 rounded-xl transition-all cursor-pointer font-bold text-sm shadow-[0_0_20px_rgba(245,158,11,0.2)]"
+          className="flex items-center gap-2 bg-primary-500 hover:bg-primary-400 text-zinc-950 px-4 py-2.5 rounded-xl transition-all cursor-pointer font-bold text-sm shadow-[0_0_20px_var(--theme-glow)]"
         >
           <PlusCircle size={16} /> <span className="hidden sm:inline">Crear Lista</span>
         </button>
@@ -118,7 +118,7 @@ export const PlaylistsIndexView = ({ type, isSidebarOpen, onToggleSidebar }: Pla
                 placeholder="Buscar en tus listas..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-zinc-900/50 border border-white/5 rounded-xl py-3 pl-11 pr-4 text-sm text-zinc-200 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all placeholder:text-zinc-600 shadow-inner"
+                className="w-full bg-zinc-900/50 border border-white/5 rounded-xl py-3 pl-11 pr-4 text-sm text-zinc-200 focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/50 transition-all placeholder:text-zinc-600 shadow-inner"
               />
             </div>
           </div>
@@ -130,9 +130,9 @@ export const PlaylistsIndexView = ({ type, isSidebarOpen, onToggleSidebar }: Pla
             <motion.div
               animate={{ y: [0, -10, 0] }}
               transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-              className="bg-amber-500/10 w-20 h-20 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(245,158,11,0.2)] border border-amber-500/30"
+              className="bg-primary-500/10 w-20 h-20 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_var(--theme-glow)] border border-primary-500/30"
             >
-              <Folder size={40} className="text-amber-500" />
+              <Folder size={40} className="text-primary-500" />
             </motion.div>
             <p className="text-xl font-bold text-zinc-300 mb-2">No hay listas</p>
             <p className="text-sm max-w-sm text-center">
@@ -160,9 +160,9 @@ export const PlaylistsIndexView = ({ type, isSidebarOpen, onToggleSidebar }: Pla
                   >
                     <Link
                       to={linkPath}
-                      className="bg-zinc-900/80 border border-white/10 rounded-2xl p-6 flex flex-col items-center text-center gap-4 hover:border-amber-500/50 hover:bg-zinc-800/80 transition-all shadow-lg cursor-pointer h-full relative overflow-hidden"
+                      className="bg-zinc-900/80 border border-white/10 rounded-2xl p-6 flex flex-col items-center text-center gap-4 hover:border-primary-500/50 hover:bg-zinc-800/80 transition-all shadow-lg cursor-pointer h-full relative overflow-hidden"
                     >
-                      <div className="absolute inset-0 bg-gradient-to-b from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                      <div className="absolute inset-0 bg-gradient-to-b from-primary-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
                       
                       <button
                         onClick={(e) => handleDeletePlaylist(playlist.id!, e)}
@@ -173,14 +173,14 @@ export const PlaylistsIndexView = ({ type, isSidebarOpen, onToggleSidebar }: Pla
                       </button>
 
                       <div className="w-20 h-20 bg-zinc-950 rounded-2xl flex items-center justify-center shadow-inner relative group-hover:scale-105 transition-transform">
-                        <Icon size={32} className="text-amber-500 opacity-80" />
+                        <Icon size={32} className="text-primary-500 opacity-80" />
                         <div className="absolute -bottom-2 -right-2 bg-zinc-800 text-zinc-300 text-[10px] font-bold px-2 py-1 rounded-lg border border-white/10 shadow-lg">
                           {count}
                         </div>
                       </div>
                       
                       <div>
-                        <h3 className="text-white font-bold text-lg line-clamp-1 group-hover:text-amber-400 transition-colors">
+                        <h3 className="text-white font-bold text-lg line-clamp-1 group-hover:text-primary-400 transition-colors">
                           {playlist.name}
                         </h3>
                         <p className="text-zinc-500 text-sm mt-1">
@@ -197,7 +197,7 @@ export const PlaylistsIndexView = ({ type, isSidebarOpen, onToggleSidebar }: Pla
 
         {hasMore && (
           <div ref={loadMoreRef} className="h-20 flex items-center justify-center mt-6">
-            <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin opacity-50"></div>
+            <div className="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin opacity-50"></div>
           </div>
         )}
         </div>

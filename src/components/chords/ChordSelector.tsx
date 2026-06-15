@@ -71,12 +71,12 @@ export const ChordSelector = ({ initialRoot, selectedChord, onSelectChord, mode 
             placeholder="Buscar acorde (ej. Cmaj7, add9)..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-zinc-900/50 border border-white/10 rounded-2xl py-3 pl-12 pr-4 text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all shadow-inner"
+            className="w-full bg-zinc-900/50 border border-white/10 rounded-2xl py-3 pl-12 pr-4 text-white placeholder-zinc-500 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-all shadow-inner"
           />
         </div>
         <button
           onClick={() => setIsCreateModalOpen(true)}
-          className="flex items-center justify-center gap-2 px-6 py-3 bg-zinc-800 hover:bg-amber-500 hover:text-zinc-950 text-white font-bold rounded-2xl transition-all border border-white/5"
+          className="flex items-center justify-center gap-2 px-6 py-3 bg-zinc-800 hover:bg-primary-500 hover:text-zinc-950 text-white font-bold rounded-2xl transition-all border border-white/5"
         >
           <Plus size={20} />
           Crear Acorde
@@ -87,7 +87,7 @@ export const ChordSelector = ({ initialRoot, selectedChord, onSelectChord, mode 
         <button
           onClick={() => setActiveRoot('ALL')}
           className={`px-5 py-2 rounded-xl font-bold text-sm whitespace-nowrap transition-all ${activeRoot === 'ALL'
-            ? 'bg-amber-500 text-zinc-950 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
+            ? 'bg-primary-500 text-zinc-950 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
             : 'bg-zinc-800/80 text-zinc-400 hover:bg-zinc-700 hover:text-white border border-white/5'
             }`}
         >
@@ -98,7 +98,7 @@ export const ChordSelector = ({ initialRoot, selectedChord, onSelectChord, mode 
             key={root}
             onClick={() => setActiveRoot(root)}
             className={`px-5 py-2 rounded-xl font-bold text-sm whitespace-nowrap transition-all ${activeRoot === root
-              ? 'bg-amber-500 text-zinc-950 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
+              ? 'bg-primary-500 text-zinc-950 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
               : 'bg-zinc-800/80 text-zinc-400 hover:bg-zinc-700 hover:text-white border border-white/5'
               }`}
           >
@@ -119,7 +119,7 @@ export const ChordSelector = ({ initialRoot, selectedChord, onSelectChord, mode 
                 exit={{ opacity: 0, scale: 0.8 }}
                 key={chordDef.name}
                 onClick={() => onSelectChord && onSelectChord(chordDef)}
-                className={`bg-zinc-900/60 border p-4 rounded-3xl flex flex-col items-center hover:bg-zinc-800 hover:border-amber-500/30 hover:shadow-[0_0_20px_rgba(245,158,11,0.1)] transition-colors group cursor-pointer ${isSelected ? 'border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.2)] bg-zinc-800' : 'border-white/5'
+                className={`bg-zinc-900/60 border p-4 rounded-3xl flex flex-col items-center hover:bg-zinc-800 hover:border-primary-500/30 hover:shadow-[0_0_20px_rgba(245,158,11,0.1)] transition-colors group cursor-pointer ${isSelected ? 'border-primary-500 shadow-[0_0_15px_var(--theme-glow)] bg-zinc-800' : 'border-white/5'
                   }`}
               >
                 <div className="relative">
@@ -133,7 +133,7 @@ export const ChordSelector = ({ initialRoot, selectedChord, onSelectChord, mode 
                     </button>
                   )}
                 </div>
-                <div className={`text-center mt-3 mb-3 font-bold text-xl ${isSelected ? 'text-amber-500' : 'text-white'}`}>
+                <div className={`text-center mt-3 mb-3 font-bold text-xl ${isSelected ? 'text-primary-500' : 'text-white'}`}>
                   {chordDef.name}
                 </div>
                 <button
@@ -142,8 +142,8 @@ export const ChordSelector = ({ initialRoot, selectedChord, onSelectChord, mode 
                     playChordAudio(chordDef.frets);
                   }}
                   className={`mt-auto flex items-center justify-center gap-2 w-full py-3 rounded-xl transition-all font-bold text-base ${isSelected
-                    ? 'bg-amber-500 text-zinc-950 hover:bg-amber-400'
-                    : 'bg-zinc-950/50 hover:bg-amber-500 hover:text-zinc-950 text-zinc-400'
+                    ? 'bg-primary-500 text-zinc-950 hover:bg-primary-400'
+                    : 'bg-zinc-950/50 hover:bg-primary-500 hover:text-zinc-950 text-zinc-400'
                     }`}
                 >
                   <Volume2 size={16} />
@@ -159,7 +159,7 @@ export const ChordSelector = ({ initialRoot, selectedChord, onSelectChord, mode 
               exit={{ opacity: 0 }}
               className="col-span-full py-12 flex flex-col items-center justify-center text-zinc-500 bg-zinc-900/30 rounded-3xl border-2 border-dashed border-white/5 min-h-[200px]"
             >
-              <Search size={48} className="mb-4 opacity-50 text-amber-500/50" />
+              <Search size={48} className="mb-4 opacity-50 text-primary-500/50" />
               <p className="text-lg font-bold text-zinc-300">No se encontraron acordes</p>
               <p className="text-sm mt-1">¡Usa el botón "Crear Acorde" para añadirlo a tu biblioteca!</p>
             </motion.div>

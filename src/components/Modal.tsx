@@ -31,13 +31,13 @@ export const Modal = ({ isOpen, onClose, title, subtitle, icon, children }: Moda
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="relative w-full max-w-md bg-zinc-900 border border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
+          className="relative w-full max-w-md bg-zinc-900 border border-white/10 border-t-primary-500/30 rounded-3xl shadow-[0_10px_40px_var(--theme-glow)] overflow-hidden flex flex-col max-h-[80vh]"
         >
           {/* Header */}
           <div className="flex items-center justify-between p-6 pb-4 border-b border-white/5 shrink-0">
             <div className="flex items-center gap-3">
               {icon && (
-                <div className="bg-amber-500/20 p-2 rounded-xl text-amber-500">
+                <div className="bg-primary-500/20 p-2 rounded-xl text-primary-500">
                   {icon}
                 </div>
               )}
