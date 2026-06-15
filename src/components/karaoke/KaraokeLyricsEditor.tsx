@@ -194,15 +194,6 @@ export const KaraokeLyricsEditor = ({
               </button>
 
               <div className="flex items-center gap-4">
-                {/* Info Tooltip Icon */}
-                <div className="group relative flex items-center">
-                  <AlertCircle size={16} className="text-zinc-500 hover:text-amber-500 cursor-help transition-colors" />
-                  <div className="absolute top-full mt-2 right-0 w-56 p-3 bg-zinc-800 text-xs text-zinc-300 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none">
-                    <strong className="text-amber-400 block mb-1">💡 Consejo de Sincronización</strong>
-                    Usa siempre la fuente MP3 para sincronizar. Los videos de YouTube pueden tener pausas que descuadren la letra.
-                  </div>
-                </div>
-
                 <button
                   onClick={isPlaying ? onPause : onPlay}
                   className={`px-4 py-1.5 rounded-lg text-xs font-black flex items-center gap-1.5 transition-colors ${isPlaying ? 'bg-red-500/20 text-red-500 hover:bg-red-500/30' : 'bg-primary-500 text-zinc-950 hover:bg-primary-400'}`}

@@ -275,7 +275,11 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
             </button>
           ) : (
             <button
-              onClick={() => { setIsEditing(true); setShowLyrics(true); }}
+              onClick={() => { 
+                setIsEditing(true); 
+                setShowLyrics(true); 
+                if (hasLocalAudio) setActiveSource('local');
+              }}
               className="flex items-center gap-2 bg-primary-500 hover:bg-primary-400 text-zinc-950 px-3 sm:px-4 py-2 rounded-xl transition-all cursor-pointer font-bold text-xs sm:text-sm shadow-[0_0_20px_var(--theme-glow)]"
             >
               <Edit3 size={16} /> <span className="hidden sm:inline">Editar Letra</span>
@@ -294,11 +298,12 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
           {ytVideoId && hasLocalAudio && (
             <div className="flex bg-zinc-900/50 p-1 rounded-xl mb-4 self-center sm:self-start border border-white/5 relative">
               <button
-                onClick={() => setActiveSource('youtube')}
+                onClick={() => { if (!isEditing) setActiveSource('youtube'); }}
+                disabled={isEditing}
                 className={`relative flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg font-bold text-xs sm:text-sm transition-colors z-10 ${
                   activeSource === 'youtube' 
                     ? 'text-zinc-950' 
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed'
                 }`}
               >
                 {activeSource === 'youtube' && (
@@ -313,10 +318,11 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
               </button>
               <button
                 onClick={() => setActiveSource('local')}
+                disabled={isEditing}
                 className={`relative flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg font-bold text-xs sm:text-sm transition-colors z-10 ${
                   activeSource === 'local' 
                     ? 'text-zinc-950' 
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed'
                 }`}
               >
                 {activeSource === 'local' && (
