@@ -284,12 +284,12 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
         </div>
       </Navbar>
 
-      <div className="flex-1 mt-6 flex flex-col lg:flex-row gap-6 min-h-0">
+      <div className="flex-1 flex flex-col lg:flex-row gap-6 mt-6 overflow-hidden">
         
         {/* LADO IZQUIERDO: REPRODUCTOR */}
-        <div className={`relative flex flex-col transition-all duration-300 ${
+        <div className={`relative flex-col transition-all duration-300 ${
           showLyrics ? 'lg:w-1/2 h-[40vh] lg:h-full' : 'w-full h-full'
-        }`}>
+        } ${isEditing ? 'hidden lg:flex' : 'flex'}`}>
           {/* Selector de Fuente (Sólo si tiene ambas) */}
           {ytVideoId && hasLocalAudio && (
             <div className="flex bg-zinc-900/50 p-1 rounded-xl mb-4 self-center sm:self-start border border-white/5 relative">
@@ -534,7 +534,7 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
 
         {/* LADO DERECHO: LETRA */}
         {showLyrics && (
-          <div className={`${isEditing ? 'fixed inset-0 z-50 rounded-none lg:rounded-3xl lg:relative lg:inset-auto lg:z-auto' : 'h-[50vh] lg:h-full'} lg:w-1/2 bg-gradient-to-br from-zinc-900/90 to-zinc-950/90 backdrop-blur-xl rounded-3xl border border-white/5 flex flex-col overflow-hidden shadow-2xl relative`}>
+          <div className={`${isEditing ? 'flex-1 w-full lg:w-1/2 lg:h-full' : 'h-[50vh] lg:h-full lg:w-1/2'} bg-gradient-to-br from-zinc-900/90 to-zinc-950/90 backdrop-blur-xl rounded-3xl border border-white/5 flex flex-col overflow-hidden shadow-2xl relative`}>
             
             {/* Brillo decorativo superior */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-24 bg-primary-500/5 blur-3xl pointer-events-none rounded-full" />

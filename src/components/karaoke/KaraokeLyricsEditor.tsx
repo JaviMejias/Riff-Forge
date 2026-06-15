@@ -183,26 +183,26 @@ export const KaraokeLyricsEditor = ({
           <div className="w-full h-full flex flex-col">
             
             {/* INSTRUCCIONES y CONTROLES */}
-            <div className="p-4 bg-amber-500/10 border-b border-amber-500/20 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-3 text-amber-500/80">
-                <AlertCircle size={20} className="flex-shrink-0" />
-                <p className="text-sm font-medium">Pulsa el botón gigante (o Espacio) justo en el momento en que el cantante <strong className="font-black text-amber-500">COMIENCE</strong> a cantar la línea marcada.</p>
+            <div className="p-3 bg-amber-500/10 border-b border-amber-500/20 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-amber-500/80">
+                <AlertCircle size={16} className="flex-shrink-0" />
+                <p className="text-xs font-medium leading-tight">Pulsa el botón (o Espacio) justo cuando el cantante <strong className="font-black text-amber-500">COMIENCE</strong> la línea marcada.</p>
               </div>
               <div className="flex items-center gap-3">
                 <button
                   onClick={undoSync}
                   disabled={syncIndex === 0}
-                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-zinc-300 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"
+                  className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-zinc-300 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors"
                 >
-                  <RotateCcw size={16} />
+                  <RotateCcw size={14} />
                   Deshacer
                 </button>
                 <button
                   onClick={isPlaying ? onPause : onPlay}
-                  className={`px-5 py-2 rounded-lg text-sm font-black flex items-center gap-2 transition-colors ${isPlaying ? 'bg-red-500/20 text-red-500 hover:bg-red-500/30' : 'bg-primary-500 text-zinc-950 hover:bg-primary-400'}`}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-black flex items-center gap-1.5 transition-colors ${isPlaying ? 'bg-red-500/20 text-red-500 hover:bg-red-500/30' : 'bg-primary-500 text-zinc-950 hover:bg-primary-400'}`}
                 >
-                  {isPlaying ? <Pause size={16} /> : <Play size={16} />}
-                  {isPlaying ? 'Pausar Música' : 'Reproducir Música'}
+                  {isPlaying ? <Pause size={14} /> : <Play size={14} />}
+                  {isPlaying ? 'Pausar' : 'Reproducir'}
                 </button>
               </div>
             </div>
@@ -253,11 +253,11 @@ export const KaraokeLyricsEditor = ({
               <button
                 onClick={handleSyncLine}
                 disabled={!isPlaying || syncIndex >= syncLines.length}
-                className="w-full h-24 sm:h-32 bg-amber-500 hover:bg-amber-400 disabled:bg-zinc-800 disabled:text-zinc-600 disabled:border-zinc-700 text-zinc-950 rounded-3xl shadow-[0_10px_40px_rgba(245,158,11,0.3)] disabled:shadow-none border-b-4 border-amber-600 disabled:translate-y-1 transition-all active:translate-y-1 active:border-b-0 flex flex-col items-center justify-center gap-2 group"
+                className="w-full h-20 sm:h-24 bg-amber-500 hover:bg-amber-400 disabled:bg-zinc-800 disabled:text-zinc-600 disabled:border-zinc-700 text-zinc-950 rounded-2xl shadow-[0_10px_40px_rgba(245,158,11,0.3)] disabled:shadow-none border-b-4 border-amber-600 disabled:translate-y-1 transition-all active:translate-y-1 active:border-b-0 flex flex-col items-center justify-center gap-1 group"
               >
-                <MousePointerClick size={32} className="group-disabled:opacity-50 group-active:scale-90 transition-transform" />
-                <span className="font-black text-xl sm:text-2xl uppercase tracking-widest">Tap Aquí</span>
-                <span className="text-xs font-bold opacity-70">Para sincronizar la línea actual</span>
+                <MousePointerClick size={24} className="group-disabled:opacity-50 group-active:scale-90 transition-transform" />
+                <span className="font-black text-lg sm:text-xl uppercase tracking-widest">Tap Aquí</span>
+                <span className="text-[10px] font-bold opacity-70">Sincroniza la línea actual</span>
               </button>
             </div>
             

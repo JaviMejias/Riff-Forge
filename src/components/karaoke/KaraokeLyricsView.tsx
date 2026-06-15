@@ -16,6 +16,20 @@ export const KaraokeLyricsView = ({ karaoke, currentTime, onEdit }: KaraokeLyric
   const containerRef = useRef<HTMLDivElement>(null);
   const activeLineRef = useRef<HTMLDivElement>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const settingsRef = useRef<HTMLDivElement>(null);
+
+  // Close settings on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (settingsRef.current && !settingsRef.current.contains(e.target as Node)) {
+        setShowSettings(false);
+      }
+    };
+    if (showSettings) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showSettings]);
 
   const textContent = karaoke.textContent || '';
   const isDynamic = hasLrcTags(textContent);
@@ -70,7 +84,7 @@ export const KaraokeLyricsView = ({ karaoke, currentTime, onEdit }: KaraokeLyric
     <div className="relative flex-1 w-full h-full flex flex-col overflow-hidden">
       {/* Settings Toggle */}
       {isDynamic && (
-        <div className="absolute top-4 right-4 z-20">
+        <div ref={settingsRef} className="absolute top-4 right-4 z-20">
           <button 
             onClick={() => setShowSettings(!showSettings)}
             className={`p-2 rounded-xl backdrop-blur-md transition-colors ${showSettings ? 'bg-primary-500 text-zinc-950' : 'bg-zinc-800/50 text-zinc-400 hover:text-white'}`}
@@ -109,7 +123,7 @@ export const KaraokeLyricsView = ({ karaoke, currentTime, onEdit }: KaraokeLyric
       {/* Visor de Letra */}
       <div 
         ref={containerRef}
-        className={`flex-1 overflow-y-auto p-6 sm:p-10 hide-scrollbar scroll-smooth ${isDynamic && animationsEnabled ? 'pb-[50vh] pt-[20vh]' : 'pb-20 pt-8'}`}
+        className={`flex-1 overflow-y-auto p-6 sm:p-10 hide-scrollbar scroll-smooth ${isDynamic && animationsEnabled ? 'pb-[50vh] pt-12 pr-12' : 'pb-20 pt-8'}`}
       >
         {!isDynamic ? (
           // MODO ESTÁTICO (Plano)
