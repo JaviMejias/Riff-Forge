@@ -59,6 +59,34 @@ export const KaraokeLyricsEditor = ({
     }
   }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Auto-tracking: la letra sigue a la música incluso si retrocedemos la barra de progreso
+  useEffect(() => {
+    if (mode !== 'sync' || syncLines.length === 0) return;
+
+    let lastPastIndex = -1;
+    for (let i = 0; i < syncLines.length; i++) {
+      if (syncLines[i].time >= 0 && syncLines[i].time <= currentTime) {
+        lastPastIndex = i;
+      }
+    }
+    
+    let proposedSyncIndex = lastPastIndex + 1;
+    
+    // Limitamos el avance automático hasta la primera línea no sincronizada
+    // para que el usuario no se pierda en el vacío.
+    const firstUnsynced = syncLines.findIndex(l => l.time === -1);
+    if (firstUnsynced !== -1 && proposedSyncIndex > firstUnsynced) {
+      proposedSyncIndex = firstUnsynced;
+    }
+    
+    setSyncIndex(prev => {
+      if (proposedSyncIndex !== prev && proposedSyncIndex <= syncLines.length) {
+        return proposedSyncIndex;
+      }
+      return prev;
+    });
+  }, [currentTime, mode, syncLines]);
+
   // Scroll en modo Sync
   useEffect(() => {
     if (mode === 'sync' && activeSyncRef.current && syncScrollRef.current) {
@@ -115,6 +143,11 @@ export const KaraokeLyricsEditor = ({
   };
 
   const handleJumpToLine = (targetIndex: number) => {
+    // No permitir saltar más allá de la primera línea vacía
+    const firstUnsynced = syncLines.findIndex(l => l.time === -1);
+    const maxAllowed = firstUnsynced === -1 ? syncLines.length - 1 : firstUnsynced;
+    if (targetIndex > maxAllowed) return;
+
     if (isPlaying) onPause();
     setSyncIndex(targetIndex);
 

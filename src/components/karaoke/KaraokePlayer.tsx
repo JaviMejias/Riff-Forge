@@ -229,7 +229,6 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
         textContent: content
       });
       karaoke.textContent = content; // mutate local copy
-      setIsEditing(false);
       setShowLyrics(!!content.trim());
       Swal.fire({
         toast: true,
