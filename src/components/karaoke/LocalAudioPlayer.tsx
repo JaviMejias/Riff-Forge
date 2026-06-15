@@ -19,7 +19,7 @@ interface LocalAudioPlayerProps {
   onPlayStateChange?: (isPlaying: boolean) => void;
 }
 
-export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayerProps>(({ karaoke, onTimeUpdate, onPlayStateChange }, ref) => {
+export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayerProps>(({ karaoke, onTimeUpdate, onDurationUpdate, onPlayStateChange }, ref) => {
   const audioRef = useRef<HTMLAudioElement>(null);
   
   const [isPlaying, setIsPlaying] = useState(false);
