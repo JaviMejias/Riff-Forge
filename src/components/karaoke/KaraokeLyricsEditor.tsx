@@ -185,8 +185,8 @@ export const KaraokeLyricsEditor = ({
             {/* INSTRUCCIONES y CONTROLES */}
             <div className="p-4 bg-amber-500/10 border-b border-amber-500/20 flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-3 text-amber-500/80">
-                <AlertCircle size={20} />
-                <p className="text-sm font-medium">Pulsa el botón gigante (o Espacio) justo cuando empiece a sonar la línea marcada.</p>
+                <AlertCircle size={20} className="flex-shrink-0" />
+                <p className="text-sm font-medium">Pulsa el botón gigante (o Espacio) justo en el momento en que el cantante <strong className="font-black text-amber-500">COMIENCE</strong> a cantar la línea marcada.</p>
               </div>
               <div className="flex items-center gap-3">
                 <button
@@ -208,7 +208,7 @@ export const KaraokeLyricsEditor = ({
             </div>
 
             {/* LISTA DE LÍNEAS */}
-            <div ref={syncScrollRef} className="flex-1 overflow-y-auto p-6 sm:p-10 pb-[30vh] hide-scrollbar scroll-smooth">
+            <div ref={syncScrollRef} className="flex-1 overflow-y-auto p-6 sm:p-10 pb-[250px] hide-scrollbar scroll-smooth">
               {syncLines.map((line, idx) => {
                 const isActive = idx === syncIndex;
                 const isDone = idx < syncIndex;

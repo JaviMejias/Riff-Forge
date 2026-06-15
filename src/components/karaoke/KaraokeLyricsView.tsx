@@ -136,7 +136,7 @@ export const KaraokeLyricsView = ({ karaoke, currentTime, onEdit }: KaraokeLyric
                 <div 
                   key={idx} 
                   ref={isActive ? activeLineRef : null}
-                  className={`transition-all duration-500 origin-left ${isActive ? 'scale-110' : 'scale-100'} ${!animationsEnabled ? 'scale-100' : ''}`}
+                  className={`transition-all duration-500 origin-left ${isActive ? 'scale-105' : 'scale-100'} ${!animationsEnabled ? 'scale-100' : ''}`}
                 >
                   <p 
                     className={`font-sans text-3xl sm:text-4xl lg:text-5xl font-black leading-tight transition-colors duration-500 ${

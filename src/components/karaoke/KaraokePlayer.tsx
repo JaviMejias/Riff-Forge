@@ -534,7 +534,7 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
 
         {/* LADO DERECHO: LETRA */}
         {showLyrics && (
-          <div className="lg:w-1/2 h-[50vh] lg:h-full bg-gradient-to-br from-zinc-900/90 to-zinc-950/90 backdrop-blur-xl rounded-3xl border border-white/5 flex flex-col overflow-hidden shadow-2xl relative">
+          <div className={`${isEditing ? 'fixed inset-0 z-50 rounded-none lg:rounded-3xl lg:relative lg:inset-auto lg:z-auto' : 'h-[50vh] lg:h-full'} lg:w-1/2 bg-gradient-to-br from-zinc-900/90 to-zinc-950/90 backdrop-blur-xl rounded-3xl border border-white/5 flex flex-col overflow-hidden shadow-2xl relative`}>
             
             {/* Brillo decorativo superior */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-24 bg-primary-500/5 blur-3xl pointer-events-none rounded-full" />
