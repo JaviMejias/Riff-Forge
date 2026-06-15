@@ -208,7 +208,7 @@ export const KaraokePlaylistView = ({ playlistId, activeKaraokeId, onPlayKaraoke
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
             <AnimatePresence>
-              {displayedKaraokes?.map((karaoke) => (
+              {displayedKaraokes?.map((karaoke, idx) => (
                 <motion.div
                   key={karaoke.id}
                   layout
@@ -221,7 +221,8 @@ export const KaraokePlaylistView = ({ playlistId, activeKaraokeId, onPlayKaraoke
                     <KaraokeCard
                       karaoke={karaoke}
                       isActive={karaoke.id === activeKaraokeId}
-                      onClick={() => onPlayKaraoke(karaoke)}
+                      index={idx}
+                      onPlay={() => onPlayKaraoke(karaoke)}
                       onDelete={(e) => removeKaraokeFromPlaylist(karaoke.id!, e)}
                     />
                   </div>

@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import { ListMusic, CheckCircle2, Circle } from 'lucide-react';
 import { Modal } from './Modal';
 import { db } from '../db';

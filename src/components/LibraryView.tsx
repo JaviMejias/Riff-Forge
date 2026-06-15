@@ -2,7 +2,6 @@ import { Upload, Search, Library } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SongCard } from './SongCard';
 import { SongSkeleton } from './SongSkeleton';
-import { PlaylistSelectorModal } from './PlaylistSelectorModal';
 import { CreatePlaylistModal } from './CreatePlaylistModal';
 import { PasteChordsModal } from './PasteChordsModal';
 import { ManagePlaylistsModal } from './ManagePlaylistsModal';

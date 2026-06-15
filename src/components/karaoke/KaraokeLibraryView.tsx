@@ -1,4 +1,4 @@
-import { Upload, Search, Library, Mic2 } from 'lucide-react';
+import { Upload, Search, Mic2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { KaraokeCard } from './KaraokeCard';
 import { SongSkeleton } from '../SongSkeleton';
@@ -6,7 +6,7 @@ import { Navbar } from '../Navbar';
 import { db } from '../../db';
 import type { Karaoke } from '../../db';
 import { useState, useRef } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
+
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 import { Toast } from '../../utils/toast';

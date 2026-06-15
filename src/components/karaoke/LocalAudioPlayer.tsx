@@ -43,7 +43,7 @@ export const LocalAudioPlayer = ({ karaoke }: LocalAudioPlayerProps) => {
         }
 
         if (data && isMounted) {
-          const blob = new Blob([data], { type: 'audio/mpeg' });
+          const blob = new Blob([data as any], { type: 'audio/mpeg' });
           url = URL.createObjectURL(blob);
           setAudioUrl(url);
         }

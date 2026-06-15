@@ -5,7 +5,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Navbar } from '../Navbar';
 import { CreatePlaylistModal } from '../CreatePlaylistModal';
 import { Toast } from '../../utils/toast';
@@ -22,10 +22,8 @@ interface PlaylistsIndexViewProps {
 export const PlaylistsIndexView = ({ type, isSidebarOpen, onToggleSidebar }: PlaylistsIndexViewProps) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const navigate = useNavigate();
-
   // Query either tabs playlists or karaoke playlists
-  const playlists = useLiveQuery(
+  const playlists = useLiveQuery<any[]>(
     () => type === 'tabs' 
       ? db.playlists.orderBy('createdAt').reverse().toArray() 
       : db.karaokePlaylists.orderBy('createdAt').reverse().toArray(),

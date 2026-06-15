@@ -62,7 +62,7 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
     
     const result = await MySwal.fire({
       title: '¿Eliminar canción?',
-      text: `¿Estás seguro de que quieres eliminar "${song.title}"? Esta acción no se puede deshacer.`,
+      text: `¿Estás seguro de que quieres eliminar "${song.name}"? Esta acción no se puede deshacer.`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#ef4444',

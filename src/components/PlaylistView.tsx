@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { SongCard } from './SongCard';
 import { SongSkeleton } from './SongSkeleton';
 import { Navbar } from './Navbar';
-import { Toast } from '../utils/toast';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { AddSongsModal } from './AddSongsModal';
 import { db } from '../db';

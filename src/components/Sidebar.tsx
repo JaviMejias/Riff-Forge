@@ -1,6 +1,5 @@
-import { Music2, Library, BookOpen, Disc3, Settings, Mic2, Guitar } from 'lucide-react';
+import { Music2, Library, BookOpen, Settings, Mic2, Guitar } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { db } from '../db';
 import { Link, useLocation } from 'react-router-dom';
 import { useUiStore } from '../store/uiStore';
 
