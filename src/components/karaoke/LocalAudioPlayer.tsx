@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Play, Pause, Volume2, VolumeX, RotateCcw, Loader2, FastForward, Music, Settings } from 'lucide-react';
 import { db } from '../../db';
 import type { Karaoke } from '../../db';
-import { BungeePitchShift } from 'bungee-pitch-shift';
+import * as Tone from 'tone';
 
 interface LocalAudioPlayerProps {
   karaoke: Karaoke;
@@ -72,60 +72,50 @@ export const LocalAudioPlayer = ({ karaoke }: LocalAudioPlayerProps) => {
   // Setup Web Audio API
   const audioCtxRef = useRef<AudioContext | null>(null);
   const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
-  const pitchShiftRef = useRef<BungeePitchShift | null>(null);
+  const pitchShiftRef = useRef<Tone.PitchShift | null>(null);
   const isInitializingRef = useRef(false);
 
-  useEffect(() => {
-    // We only initialize the AudioContext upon first play to avoid browser autoplay policies
-    const initAudioContext = async () => {
-      if (!audioRef.current || audioCtxRef.current || isInitializingRef.current) return;
-      
-      isInitializingRef.current = true;
-      try {
-        const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-        const ctx = new AudioContext();
-        
-        // Initialize professional pitch shifter using static asset to avoid Vite HMR injection in Worklet
-        const pitchShift = await BungeePitchShift.create(ctx, {
-          workletPath: '/bungee-processor-bundled.js',
-          initialPitch: pitch,
-          initialSpeed: 1.0, // We let the <audio> tag handle the speed natively
-          initialMix: 1.0 // 100% wet, 0% dry to prevent echo
-        });
-        pitchShiftRef.current = pitchShift;
-        
-        // Only connect if not already connected
-        if (!audioCtxRef.current) {
-          const source = ctx.createMediaElementSource(audioRef.current);
-          source.connect(pitchShift.node);
-          pitchShift.node.connect(ctx.destination);
-          
-          audioCtxRef.current = ctx;
-          sourceRef.current = source;
-        }
-      } catch (e) {
-        console.error("AudioContext initialization failed:", e);
-      } finally {
-        isInitializingRef.current = false;
-      }
-    };
-
-    if (isPlaying && !audioCtxRef.current) {
-      initAudioContext();
-    }
+  const initAudioContext = async () => {
+    if (!audioRef.current || audioCtxRef.current || isInitializingRef.current) return;
     
-    if (isPlaying) {
-      if (audioCtxRef.current?.state === 'suspended') {
-        audioCtxRef.current.resume();
+    isInitializingRef.current = true;
+    try {
+      await Tone.start();
+      const ctx = Tone.getContext().rawContext as AudioContext;
+      
+      const pitchShift = new Tone.PitchShift({
+        pitch: pitch,
+        windowSize: 0.1
+      }).toDestination();
+      
+      pitchShiftRef.current = pitchShift;
+      
+      // Only connect if not already connected
+      if (!audioCtxRef.current) {
+        const source = ctx.createMediaElementSource(audioRef.current);
+        Tone.connect(source, pitchShift);
+        
+        audioCtxRef.current = ctx;
+        sourceRef.current = source;
       }
+    } catch (e) {
+      console.error("AudioContext initialization failed:", e);
+    } finally {
+      isInitializingRef.current = false;
     }
-  }, [isPlaying]);
+  };
 
   const togglePlay = () => {
     if (audioRef.current) {
       if (isPlaying) {
         audioRef.current.pause();
       } else {
+        // Inicializar el contexto DE INMEDIATO con el click del usuario
+        if (!audioCtxRef.current && !isInitializingRef.current) {
+          initAudioContext();
+        } else if (audioCtxRef.current?.state === 'suspended') {
+          audioCtxRef.current.resume();
+        }
         audioRef.current.play();
       }
       setIsPlaying(!isPlaying);
@@ -165,7 +155,7 @@ export const LocalAudioPlayer = ({ karaoke }: LocalAudioPlayerProps) => {
     const p = parseFloat(e.target.value);
     setPitch(p);
     if (pitchShiftRef.current) {
-      pitchShiftRef.current.setPitch(p);
+      pitchShiftRef.current.pitch = p;
     }
   };
 
@@ -180,7 +170,7 @@ export const LocalAudioPlayer = ({ karaoke }: LocalAudioPlayerProps) => {
   const resetPitch = () => {
     setPitch(0);
     if (pitchShiftRef.current) {
-      pitchShiftRef.current.setPitch(0);
+      pitchShiftRef.current.pitch = 0;
     }
   };
 
@@ -260,7 +250,13 @@ export const LocalAudioPlayer = ({ karaoke }: LocalAudioPlayerProps) => {
 
       {/* Settings Pop-up Menu */}
       {showSettings && (
-        <div className="absolute bottom-20 right-4 sm:right-8 bg-zinc-900/90 backdrop-blur-md border border-white/10 rounded-2xl p-4 sm:p-5 w-64 sm:w-72 shadow-2xl z-20">
+        <>
+          {/* Overlay to close on click outside */}
+          <div 
+            className="absolute inset-0 z-10" 
+            onClick={() => setShowSettings(false)}
+          />
+          <div className="absolute bottom-20 right-4 sm:right-8 bg-zinc-900/90 backdrop-blur-md border border-white/10 rounded-2xl p-4 sm:p-5 w-64 sm:w-72 shadow-2xl z-20">
           <div className="flex justify-between items-center mb-4">
             <h3 className="font-bold text-white text-sm">Ajustes de Audio</h3>
             <button onClick={() => setShowSettings(false)} className="text-zinc-400 hover:text-white">✕</button>
@@ -324,6 +320,7 @@ export const LocalAudioPlayer = ({ karaoke }: LocalAudioPlayerProps) => {
             </div>
           </div>
         </div>
+        </>
       )}
 
       {/* Control Bar Overlay */}
