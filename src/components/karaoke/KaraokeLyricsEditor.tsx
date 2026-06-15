@@ -182,29 +182,27 @@ export const KaraokeLyricsEditor = ({
         {mode === 'sync' && (
           <div className="w-full h-full flex flex-col">
             
-            {/* AVISO RECOMENDACIÓN MP3 */}
-            <div className="bg-blue-500/10 border-b border-blue-500/20 p-2 sm:p-3 flex justify-center">
-              <p className="text-[10px] sm:text-xs text-blue-400 font-medium text-center max-w-2xl">
-                <strong className="font-bold">💡 Recomendación:</strong> Selecciona el <strong className="font-bold text-blue-300">MP3</strong> como fuente de audio antes de sincronizar. 
-                Los videos de YouTube suelen tener "Intros" largas o pausas que descuadrarán la letra respecto a tu MP3 original de estudio.
-              </p>
-            </div>
+            {/* BARRA DE CONTROLES COMPACTA */}
+            <div className="p-3 bg-zinc-900/50 border-b border-white/5 flex items-center justify-between">
+              <button
+                onClick={undoSync}
+                disabled={syncIndex === 0}
+                className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-zinc-300 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors"
+              >
+                <RotateCcw size={14} />
+                Deshacer
+              </button>
 
-            {/* INSTRUCCIONES y CONTROLES */}
-            <div className="p-3 bg-amber-500/10 border-b border-amber-500/20 flex flex-col sm:flex-row items-center justify-between gap-3">
-              <div className="flex items-center gap-2 text-amber-500/80">
-                <AlertCircle size={16} className="flex-shrink-0" />
-                <p className="text-xs font-medium leading-tight">Pulsa el botón (o Espacio) justo cuando el cantante <strong className="font-black text-amber-500">COMIENCE</strong> la línea marcada.</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={undoSync}
-                  disabled={syncIndex === 0}
-                  className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-zinc-300 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors"
-                >
-                  <RotateCcw size={14} />
-                  Deshacer
-                </button>
+              <div className="flex items-center gap-4">
+                {/* Info Tooltip Icon */}
+                <div className="group relative flex items-center">
+                  <AlertCircle size={16} className="text-zinc-500 hover:text-amber-500 cursor-help transition-colors" />
+                  <div className="absolute top-full mt-2 right-0 w-56 p-3 bg-zinc-800 text-xs text-zinc-300 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none">
+                    <strong className="text-amber-400 block mb-1">💡 Consejo de Sincronización</strong>
+                    Usa siempre la fuente MP3 para sincronizar. Los videos de YouTube pueden tener pausas que descuadren la letra.
+                  </div>
+                </div>
+
                 <button
                   onClick={isPlaying ? onPause : onPlay}
                   className={`px-4 py-1.5 rounded-lg text-xs font-black flex items-center gap-1.5 transition-colors ${isPlaying ? 'bg-red-500/20 text-red-500 hover:bg-red-500/30' : 'bg-primary-500 text-zinc-950 hover:bg-primary-400'}`}
@@ -265,7 +263,7 @@ export const KaraokeLyricsEditor = ({
               >
                 <MousePointerClick size={24} className="group-disabled:opacity-50 group-active:scale-90 transition-transform" />
                 <span className="font-black text-lg sm:text-xl uppercase tracking-widest">Tap Aquí</span>
-                <span className="text-[10px] font-bold opacity-70">Sincroniza la línea actual</span>
+                <span className="text-[10px] font-bold opacity-80">Pulsa justo cuando empiece la frase</span>
               </button>
             </div>
             
