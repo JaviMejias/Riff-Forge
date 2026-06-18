@@ -61,7 +61,7 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
     try {
       if (!karaoke.cloudUrl) throw new Error('Este karaoke no tiene audio local para procesar.');
 
-      const response = await fetch(`http://146.181.34.184:3001/api/karaokes/process-pitch`, {
+      const response = await fetch(`http://146.181.32.238:3001/api/karaokes/process-pitch`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -127,7 +127,7 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
   useEffect(() => {
     if (karaoke.pitchShift && karaoke.pitchShift !== 0 && karaoke.cloudUrl) {
       setIsProcessingPitch(true);
-      fetch(`http://146.181.34.184:3001/api/karaokes/process-pitch`, {
+      fetch(`http://146.181.32.238:3001/api/karaokes/process-pitch`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

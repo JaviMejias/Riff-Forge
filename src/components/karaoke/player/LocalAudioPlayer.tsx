@@ -94,7 +94,7 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
     const loadAudio = async () => {
       try {
         if (karaoke.cloudUrl) {
-          const fullUrl = `http://146.181.34.184:3001${karaoke.cloudUrl}`;
+          const fullUrl = `http://146.181.32.238:3001${karaoke.cloudUrl}`;
           if (isMounted) {
             setAudioUrl(fullUrl);
           }

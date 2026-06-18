@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { useAuthStore } from '../store/authStore';
 import { useUiStore } from '../store/uiStore';
 
-const API_URL = 'http://146.181.34.184:3001/api';
+const API_URL = 'http://146.181.32.238:3001/api';
 
 let syncTimeout: any = null;
 
@@ -194,7 +194,7 @@ export const SyncService = {
         let binaryData = null;
         if (data.cloudUrl && (!existing || !existing.data)) {
           try {
-            const resp = await fetch(`http://146.181.34.184:3001${data.cloudUrl}`);
+            const resp = await fetch(`http://146.181.32.238:3001${data.cloudUrl}`);
             if (resp.ok) {
               const arrayBuffer = await resp.arrayBuffer();
               binaryData = new Uint8Array(arrayBuffer);
@@ -235,7 +235,7 @@ export const SyncService = {
           const existingFile = await db.karaokeFiles.get(localKaraokeId);
           if (!existingFile || !existingFile.data) {
             try {
-              const resp = await fetch(`http://146.181.34.184:3001${data.cloudUrl}`);
+              const resp = await fetch(`http://146.181.32.238:3001${data.cloudUrl}`);
               if (resp.ok) {
                 const arrayBuffer = await resp.arrayBuffer();
                 const binaryData = new Uint8Array(arrayBuffer);
