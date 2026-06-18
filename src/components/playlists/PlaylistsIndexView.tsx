@@ -63,7 +63,7 @@ export const PlaylistsIndexView = ({ type, isSidebarOpen, onToggleSidebar }: Pla
       text: "Se borrará la lista, pero las canciones/karaokes seguirán en tu biblioteca.",
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonColor: '#ef4444',
+      confirmButtonColor: 'var(--primary-500)',
       cancelButtonColor: '#3f3f46',
       confirmButtonText: 'Sí, eliminar',
       cancelButtonText: 'Cancelar',

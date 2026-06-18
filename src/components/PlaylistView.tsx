@@ -1,14 +1,15 @@
-import { Edit3, Trash, Search, Library, Plus } from 'lucide-react';
+import { Edit3, Trash, Search, Library, Plus, MoreVertical } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SongCard } from './SongCard';
 import { SongSkeleton } from './SongSkeleton';
 import { Navbar } from './Navbar';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { AddSongsModal } from './AddSongsModal';
+import { EditPlaylistModal } from './EditPlaylistModal';
 import { db } from '../db';
 import type { Song } from '../db';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 
@@ -26,6 +27,20 @@ interface PlaylistViewProps {
 export const PlaylistView = ({ playlistId, activeSongId, onPlaySong, onBackToLibrary, isSidebarOpen, onToggleSidebar }: PlaylistViewProps) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target as Node)) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const playlist = useLiveQuery(() => db.playlists.get(playlistId));
   const songs = useLiveQuery(async () => {
     if (!playlist) return [];
@@ -39,46 +54,62 @@ export const PlaylistView = ({ playlistId, activeSongId, onPlaySong, onBackToLib
     e.stopPropagation();
     if (!playlist || !playlist.id) return;
 
-    await db.playlists.update(playlist.id, {
-      songIds: playlist.songIds.filter(id => id !== songId)
-    });
-  };
+    const songToRemove = songs?.find(s => s.id === songId);
 
-  const editPlaylist = async () => {
-    if (!playlist || !playlist.id) return;
-
-    const { value: newName } = await MySwal.fire({
-      title: 'Editar Lista',
-      input: 'text',
-      inputLabel: 'Nuevo nombre de la lista',
-      inputValue: playlist.name,
+    const result = await MySwal.fire({
+      title: '¿Quitar de la lista?',
+      text: `¿Seguro que quieres quitar "${songToRemove?.name || 'esta canción'}" de esta lista? Seguirá estando en tu biblioteca principal.`,
+      icon: 'question',
       showCancelButton: true,
-      confirmButtonText: 'Guardar',
+      confirmButtonColor: '#f59e0b', // primary-500
+      cancelButtonColor: '#3f3f46', // zinc-700
+      confirmButtonText: 'Sí, quitar',
       cancelButtonText: 'Cancelar',
-      confirmButtonColor: '#f59e0b',
       background: '#18181b',
       color: '#f4f4f5',
-      inputValidator: (value) => {
-        if (!value || !value.trim()) {
-          return '¡Debes escribir un nombre!';
-        }
+      customClass: {
+        popup: 'rounded-2xl border border-white/10 shadow-2xl',
+        confirmButton: 'rounded-xl font-bold px-6 text-zinc-950',
+        cancelButton: 'rounded-xl font-bold px-6 text-white'
       }
     });
 
-    if (newName && newName.trim() && newName.trim() !== playlist.name) {
+    if (result.isConfirmed) {
       await db.playlists.update(playlist.id, {
-        name: newName.trim()
+        songIds: playlist.songIds.filter(id => id !== songId)
       });
+      
       MySwal.fire({
-        title: '¡Actualizada!',
-        text: 'El nombre de la lista ha sido cambiado.',
+        toast: true,
+        position: 'bottom-end',
         icon: 'success',
+        title: 'Canción quitada de la lista',
+        showConfirmButton: false,
+        timer: 2000,
         background: '#18181b',
         color: '#f4f4f5',
-        timer: 1500,
-        showConfirmButton: false
       });
     }
+  };
+
+  const handleEditPlaylist = async (newName: string) => {
+    if (!playlist || !playlist.id) return;
+    
+    await db.playlists.update(playlist.id, {
+      name: newName
+    });
+    
+    setIsEditModalOpen(false);
+    
+    MySwal.fire({
+      title: '¡Actualizada!',
+      text: 'El nombre de la lista ha sido cambiado.',
+      icon: 'success',
+      background: '#18181b',
+      color: '#f4f4f5',
+      timer: 1500,
+      showConfirmButton: false
+    });
   };
 
   const deletePlaylist = async () => {
@@ -87,7 +118,7 @@ export const PlaylistView = ({ playlistId, activeSongId, onPlaySong, onBackToLib
       text: `¿Seguro que quieres borrar la lista "${playlist?.name}"? Las canciones no se borrarán de tu biblioteca.`,
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonColor: '#ef4444', // rose-500
+      confirmButtonColor: 'var(--primary-500)', // color dinámico del tema
       cancelButtonColor: '#3f3f46', // zinc-700
       confirmButtonText: 'Sí, borrar lista',
       cancelButtonText: 'Cancelar',
@@ -144,27 +175,44 @@ export const PlaylistView = ({ playlistId, activeSongId, onPlaySong, onBackToLib
         onToggleSidebar={onToggleSidebar}
         onBack={onBackToLibrary}
       >
-        <button
-          onClick={() => setIsAddModalOpen(true)}
-          className="flex items-center gap-2 bg-primary-500 hover:bg-primary-400 text-zinc-950 px-3 py-2 rounded-xl transition-all font-bold text-sm shadow-[0_0_15px_var(--theme-glow)]"
-          title="Añadir Canciones"
-        >
-          <Plus size={16} /> <span className="hidden sm:inline">Añadir</span>
-        </button>
-        <button
-          onClick={editPlaylist}
-          className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3 py-2 rounded-xl transition-all font-bold text-sm"
-          title="Editar Nombre"
-        >
-          <Edit3 size={16} /> <span className="hidden sm:inline">Editar</span>
-        </button>
-        <button
-          onClick={deletePlaylist}
-          className="flex items-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 px-3 py-2 rounded-xl transition-all font-bold text-sm border border-rose-500/20 hover:border-rose-500/50"
-          title="Borrar Lista"
-        >
-          <Trash size={16} /> <span className="hidden sm:inline">Borrar</span>
-        </button>
+        <div className="flex gap-2 relative z-[100]" ref={mobileMenuRef}>
+          {/* Botón menú hamburguesa (solo móvil) */}
+          <button
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="sm:hidden flex items-center justify-center p-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl transition-all"
+          >
+            <MoreVertical size={20} />
+          </button>
+
+          {/* Contenedor de botones (visible en PC, menú desplegable en móvil) */}
+          <div className={`
+            absolute top-full right-0 mt-2 p-2 bg-zinc-900 border border-white/10 rounded-2xl shadow-xl flex-col gap-2 min-w-[160px]
+            sm:static sm:mt-0 sm:p-0 sm:bg-transparent sm:border-none sm:shadow-none sm:flex sm:flex-row sm:w-auto
+            ${isMobileMenuOpen ? 'flex' : 'hidden sm:flex'}
+          `}>
+            <button
+              onClick={() => { setIsAddModalOpen(true); setIsMobileMenuOpen(false); }}
+              className="flex items-center gap-3 sm:gap-2 bg-primary-500 hover:bg-primary-400 text-zinc-950 px-4 sm:px-3 py-3 sm:py-2 rounded-xl transition-all font-bold text-sm sm:shadow-[0_0_15px_var(--theme-glow)] w-full sm:w-auto"
+              title="Añadir Canciones"
+            >
+              <Plus size={18} className="sm:w-4 sm:h-4" /> <span>Añadir<span className="sm:hidden"> Canciones</span></span>
+            </button>
+            <button
+              onClick={() => { setIsEditModalOpen(true); setIsMobileMenuOpen(false); }}
+              className="flex items-center gap-3 sm:gap-2 bg-zinc-800/50 sm:bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-4 sm:px-3 py-3 sm:py-2 rounded-xl transition-all font-bold text-sm w-full sm:w-auto"
+              title="Editar Nombre"
+            >
+              <Edit3 size={18} className="sm:w-4 sm:h-4" /> <span>Editar<span className="sm:hidden"> Nombre</span></span>
+            </button>
+            <button
+              onClick={() => { deletePlaylist(); setIsMobileMenuOpen(false); }}
+              className="flex items-center gap-3 sm:gap-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 px-4 sm:px-3 py-3 sm:py-2 rounded-xl transition-all font-bold text-sm border border-rose-500/20 hover:border-rose-500/50 w-full sm:w-auto"
+              title="Borrar Lista"
+            >
+              <Trash size={18} className="sm:w-4 sm:h-4" /> <span>Borrar<span className="sm:hidden"> Lista</span></span>
+            </button>
+          </div>
+        </div>
       </Navbar>
 
       {/* LISTA DE CANCIONES */}
@@ -242,6 +290,13 @@ export const PlaylistView = ({ playlistId, activeSongId, onPlaySong, onBackToLib
         onClose={() => setIsAddModalOpen(false)}
         onAdd={handleAddSongs}
         availableItems={availableSongs}
+      />
+
+      <EditPlaylistModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        currentName={playlist.name}
+        onSave={handleEditPlaylist}
       />
     </div>
   );

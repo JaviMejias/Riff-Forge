@@ -1,17 +1,20 @@
-let audioCtx: AudioContext | null = null;
+import * as Tone from 'tone';
+import { connectToGlobalMeter } from './utils/audioMeter';
+import { useAudioStore } from './store/audioStore';
 
 // Base frequencies for standard tuning strings: E2, A2, D3, G3, B3, E4
 const STRING_FREQUENCIES = [82.41, 110.00, 146.83, 196.00, 246.94, 329.63];
 
 export const playChordAudio = async (frets: number[]) => {
-  if (!audioCtx) {
-    audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-  }
+  await Tone.start();
+  
+  // Activar baile visual
+  useAudioStore.getState().setGlobalIsPlaying(true);
+  setTimeout(() => {
+    useAudioStore.getState().setGlobalIsPlaying(false);
+  }, 2500);
 
-  // Ensure context is active (browsers suspend it until user interaction)
-  if (audioCtx.state === 'suspended') {
-    await audioCtx.resume();
-  }
+  const audioCtx = Tone.getContext().rawContext as AudioContext;
 
   const now = audioCtx.currentTime;
   
@@ -27,23 +30,29 @@ export const playChordAudio = async (frets: number[]) => {
     const freq = baseFreq * Math.pow(2, fret / 12);
 
     // Create an oscillator
-    const osc = audioCtx!.createOscillator();
+    const osc = audioCtx.createOscillator();
     // Sawtooth has rich harmonics like a string, but needs to be filtered so it's not too buzzy
     osc.type = 'sawtooth'; 
     osc.frequency.value = freq;
 
     // Create a lowpass filter to simulate the body and pluck of the guitar
-    const filter = audioCtx!.createBiquadFilter();
+    const filter = audioCtx.createBiquadFilter();
     filter.type = 'lowpass';
     filter.Q.value = 1.2; // Slight resonance
     
     // Create an envelope using a GainNode
-    const gainNode = audioCtx!.createGain();
+    const gainNode = audioCtx.createGain();
     
-    // Connect nodes: osc -> filter -> gain -> destination
+    // Connect nodes: osc -> filter -> gain -> destination AND meter
     osc.connect(filter);
     filter.connect(gainNode);
-    gainNode.connect(audioCtx!.destination);
+    gainNode.connect(audioCtx.destination);
+    
+    // Conectar también al medidor global
+    try {
+      Tone.connect(gainNode, connectToGlobalMeter as any); // fallback
+    } catch(e) {}
+    connectToGlobalMeter(gainNode);
 
     // Schedule the strum
     const startTime = now + (stringIndex * strumDelay);

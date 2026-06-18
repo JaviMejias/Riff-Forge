@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Volume2, Edit2 } from 'lucide-react';
 import { getChord } from '../../chords';
@@ -12,8 +12,27 @@ interface InteractiveChordProps {
 
 export const InteractiveChord = ({ text, onClick }: InteractiveChordProps) => {
   const [isHovered, setIsHovered] = useState(false);
+  const containerRef = useRef<HTMLSpanElement>(null);
   const trimmed = text.trim();
   
+  useEffect(() => {
+    if (!isHovered) return;
+
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsHovered(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [isHovered]);
+
   // Ignore purely separator elements like " | "
   if (trimmed === '|' || !trimmed) {
     return <span>{text}</span>;
@@ -27,10 +46,18 @@ export const InteractiveChord = ({ text, onClick }: InteractiveChordProps) => {
 
   return (
     <span 
+      ref={containerRef}
       className="relative inline-block"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      onClick={() => onClick && onClick(trimmed)}
+      onClick={(e) => {
+        if (window.matchMedia('(hover: none)').matches) {
+          e.stopPropagation();
+          setIsHovered(!isHovered);
+        } else if (onClick) {
+          onClick(trimmed);
+        }
+      }}
     >
       <span className="text-primary-400 font-bold cursor-help border-b-[1.5px] border-dashed border-primary-500/30 hover:border-primary-400 hover:text-primary-300 transition-colors">
         {text}

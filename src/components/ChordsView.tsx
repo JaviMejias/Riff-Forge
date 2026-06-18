@@ -23,9 +23,10 @@ interface ChordsViewProps {
   track: alphaTab.model.Track | null;
   songTitle: string;
   song?: Song;
+  onEditChange?: (isEditing: boolean) => void;
 }
 
-export const ChordsView = ({ track, songTitle, song }: ChordsViewProps) => {
+export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewProps) => {
   // Extraer letras y acordes del modelo de AlphaTab
   // Agruparemos por compases (bars) para mantener un flujo lógico.
 
@@ -118,6 +119,7 @@ export const ChordsView = ({ track, songTitle, song }: ChordsViewProps) => {
     setEditCapo(song.capo || '');
     setEditStrummingPattern(song.strummingPattern || '');
     setIsEditing(true);
+    if (onEditChange) onEditChange(true);
   };
 
   // Auto-open editor if requested
@@ -153,11 +155,13 @@ export const ChordsView = ({ track, songTitle, song }: ChordsViewProps) => {
       song.strummingPattern = updates.strummingPattern;
       
       setIsEditing(false);
+      if (onEditChange) onEditChange(false);
     }
   };
 
   const handleCancelEdit = () => {
     setIsEditing(false);
+    if (onEditChange) onEditChange(false);
   };
 
   const [isTransposeMenuOpen, setIsTransposeMenuOpen] = useState(false);
@@ -307,16 +311,17 @@ export const ChordsView = ({ track, songTitle, song }: ChordsViewProps) => {
 
         {isEditing && (
           <div className="bg-zinc-900 border border-primary-500/30 rounded-3xl p-6 shadow-xl w-full flex flex-col gap-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <h3 className="text-primary-500 font-bold uppercase tracking-widest text-sm flex items-center gap-2">
                 <Edit2 size={16} /> Modo Edición
               </h3>
-              <div className="flex gap-2">
-                <Button variant="ghost" size="sm" icon={<X size={16} />} onClick={handleCancelEdit}>
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <Button variant="ghost" className="flex-1 sm:flex-none justify-center" size="sm" icon={<X size={16} />} onClick={handleCancelEdit}>
                   Cancelar
                 </Button>
-                <Button variant="primary" size="sm" icon={<CheckCircle2 size={16} />} onClick={handleSaveEdit}>
-                  Guardar Cambios
+                <Button variant="primary" className="flex-1 sm:flex-none justify-center" size="sm" icon={<CheckCircle2 size={16} />} onClick={handleSaveEdit}>
+                  <span className="hidden sm:inline">Guardar Cambios</span>
+                  <span className="sm:hidden">Guardar</span>
                 </Button>
               </div>
             </div>
@@ -412,7 +417,7 @@ export const ChordsView = ({ track, songTitle, song }: ChordsViewProps) => {
           
           <div className="w-full relative">
             {(song.originalKey || song.tuning || song.capo || song.strummingPattern || (!isEditing && song)) && (
-              <div className="sticky -top-6 sm:-top-10 -mt-6 sm:-mt-10 -mx-6 sm:-mx-10 md:-mx-16 z-[60] flex flex-wrap items-center gap-4 mb-8 bg-zinc-950/80 backdrop-blur-xl py-4 px-6 sm:px-10 md:px-16 rounded-t-3xl border-b border-white/10 shadow-lg">
+              <div className="relative sm:sticky top-0 sm:-top-10 -mt-2 sm:-mt-10 -mx-4 sm:-mx-10 md:-mx-16 z-[60] flex flex-wrap items-center gap-2 sm:gap-4 mb-4 sm:mb-8 bg-zinc-950/90 sm:bg-zinc-950/80 backdrop-blur-xl py-3 sm:py-4 px-4 sm:px-10 md:px-16 rounded-t-xl sm:rounded-t-3xl border-b border-white/10 shadow-lg">
                 {song.originalKey && (
                   <TonalidadTooltip tonalidad={song.originalKey} />
                 )}
@@ -453,7 +458,7 @@ export const ChordsView = ({ track, songTitle, song }: ChordsViewProps) => {
                       
                       <button 
                         onClick={() => setIsTransposeMenuOpen(!isTransposeMenuOpen)}
-                        className="px-3 py-1 flex flex-col items-center justify-center min-w-[4rem] hover:bg-zinc-800 rounded-lg transition-colors"
+                        className="px-2 sm:px-3 py-1 flex flex-col items-center justify-center min-w-[3rem] sm:min-w-[4rem] hover:bg-zinc-800 rounded-lg transition-colors"
                         title="Elegir tono exacto"
                       >
                         <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider leading-tight">Tono</span>
@@ -523,10 +528,11 @@ export const ChordsView = ({ track, songTitle, song }: ChordsViewProps) => {
 
                     <button 
                       onClick={handleEditClick}
-                      className="flex items-center gap-2 bg-zinc-900 border border-white/5 hover:border-white/20 px-4 py-2.5 rounded-xl shadow-sm text-sm text-zinc-300 hover:text-white transition-colors font-medium"
+                      className="flex items-center justify-center bg-zinc-900 border border-white/5 hover:border-white/20 w-10 h-10 sm:w-auto sm:px-4 sm:py-2.5 rounded-xl shadow-sm text-sm text-zinc-300 hover:text-white transition-colors font-medium shrink-0"
+                      title="Editar Letra/Acordes"
                     >
                       <Edit2 size={16} className="text-primary-500" />
-                      Editar Letra/Acordes
+                      <span className="hidden sm:inline sm:ml-2">Editar Letra/Acordes</span>
                     </button>
                   </div>
                 )}

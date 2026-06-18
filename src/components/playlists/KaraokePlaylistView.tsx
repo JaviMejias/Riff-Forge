@@ -1,12 +1,13 @@
-import { Edit3, Trash, Search, Library, Plus } from 'lucide-react';
+import { Edit3, Trash, Search, Library, Plus, MoreVertical } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { KaraokeCard } from '../karaoke/KaraokeCard';
 import { Navbar } from '../Navbar';
 import { AddSongsModal } from '../AddSongsModal'; // We'll adapt this or make AddKaraokeModal
+import { EditPlaylistModal } from '../EditPlaylistModal';
 import { db } from '../../db';
 import type { Karaoke } from '../../db';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
@@ -25,6 +26,20 @@ interface KaraokePlaylistViewProps {
 export const KaraokePlaylistView = ({ playlistId, activeKaraokeId, onPlayKaraoke, onBackToLibrary, isSidebarOpen, onToggleSidebar }: KaraokePlaylistViewProps) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target as Node)) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const playlist = useLiveQuery(() => db.karaokePlaylists.get(playlistId));
   const karaokes = useLiveQuery(async () => {
     if (!playlist) return [];
@@ -43,42 +58,24 @@ export const KaraokePlaylistView = ({ playlistId, activeKaraokeId, onPlayKaraoke
     });
   };
 
-  const editPlaylist = async () => {
+  const handleEditPlaylist = async (newName: string) => {
     if (!playlist || !playlist.id) return;
-
-    const { value: newName } = await MySwal.fire({
-      title: 'Editar Lista',
-      input: 'text',
-      inputLabel: 'Nuevo nombre de la lista',
-      inputValue: playlist.name,
-      showCancelButton: true,
-      confirmButtonText: 'Guardar',
-      cancelButtonText: 'Cancelar',
-      confirmButtonColor: '#f59e0b',
+    
+    await db.karaokePlaylists.update(playlist.id, {
+      name: newName
+    });
+    
+    setIsEditModalOpen(false);
+    
+    MySwal.fire({
+      title: '¡Actualizada!',
+      text: 'El nombre de la lista ha sido cambiado.',
+      icon: 'success',
       background: '#18181b',
       color: '#f4f4f5',
-      inputValidator: (value) => {
-        if (!value || !value.trim()) {
-          return '¡Debes escribir un nombre!';
-        }
-      }
+      timer: 1500,
+      showConfirmButton: false
     });
-
-    if (newName && newName.trim() && newName.trim() !== playlist.name) {
-      await db.karaokePlaylists.update(playlist.id, {
-        name: newName.trim()
-      });
-      MySwal.fire({
-        toast: true,
-        position: 'top-end',
-        title: '¡Actualizada!',
-        icon: 'success',
-        background: '#18181b',
-        color: '#f4f4f5',
-        timer: 1500,
-        showConfirmButton: false
-      });
-    }
   };
 
   const deletePlaylist = async () => {
@@ -87,7 +84,7 @@ export const KaraokePlaylistView = ({ playlistId, activeKaraokeId, onPlayKaraoke
       text: `¿Seguro que quieres borrar la lista "${playlist?.name}"? Los karaokes no se borrarán de tu biblioteca.`,
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonColor: '#ef4444',
+      confirmButtonColor: 'var(--primary-500)',
       cancelButtonColor: '#3f3f46',
       confirmButtonText: 'Sí, borrar lista',
       cancelButtonText: 'Cancelar',
@@ -128,7 +125,6 @@ export const KaraokePlaylistView = ({ playlistId, activeKaraokeId, onPlayKaraoke
     });
   };
 
-  if (!playlist) return null;
 
   const filteredKaraokes = karaokes?.filter(k => 
     k.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -136,6 +132,8 @@ export const KaraokePlaylistView = ({ playlistId, activeKaraokeId, onPlayKaraoke
   ) || [];
 
   const { visibleItems: displayedKaraokes, loadMoreRef, hasMore } = useInfiniteScroll({ items: filteredKaraokes, itemsPerPage: 20 });
+
+  if (!playlist) return null;
 
   return (
     <div className="flex flex-col h-full w-full">
@@ -147,27 +145,41 @@ export const KaraokePlaylistView = ({ playlistId, activeKaraokeId, onPlayKaraoke
           onToggleSidebar={onToggleSidebar}
           onBack={onBackToLibrary}
         >
-          <div className="flex gap-2">
+          <div className="flex gap-2 relative z-[100]" ref={mobileMenuRef}>
             <button
-              onClick={editPlaylist}
-              className="p-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors"
-              title="Editar Nombre"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="sm:hidden flex items-center justify-center p-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl transition-all"
             >
-              <Edit3 size={18} />
+              <MoreVertical size={20} />
             </button>
-            <button
-              onClick={deletePlaylist}
-              className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 transition-colors"
-              title="Borrar Lista"
-            >
-              <Trash size={18} />
-            </button>
-            <button
-              onClick={() => setIsAddModalOpen(true)}
-              className="flex items-center gap-2 bg-primary-500 hover:bg-primary-400 text-zinc-950 px-4 py-2 rounded-xl transition-all font-bold text-sm"
-            >
-              <Plus size={18} /> Añadir Karaokes
-            </button>
+
+            <div className={`
+              absolute top-full right-0 mt-2 p-2 bg-zinc-900 border border-white/10 rounded-2xl shadow-xl flex-col gap-2 min-w-[160px]
+              sm:static sm:mt-0 sm:p-0 sm:bg-transparent sm:border-none sm:shadow-none sm:flex sm:flex-row sm:w-auto
+              ${isMobileMenuOpen ? 'flex' : 'hidden sm:flex'}
+            `}>
+              <button
+                onClick={() => { setIsAddModalOpen(true); setIsMobileMenuOpen(false); }}
+                className="flex items-center gap-3 sm:gap-2 bg-primary-500 hover:bg-primary-400 text-zinc-950 px-4 sm:px-3 py-3 sm:py-2 rounded-xl transition-all font-bold text-sm sm:shadow-[0_0_15px_var(--theme-glow)] w-full sm:w-auto"
+                title="Añadir Karaokes"
+              >
+                <Plus size={18} className="sm:w-4 sm:h-4" /> <span>Añadir<span className="sm:hidden"> Karaokes</span></span>
+              </button>
+              <button
+                onClick={() => { setIsEditModalOpen(true); setIsMobileMenuOpen(false); }}
+                className="flex items-center gap-3 sm:gap-2 bg-zinc-800/50 sm:bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-4 sm:px-3 py-3 sm:py-2 rounded-xl transition-all font-bold text-sm w-full sm:w-auto"
+                title="Editar Nombre"
+              >
+                <Edit3 size={18} className="sm:w-4 sm:h-4" /> <span>Editar<span className="sm:hidden"> Nombre</span></span>
+              </button>
+              <button
+                onClick={() => { deletePlaylist(); setIsMobileMenuOpen(false); }}
+                className="flex items-center gap-3 sm:gap-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 px-4 sm:px-3 py-3 sm:py-2 rounded-xl transition-all font-bold text-sm border border-rose-500/20 hover:border-rose-500/50 w-full sm:w-auto"
+                title="Borrar Lista"
+              >
+                <Trash size={18} className="sm:w-4 sm:h-4" /> <span>Borrar<span className="sm:hidden"> Lista</span></span>
+              </button>
+            </div>
           </div>
         </Navbar>
       </div>
@@ -244,8 +256,15 @@ export const KaraokePlaylistView = ({ playlistId, activeKaraokeId, onPlayKaraoke
         onClose={() => setIsAddModalOpen(false)}
         availableItems={availableKaraokes}
         onAdd={handleAddKaraokes}
-        title="Añadir Karaokes a la Lista"
+        title="Añadir Karaokes"
         itemLabel="Karaokes"
+      />
+
+      <EditPlaylistModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        currentName={playlist.name}
+        onSave={handleEditPlaylist}
       />
     </div>
   );

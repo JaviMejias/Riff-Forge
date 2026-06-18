@@ -92,8 +92,8 @@ export const PasteChordsModal = ({ isOpen, onClose, onSuccess }: PasteChordsModa
       subtitle="Pega letras y acordes desde Cifra Club o Ultimate Guitar."
       icon={<FileText size={24} />}
     >
-      <form onSubmit={handleSubmit} className="p-6 flex flex-col h-[70vh] max-h-[600px]">
-        <div className="flex gap-4 mb-4">
+      <form onSubmit={handleSubmit} className="p-4 sm:p-6 flex flex-col h-[85vh] sm:h-[70vh] max-h-[700px] overflow-y-auto custom-scrollbar">
+        <div className="flex flex-col sm:flex-row gap-4 mb-4">
           <div className="flex-1">
             <label className="block text-sm font-bold text-zinc-300 mb-2">Título *</label>
             <input
@@ -116,7 +116,7 @@ export const PasteChordsModal = ({ isOpen, onClose, onSuccess }: PasteChordsModa
           </div>
         </div>
 
-        <div className="flex gap-4 mb-4">
+        <div className="flex flex-col sm:flex-row gap-4 mb-4">
           <div className="flex-1">
             <label className="block text-sm font-bold text-zinc-300 mb-2">Tonalidad Original</label>
             <select
@@ -149,7 +149,7 @@ export const PasteChordsModal = ({ isOpen, onClose, onSuccess }: PasteChordsModa
           </div>
         </div>
 
-        <div className="flex gap-4 mb-4">
+        <div className="flex flex-col sm:flex-row gap-4 mb-4">
           <div className="flex-1">
             <label className="block text-sm font-bold text-zinc-300 mb-2">Capotraste</label>
             <input
@@ -172,7 +172,7 @@ export const PasteChordsModal = ({ isOpen, onClose, onSuccess }: PasteChordsModa
           </div>
         </div>
 
-        <div className="flex-1 flex flex-col min-h-0 mb-6">
+        <div className="flex-1 flex flex-col min-h-[200px] mb-6">
           <label className="block text-sm font-bold text-zinc-300 mb-2">Letra y Acordes *</label>
           <textarea
             value={textContent}
@@ -182,17 +182,17 @@ export const PasteChordsModal = ({ isOpen, onClose, onSuccess }: PasteChordsModa
           />
         </div>
 
-        <div className="flex items-center justify-end gap-3 shrink-0">
+        <div className="flex flex-col sm:flex-row items-center justify-end gap-3 shrink-0 mt-auto">
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2.5 rounded-xl font-bold text-zinc-400 hover:text-white hover:bg-white/5 transition-all"
+            className="w-full sm:w-auto px-5 py-3 sm:py-2.5 rounded-xl font-bold text-zinc-400 hover:text-white hover:bg-white/5 transition-all text-center"
           >
             Cancelar
           </button>
           <button
             type="submit"
-            className="px-6 py-2.5 rounded-xl font-bold bg-primary-500 text-zinc-950 hover:bg-primary-400 transition-all shadow-[0_0_20px_var(--theme-glow)]"
+            className="w-full sm:w-auto px-6 py-3 sm:py-2.5 rounded-xl font-bold bg-primary-500 text-zinc-950 hover:bg-primary-400 transition-all shadow-[0_0_20px_var(--theme-glow)] text-center"
           >
             Guardar Canción
           </button>

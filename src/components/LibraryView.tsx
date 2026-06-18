@@ -1,4 +1,4 @@
-import { Upload, Search, Library } from 'lucide-react';
+import { Search, Library, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SongCard } from './SongCard';
 import { SongSkeleton } from './SongSkeleton';
@@ -6,6 +6,7 @@ import { CreatePlaylistModal } from './CreatePlaylistModal';
 import { PasteChordsModal } from './PasteChordsModal';
 import { ManagePlaylistsModal } from './ManagePlaylistsModal';
 import { CreateSongModal } from './CreateSongModal';
+import { AddSongOptionsModal } from './AddSongOptionsModal';
 import { Navbar } from './Navbar';
 import { db } from '../db';
 import type { Song } from '../db';
@@ -35,6 +36,7 @@ export const LibraryView = ({ songs, activeSongId, onPlaySong, onImport, isSideb
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isPasteModalOpen, setIsPasteModalOpen] = useState(false);
   const [isCreateSongModalOpen, setIsCreateSongModalOpen] = useState(false);
+  const [isAddOptionsModalOpen, setIsAddOptionsModalOpen] = useState(false);
   const [songForManagePlaylists, setSongForManagePlaylists] = useState<number | null>(null);
   const playlists = useLiveQuery(() => db.playlists.toArray()) || [];
 
@@ -108,7 +110,7 @@ export const LibraryView = ({ songs, activeSongId, onPlaySong, onImport, isSideb
       text: '¿Seguro que quieres borrar esta canción de tu biblioteca? (Se borrará también de tus listas)',
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonColor: '#ef4444',
+      confirmButtonColor: 'var(--primary-500)',
       cancelButtonColor: '#3f3f46',
       confirmButtonText: 'Sí, borrar',
       cancelButtonText: 'Cancelar',
@@ -193,30 +195,15 @@ export const LibraryView = ({ songs, activeSongId, onPlaySong, onImport, isSideb
         isSidebarOpen={isSidebarOpen}
         onToggleSidebar={onToggleSidebar}
       >
-        <div className="flex gap-2 sm:gap-3 flex-wrap justify-end">
+        <div className="flex gap-2 flex-wrap justify-end">
           <button
-            onClick={handleCreateNewSong}
-            className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-primary-500 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl transition-all font-bold text-xs sm:text-sm border border-primary-500/20 hover:border-primary-500/40"
-            title="Escribir una canción desde cero"
+            onClick={() => setIsAddOptionsModalOpen(true)}
+            className="flex items-center gap-2 bg-primary-500 hover:bg-primary-400 text-zinc-950 px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl transition-all font-bold text-sm shadow-[0_0_20px_var(--theme-glow)]"
+            title="Añadir nueva canción"
           >
-            <Upload size={16} className="hidden sm:block" /> <span className="hidden sm:inline">Crear</span><span className="sm:hidden">Crear</span>
+            <Plus size={18} />
+            <span className="hidden sm:inline">Añadir Canción</span>
           </button>
-          <button
-            onClick={() => setIsPasteModalOpen(true)}
-            className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl transition-all font-bold text-xs sm:text-sm"
-          >
-            <Upload size={16} className="hidden sm:block" /> <span className="hidden sm:inline">Pegar Acordes</span><span className="sm:hidden">Pegar</span>
-          </button>
-          <label className="flex items-center gap-2 bg-primary-500 hover:bg-primary-400 text-zinc-950 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl transition-all cursor-pointer font-bold text-xs sm:text-sm shadow-[0_0_20px_var(--theme-glow)]">
-            <Upload size={16} className="hidden sm:block" /> <span className="hidden sm:inline">Importar Archivos</span><span className="sm:hidden">Importar</span>
-            <input
-              type="file"
-              multiple
-              accept=".gp3,.gp4,.gp5,.gpx,.gp"
-              onChange={onImport}
-              className="hidden"
-            />
-          </label>
         </div>
       </Navbar>
 
@@ -324,6 +311,14 @@ export const LibraryView = ({ songs, activeSongId, onPlaySong, onImport, isSideb
         isOpen={isCreateSongModalOpen}
         onClose={() => setIsCreateSongModalOpen(false)}
         onSuccess={onSongCreated}
+      />
+
+      <AddSongOptionsModal
+        isOpen={isAddOptionsModalOpen}
+        onClose={() => setIsAddOptionsModalOpen(false)}
+        onCreateNew={handleCreateNewSong}
+        onPaste={() => setIsPasteModalOpen(true)}
+        onImport={onImport}
       />
 
       <CreatePlaylistModal

@@ -1,5 +1,7 @@
 export interface ChordDef {
   id?: number;
+  cloudId?: string;
+  updatedAt?: number;
   name: string;
   frets: number[];
   fingers?: number[];

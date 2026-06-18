@@ -3,9 +3,12 @@ import type { ChordDef } from './chords';
 
 export interface Karaoke {
   id?: number;
+  cloudId?: string;
+  updatedAt?: number;
   name: string;
   artist?: string;
   youtubeUrl?: string;
+  cloudUrl?: string; // For streaming the downloaded MP3 from backend
   hasLocalAudio?: boolean; // Replaces localFile blob for lightweight metadata
   pitchShift?: number; // In semitones
   textContent?: string;
@@ -14,23 +17,29 @@ export interface Karaoke {
 
 export interface KaraokeFile {
   karaokeId: number;
+  cloudUrl?: string; // URL for download
   data: Uint8Array;
 }
 
 export interface KaraokePlaylist {
   id?: number;
+  cloudId?: string;
+  updatedAt?: number;
   name: string;
-  karaokeIds: number[];
+  karaokeIds: number[]; // LOCAL ids
   createdAt: number;
 }
 
 export interface Song {
   id?: number;
+  cloudId?: string;
+  updatedAt?: number;
   name: string;
   artist?: string;
   album?: string;
   type?: 'gp' | 'text';
   data?: Uint8Array | null;
+  cloudUrl?: string; // For data backup
   textContent?: string | null;
   originalKey?: string;
   tuning?: string;
@@ -41,8 +50,10 @@ export interface Song {
 
 export interface Playlist {
   id?: number;
+  cloudId?: string;
+  updatedAt?: number;
   name: string;
-  songIds: number[];
+  songIds: number[]; // LOCAL ids
   createdAt: number;
 }
 
@@ -108,7 +119,52 @@ export class MiRiffPlayerDB extends Dexie {
         }
       }
     });
+
+    // Version 7: Add cloudId indexes for Firebase Sync
+    this.version(7).stores({
+      songs: '++id, name, artist, dateAdded, cloudId',
+      playlists: '++id, name, createdAt, cloudId',
+      customChords: '++id, name, root, cloudId',
+      karaokes: '++id, name, artist, dateAdded, cloudId',
+      karaokePlaylists: '++id, name, createdAt, cloudId',
+      karaokeFiles: 'karaokeId'
+    });
   }
 }
 
 export const db = new MiRiffPlayerDB();
+
+// --- Auto-Sync Hooks ---
+const tables = ['songs', 'playlists', 'customChords', 'karaokes', 'karaokePlaylists', 'karaokeFiles'];
+
+tables.forEach(tableName => {
+  db.table(tableName).hook('creating', function(_primKey, obj) {
+    if ((window as any).__isSyncing) return;
+    if (tableName !== 'karaokeFiles') {
+      obj.updatedAt = Date.now();
+    }
+    // Defer the event so it runs outside the transaction
+    setTimeout(() => window.dispatchEvent(new Event('trigger-auto-sync')), 10);
+  });
+
+  db.table(tableName).hook('updating', function() {
+    if ((window as any).__isSyncing) return;
+    setTimeout(() => window.dispatchEvent(new Event('trigger-auto-sync')), 10);
+    if (tableName !== 'karaokeFiles') {
+      return { updatedAt: Date.now() };
+    }
+  });
+
+  db.table(tableName).hook('deleting', function(_primKey, obj) {
+    if ((window as any).__isSyncing) return;
+    if (obj && obj.cloudId) {
+      try {
+        const deletedStr = localStorage.getItem('deleted_cloud_ids') || '[]';
+        const deleted = JSON.parse(deletedStr);
+        deleted.push({ table: tableName, cloudId: obj.cloudId });
+        localStorage.setItem('deleted_cloud_ids', JSON.stringify(deleted));
+      } catch (e) {}
+    }
+    setTimeout(() => window.dispatchEvent(new Event('trigger-auto-sync')), 10);
+  });
+});

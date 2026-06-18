@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as alphaTab from '@coderline/alphatab';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Guitar, Loader2, Settings2, Play, Pause, Plus, Minus, Printer, Trash2 } from 'lucide-react';
+import { Guitar, Loader2, Settings2, Play, Pause, Plus, Minus, Printer, Trash2, MoreVertical, Maximize } from 'lucide-react';
 import { PlayerToolbar } from './PlayerToolbar';
 import { PracticeControls } from './PracticeControls';
 import { TrackMixer } from './TrackMixer';
@@ -9,7 +9,9 @@ import { ChordsView } from './ChordsView';
 import { Navbar } from './Navbar';
 import { db, type Song } from '../db';
 import { usePlayerStore } from '../store/playerStore';
+import { useAudioStore } from '../store/audioStore';
 import { useAlphaTab } from '../hooks/useAlphaTab';
+import { useUiStore } from '../store/uiStore';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 
@@ -23,6 +25,7 @@ interface TabPlayerProps {
 }
 
 export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabPlayerProps) => {
+  const { toggleImmersiveMode } = useUiStore();
   const {
     mainViewMode, setMainViewMode,
     masterVolume, setMasterVolume,
@@ -56,6 +59,11 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
     setTrackSolos,
     changeTrack
   } = useAlphaTab(song);
+
+  useEffect(() => {
+    useAudioStore.getState().setGlobalIsPlaying(isPlaying);
+    return () => useAudioStore.getState().setGlobalIsPlaying(false);
+  }, [isPlaying]);
 
   const handleDeleteSong = async () => {
     if (!song || !song.id) return;
@@ -92,6 +100,25 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
   const [isMixerOpen, setIsMixerOpen] = useState(false);
   // CONTROL DE VISTAS Y HERRAMIENTAS
   const [showPracticeControls, setShowPracticeControls] = useState(false);
+  const [isChordsEditing, setIsChordsEditing] = useState(false);
+
+  // MOBILE MORE MENU LOGIC
+  const [isMobileMoreMenuOpen, setIsMobileMoreMenuOpen] = useState(false);
+  const mobileMoreMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (mobileMoreMenuRef.current && !mobileMoreMenuRef.current.contains(event.target as Node)) {
+        setIsMobileMoreMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, []);
 
   // AUTO-HIDE TOOLBAR LOGIC
   const [showToolbar, setShowToolbar] = useState(true);
@@ -101,12 +128,15 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
     setShowToolbar(true);
     if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
     hideTimeoutRef.current = setTimeout(() => {
-      setShowToolbar(false);
+      if (apiRef.current && apiRef.current.playerState === alphaTab.synth.PlayerState.Playing) {
+        setShowToolbar(false);
+      }
     }, 2500);
   };
 
   useEffect(() => {
     window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('touchstart', handleMouseMove);
     handleMouseMove(); // Initial trigger
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -125,6 +155,7 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('touchstart', handleMouseMove);
       window.removeEventListener('keydown', handleKeyDown);
       if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
     };
@@ -218,10 +249,24 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
 
   const toggleMixer = () => setIsMixerOpen(!isMixerOpen);
 
+  useEffect(() => {
+    if (!apiRef.current) return;
+    apiRef.current.masterVolume = masterVolume;
+    
+    let ticks = 0;
+    const interval = setInterval(() => {
+      if (apiRef.current) apiRef.current.masterVolume = masterVolume;
+      ticks++;
+      if (ticks > 10) clearInterval(interval); // Stop enforcing after 500ms
+    }, 50);
+
+    return () => clearInterval(interval);
+  }, [trackVolumes, trackMutes, trackSolos, masterVolume, apiRef]);
+
   const handleTrackVolumeChange = (index: number, vol: number) => {
     setTrackVolumes(prev => ({ ...prev, [index]: vol }));
     if (apiRef.current && tracks[index]) {
-      apiRef.current.changeTrackVolume([tracks[index]], vol);
+      apiRef.current.changeTrackVolume([tracks[index]], vol / 16);
     }
   };
 
@@ -272,7 +317,7 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
       if (apiRef.current) {
         apiRef.current.changeTrackMute([track], false);
         apiRef.current.changeTrackSolo([track], false);
-        apiRef.current.changeTrackVolume([track], defaultVol);
+        apiRef.current.changeTrackVolume([track], defaultVol / 16);
       }
     });
 
@@ -322,26 +367,80 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
             </div>
           )}
 
-          {song.type !== 'text' && mainViewMode === 'pro' && (
-            <button
-              onClick={() => setShowPracticeControls(!showPracticeControls)}
-              className={`p-2 rounded-xl border transition-all ${showPracticeControls
-                ? 'bg-primary-500 text-zinc-950 border-primary-500 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
-                : 'bg-zinc-950/50 text-zinc-400 border-white/5 hover:text-zinc-200 hover:bg-zinc-800'
-                }`}
-              title="Herramientas de Práctica"
+          {/* Menú para móviles (Agrupado) */}
+          <div className="relative sm:hidden ml-1" ref={mobileMoreMenuRef}>
+            <button 
+              onClick={() => setIsMobileMoreMenuOpen(!isMobileMoreMenuOpen)}
+              className="p-2 bg-zinc-800/50 text-zinc-300 rounded-xl hover:bg-zinc-800 hover:text-white transition-colors border border-white/5"
             >
-              <Settings2 size={20} />
+              <MoreVertical size={20} />
             </button>
-          )}
-          
-          <button
-            onClick={handleDeleteSong}
-            className="p-2 bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-400 rounded-xl border border-red-500/20 hover:border-red-500/40 transition-all shadow-sm ml-1"
-            title="Eliminar Canción"
-          >
-            <Trash2 size={20} />
-          </button>
+            <AnimatePresence>
+              {isMobileMoreMenuOpen && (
+                <motion.div 
+                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute right-0 top-full mt-2 w-52 bg-zinc-900 border border-white/10 rounded-xl p-2 flex flex-col gap-1 shadow-2xl z-[100] origin-top-right"
+                >
+                  <button 
+                    onClick={() => { toggleImmersiveMode(); setIsMobileMoreMenuOpen(false); }}
+                    className="flex items-center gap-2 w-full text-left p-2.5 hover:bg-zinc-800 rounded-lg text-zinc-300 font-bold text-sm transition-colors"
+                  >
+                    <Maximize size={18} className="text-primary-500" /> Pantalla Completa
+                  </button>
+                  {song.type !== 'text' && mainViewMode === 'pro' && (
+                    <button 
+                      onClick={() => { setShowPracticeControls(!showPracticeControls); setIsMobileMoreMenuOpen(false); }}
+                      className="flex items-center gap-2 w-full text-left p-2.5 hover:bg-zinc-800 rounded-lg text-zinc-300 font-bold text-sm transition-colors"
+                    >
+                      <Settings2 size={18} className="text-primary-500" /> Herr. Práctica
+                    </button>
+                  )}
+                  <div className="h-px w-full bg-white/10 my-1"></div>
+                  <button 
+                    onClick={() => { handleDeleteSong(); setIsMobileMoreMenuOpen(false); }}
+                    className="flex items-center gap-2 w-full text-left p-2.5 hover:bg-red-500/20 rounded-lg text-red-400 font-bold text-sm transition-colors"
+                  >
+                    <Trash2 size={18} /> Eliminar Canción
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Botones para Desktop */}
+          <div className="hidden sm:flex items-center gap-2">
+            <button
+              onClick={toggleImmersiveMode}
+              className="p-2 rounded-xl bg-zinc-950/50 text-zinc-400 border border-white/5 hover:text-zinc-200 hover:bg-zinc-800 transition-all"
+              title="Pantalla Completa"
+            >
+              <Maximize size={20} />
+            </button>
+
+            {song.type !== 'text' && mainViewMode === 'pro' && (
+              <button
+                onClick={() => setShowPracticeControls(!showPracticeControls)}
+                className={`p-2 rounded-xl border transition-all ${showPracticeControls
+                  ? 'bg-primary-500 text-zinc-950 border-primary-500 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
+                  : 'bg-zinc-950/50 text-zinc-400 border-white/5 hover:text-zinc-200 hover:bg-zinc-800'
+                  }`}
+                title="Herramientas de Práctica"
+              >
+                <Settings2 size={20} />
+              </button>
+            )}
+            
+            <button
+              onClick={handleDeleteSong}
+              className="p-2 bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-400 rounded-xl border border-red-500/20 hover:border-red-500/40 transition-all shadow-sm ml-1"
+              title="Eliminar Canción"
+            >
+              <Trash2 size={20} />
+            </button>
+          </div>
         </Navbar>
       )}
 
@@ -351,7 +450,7 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
             initial={{ height: 0, opacity: 0, marginBottom: 0 }}
             animate={{ height: 'auto', opacity: 1, marginBottom: 16 }}
             exit={{ height: 0, opacity: 0, marginBottom: 0 }}
-            className="shrink-0 overflow-hidden"
+            className="shrink-0 relative z-40"
           >
             <PracticeControls
               isLoading={isLoading}
@@ -367,8 +466,6 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
               toggleLoop={toggleLoop}
               isHorizontalMode={isHorizontalMode}
               toggleLayoutMode={toggleLayoutMode}
-              isMixerOpen={isMixerOpen}
-              toggleMixer={toggleMixer}
             />
           </motion.div>
         )}
@@ -405,6 +502,7 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
                 track={song.type === 'text' ? null : (tracks[activeTrackIndex] || null)}
                 songTitle={songTitle}
                 song={song}
+                onEditChange={setIsChordsEditing}
               />
             </motion.div>
           )}
@@ -412,12 +510,12 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
       </div>
 
       <AnimatePresence>
-        {mainViewMode === 'cifra' && (
+        {mainViewMode === 'cifra' && !isChordsEditing && (
           <motion.div
             initial={{ y: 100, opacity: 0, x: '-50%' }}
             animate={{ y: 0, opacity: 1, x: '-50%' }}
             exit={{ y: 100, opacity: 0, x: '-50%' }}
-            className="absolute bottom-8 left-1/2 flex items-center gap-4 bg-zinc-900/90 backdrop-blur-md border border-white/10 p-2 rounded-2xl shadow-2xl z-50 print-hide"
+            className="absolute bottom-4 sm:bottom-8 left-1/2 flex items-center gap-2 sm:gap-4 bg-zinc-900/90 backdrop-blur-md border border-white/10 p-1.5 sm:p-2 rounded-xl sm:rounded-2xl shadow-2xl z-50 print-hide scale-90 sm:scale-100 origin-bottom"
           >
             <div className="flex items-center gap-2">
               <button
@@ -485,6 +583,10 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
                 tuning={tuning}
                 togglePlay={togglePlay}
                 changeTrack={(index) => changeTrack(tracks[index], index)}
+                isMixerOpen={isMixerOpen}
+                toggleMixer={toggleMixer}
+                masterVolume={masterVolume}
+                handleVolumeChange={handleVolumeChange}
               />
             </div>
           </motion.div>
@@ -502,8 +604,6 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
         onMuteToggle={handleTrackMuteToggle}
         onSoloToggle={handleTrackSoloToggle}
         onResetMixer={handleResetMixer}
-        masterVolume={masterVolume}
-        onMasterVolumeChange={handleVolumeChange}
       />
     </div>
   );

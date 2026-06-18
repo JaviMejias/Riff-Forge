@@ -1,6 +1,7 @@
 import { Mic2, Play, Trash2, MonitorPlay, Disc3 } from 'lucide-react';
 import { motion, useMotionValue, useMotionTemplate } from 'framer-motion';
 import type { Karaoke } from '../../db';
+import { useCoverArt } from '../../hooks/useCoverArt';
 
 interface KaraokeCardProps {
   karaoke: Karaoke;
@@ -39,6 +40,8 @@ export const KaraokeCard = ({ karaoke, index, isActive, onPlay, onDelete }: Kara
   };
 
   const thumbnail = karaoke.youtubeUrl ? getYoutubeThumbnail(karaoke.youtubeUrl) : null;
+  const { coverUrl } = useCoverArt(karaoke.artist, karaoke.name);
+  const displayImage = coverUrl || thumbnail;
 
   return (
     <motion.div
@@ -67,7 +70,7 @@ export const KaraokeCard = ({ karaoke, index, isActive, onPlay, onDelete }: Kara
         }}
       />
       {/* Opciones hover (arriba a la derecha) */}
-      <div className="absolute top-3 right-3 z-20 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+      <div className="absolute top-3 right-3 z-20 flex gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
         <button
           onClick={onDelete}
           className="p-2 bg-rose-500/90 text-white rounded-xl shadow-lg hover:bg-rose-500 hover:scale-110 transition-all backdrop-blur-md"
@@ -80,14 +83,14 @@ export const KaraokeCard = ({ karaoke, index, isActive, onPlay, onDelete }: Kara
       <div className="flex flex-col h-full">
         {/* Thumbnail Area */}
         <div className="relative h-32 sm:h-40 bg-zinc-950 flex items-center justify-center overflow-hidden shrink-0">
-          {thumbnail ? (
+          {displayImage ? (
             <img 
-              src={thumbnail} 
+              src={displayImage} 
               alt={karaoke.name} 
-              className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity duration-500" 
+              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${coverUrl ? 'opacity-80 group-hover:opacity-100' : 'opacity-60 group-hover:opacity-80'}`} 
             />
           ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-zinc-800 to-zinc-900 opacity-50"></div>
+            <div className="absolute inset-0 bg-gradient-to-br from-primary-900 to-zinc-900 opacity-50"></div>
           )}
           
           <div className="relative z-10 p-4 rounded-full bg-zinc-950/50 backdrop-blur-sm border border-white/10 text-white shadow-2xl group-hover:scale-110 group-hover:bg-primary-500 group-hover:text-zinc-950 group-hover:border-primary-400 transition-all duration-300">

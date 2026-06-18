@@ -1,0 +1,465 @@
+import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
+import { Play, Pause, Volume2, VolumeX, RotateCcw, Loader2, FastForward, Music, Settings, Timer, ChevronDown, ChevronUp } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { db } from '../../../db';
+import type { Karaoke } from '../../../db';
+import { VinylAnimation } from './VinylAnimation';
+import { useAudioStore } from '../../../store/audioStore';
+
+export interface LocalAudioPlayerRef {
+  play: () => void;
+  pause: () => void;
+  getCurrentTime: () => number;
+  seek: (time: number) => void;
+  getDuration: () => number;
+  setPlaybackRate: (rate: number) => void;
+  setVolume: (vol: number) => void;
+}
+
+interface LocalAudioPlayerProps {
+  karaoke: Karaoke;
+  onTimeUpdate?: (time: number) => void;
+  onDurationUpdate?: (duration: number) => void;
+  onPlayStateChange?: (isPlaying: boolean) => void;
+  compactMode?: boolean;
+  pitch: number;
+  hiddenUI?: boolean;
+}
+
+export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayerProps>(({ karaoke, onTimeUpdate, onDurationUpdate, onPlayStateChange, compactMode, pitch, hiddenUI }, ref) => {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [volume, setVolume] = useState(1);
+  const [isMuted, setIsMuted] = useState(false);
+  const [speed, setSpeed] = useState(1.0); // 0.5 to 1.5
+  
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showSettings, setShowSettings] = useState(false);
+  const [countdownEnabled, setCountdownEnabled] = useState(false);
+  const [countdownNumber, setCountdownNumber] = useState<number | null>(null);
+  const countdownTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    useAudioStore.getState().setGlobalIsPlaying(isPlaying);
+    return () => useAudioStore.getState().setGlobalIsPlaying(false);
+  }, [isPlaying]);
+
+  useEffect(() => {
+    return () => {
+      if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+    };
+  }, []);
+
+  useImperativeHandle(ref, () => ({
+    play: () => {
+      if (audioRef.current && audioRef.current.paused) togglePlay();
+    },
+    pause: () => {
+      if (audioRef.current && !audioRef.current.paused) togglePlay();
+    },
+    getCurrentTime: () => audioRef.current ? audioRef.current.currentTime : 0,
+    seek: (time: number) => {
+      if (audioRef.current) {
+        audioRef.current.currentTime = time;
+        setCurrentTime(time);
+        if (onTimeUpdate) onTimeUpdate(time);
+      }
+    },
+    getDuration: () => duration,
+    setPlaybackRate: (rate: number) => {
+      if (audioRef.current) {
+        audioRef.current.playbackRate = rate;
+      }
+    },
+    setVolume: (vol: number) => {
+      if (audioRef.current) {
+        audioRef.current.volume = vol;
+      }
+    }
+  }));
+
+  // Fetch the huge binary file ONLY when this component mounts, 
+  // with a small delay so the page transition animation finishes first.
+  useEffect(() => {
+    let url = '';
+    let isMounted = true;
+
+    const loadAudio = async () => {
+      try {
+        if (karaoke.cloudUrl) {
+          const fullUrl = `http://localhost:3001${karaoke.cloudUrl}`;
+          if (isMounted) {
+            setAudioUrl(fullUrl);
+          }
+          return;
+        }
+
+        const fileRecord = await db.karaokeFiles.get(karaoke.id!);
+        if (!isMounted) return;
+
+        // Fallback for non-migrated legacy files if any
+        let data: Uint8Array | undefined;
+        if (fileRecord) {
+          data = fileRecord.data;
+        } else if ((karaoke as any).localFile) {
+          data = (karaoke as any).localFile;
+        }
+
+        if (data && isMounted) {
+          const blob = new Blob([data as any], { type: 'audio/mpeg' });
+          url = URL.createObjectURL(blob);
+          setAudioUrl(url);
+        }
+      } catch (e) {
+        console.error("Failed to load audio file", e);
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    const timer = setTimeout(() => {
+      loadAudio();
+    }, 300); // 300ms delay to allow page animation to finish
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+      if (url) {
+        URL.revokeObjectURL(url);
+      }
+    };
+  }, [karaoke.id]);
+
+  // Removed Tone.js references and Web Audio API logic
+
+  const startCountdownAndPlay = () => {
+    if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
+    
+    setCountdownNumber(3);
+    let count = 3;
+    countdownTimerRef.current = setInterval(() => {
+      count -= 1;
+      if (count > 0) {
+        setCountdownNumber(count);
+      } else {
+        if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
+        countdownTimerRef.current = null;
+        setCountdownNumber(null);
+        audioRef.current?.play();
+        setIsPlaying(true);
+        if (onPlayStateChange) onPlayStateChange(true);
+      }
+    }, 1000);
+  };
+
+  const cancelCountdown = () => {
+    if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
+    countdownTimerRef.current = null;
+    setCountdownNumber(null);
+  };
+
+  const togglePlay = () => {
+    if (audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.pause();
+        setIsPlaying(false);
+        if (onPlayStateChange) onPlayStateChange(false);
+      } else if (countdownNumber !== null) {
+        cancelCountdown();
+      } else {
+        if (countdownEnabled) {
+          startCountdownAndPlay();
+        } else {
+          // Play immediately
+          audioRef.current?.play();
+          setIsPlaying(true);
+          if (onPlayStateChange) onPlayStateChange(true);
+        }
+      }
+    }
+  };
+
+  const handleTimeUpdate = () => {
+    if (audioRef.current) {
+      const time = audioRef.current.currentTime;
+      setCurrentTime(time);
+      if (onTimeUpdate) onTimeUpdate(time);
+    }
+  };
+
+  const handleLoadedMetadata = () => {
+    if (audioRef.current) {
+      setDuration(audioRef.current.duration);
+      if (onDurationUpdate) onDurationUpdate(audioRef.current.duration);
+      // We want to preserve pitch when changing playbackRate so we can shift it independently
+      (audioRef.current as any).preservesPitch = true;
+    }
+  };
+
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newTime = parseFloat(e.target.value);
+    if (audioRef.current) {
+      audioRef.current.currentTime = newTime;
+      setCurrentTime(newTime);
+    }
+  };
+
+  const formatTime = (time: number) => {
+    if (isNaN(time)) return "0:00";
+    const min = Math.floor(time / 60);
+    const sec = Math.floor(time % 60);
+    return `${min}:${sec.toString().padStart(2, '0')}`;
+  };
+
+  const handlePitchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const p = parseFloat(e.target.value);
+    setPitch(p);
+    // El useEffect [pitch] maneja la conmutación bypass / pitchShift
+  };
+
+  const handleSpeedChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const s = parseFloat(e.target.value);
+    setSpeed(s);
+    if (audioRef.current) {
+      audioRef.current.playbackRate = s;
+    }
+  };
+
+  const resetPitch = () => {
+    setPitch(0);
+    // El useEffect [pitch] pone bypass activo y pitchShift silenciado
+  };
+
+  const resetSpeed = () => {
+    setSpeed(1.0);
+    if (audioRef.current) {
+      audioRef.current.playbackRate = 1.0;
+    }
+  };
+
+  if (isLoading) {
+    if (hiddenUI) return null;
+    return (
+      <div className="flex flex-col items-center justify-center w-full h-full bg-zinc-950/80 backdrop-blur-sm rounded-3xl p-6 sm:p-8 text-zinc-400">
+        <Loader2 size={32} className="animate-spin mb-4" />
+        <p className="font-bold">Cargando archivo de audio...</p>
+      </div>
+    );
+  }
+
+  if (!audioUrl) {
+    if (hiddenUI) return null;
+    return (
+      <div className="flex flex-col items-center justify-center w-full h-full bg-zinc-950/80 backdrop-blur-sm rounded-3xl p-6 sm:p-8 text-zinc-500">
+        <p className="font-bold">Error: No se pudo cargar el archivo de audio.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className={hiddenUI ? 'hidden' : 'relative w-full h-full bg-zinc-950 overflow-hidden group'}>
+      {/* Audio Element Hidden */}
+      <audio 
+        ref={audioRef}
+        src={audioUrl || undefined}
+        onTimeUpdate={handleTimeUpdate}
+        onLoadedMetadata={handleLoadedMetadata}
+        onEnded={() => {
+          setIsPlaying(false);
+          if (onPlayStateChange) onPlayStateChange(false);
+        }}
+        crossOrigin="anonymous"
+        className="hidden"
+      />
+
+      {/* Si hiddenUI es true, no renderizamos la interfaz */}
+      {!hiddenUI && (
+        <>
+          {/* Animated Vinyl Area */}
+          <div className={`absolute inset-0 transition-opacity duration-700 ${compactMode ? 'opacity-0 lg:opacity-100 pointer-events-none lg:pointer-events-auto' : 'opacity-100'}`}>
+            <VinylAnimation isPlaying={isPlaying} karaoke={karaoke} />
+          </div>
+
+          {/* Settings Pop-up Menu */}
+          {showSettings && (
+            <>
+              {/* Overlay to close on click outside */}
+              <div 
+                className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" 
+                onClick={() => setShowSettings(false)}
+              >
+                <div 
+                  className="bg-zinc-900 border border-white/10 rounded-2xl p-5 w-full max-w-sm shadow-2xl relative"
+                  onClick={e => e.stopPropagation()}
+                >
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-bold text-white text-sm">Ajustes de Audio</h3>
+                <button onClick={() => setShowSettings(false)} className="text-zinc-400 hover:text-white">✕</button>
+              </div>
+              
+              <div className="flex flex-col gap-5">
+                {/* Countdown Control */}
+                <div className="flex flex-col gap-2">
+                  <div className="flex justify-between text-xs text-zinc-400 font-bold items-center">
+                    <span className="flex items-center gap-1"><Timer size={12}/> Cuenta Regresiva (3s) al Iniciar</span>
+                    <button
+                      onClick={() => setCountdownEnabled(!countdownEnabled)}
+                      className={`w-10 h-5 rounded-full transition-colors relative ${countdownEnabled ? 'bg-primary-500' : 'bg-zinc-700'}`}
+                    >
+                      <div className={`w-3.5 h-3.5 bg-white rounded-full absolute top-[3px] transition-all ${countdownEnabled ? 'left-[22px]' : 'left-[3px]'}`} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="h-px bg-white/5 w-full"></div>
+
+                {/* Speed Control */}
+                <div className="flex flex-col gap-2">
+                  <div className="flex justify-between text-xs text-zinc-400 font-bold">
+                    <span className="flex items-center gap-1"><FastForward size={12}/> Velocidad</span>
+                    <span className={speed !== 1.0 ? 'text-primary-400' : ''}>
+                      {speed.toFixed(2)}x
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="range"
+                      min="0.5"
+                      max="1.5"
+                      step="0.05"
+                      value={speed}
+                      onChange={handleSpeedChange}
+                      className="flex-1 h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-primary-500"
+                    />
+                    <button 
+                      onClick={resetSpeed}
+                      className="p-1 hover:bg-zinc-700 rounded-md transition-colors"
+                      title="Restablecer"
+                    >
+                      <RotateCcw size={12} className="text-zinc-400 hover:text-primary-400" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            </div>
+            </>
+          )}
+
+          {/* Control Bar Overlay */}
+      <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent transition-all duration-700 opacity-100 ${compactMode ? 'pt-6 pb-2 lg:pt-12 lg:pb-4' : 'pt-12 pb-4'} px-4 sm:px-8`}>
+        
+        {/* Progress Bar (Full width at the top of the control bar) */}
+        <div className="w-full flex items-center mb-3 group/slider">
+          <input
+            type="range"
+            min="0"
+            max={duration || 100}
+            value={currentTime}
+            onChange={handleSeek}
+            className="w-full h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer accent-primary-500 hover:h-2 transition-all"
+          />
+        </div>
+
+        {/* Buttons Row */}
+        <div className="flex items-center justify-between">
+          
+          <div className="flex items-center gap-4 sm:gap-6">
+            {/* Play Button */}
+            <button
+              onClick={togglePlay}
+              className="text-white hover:text-primary-400 transition-colors relative"
+            >
+              {isPlaying ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" />}
+              {countdownNumber !== null && (
+                <div className="absolute inset-0 flex items-center justify-center bg-zinc-950/80 rounded-full">
+                  <span className="text-[10px] font-black text-primary-500">{countdownNumber}</span>
+                </div>
+              )}
+            </button>
+
+            {/* Volume Control */}
+            <div className="flex items-center gap-2 group/vol relative">
+              <button onClick={() => {
+                const newMute = !isMuted;
+                setIsMuted(newMute);
+                if (audioRef.current) audioRef.current.muted = newMute;
+              }} className="text-white hover:text-primary-400 transition-colors">
+                {isMuted || volume === 0 ? <VolumeX size={20} /> : <Volume2 size={20} />}
+              </button>
+              {/* Expandable volume slider on desktop, fixed small on mobile */}
+              <div className="w-0 overflow-hidden sm:group-hover/vol:w-20 w-16 sm:w-0 transition-all duration-300 flex items-center">
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={isMuted ? 0 : volume}
+                  onChange={(e) => {
+                    const vol = parseFloat(e.target.value);
+                    setVolume(vol);
+                    if (audioRef.current) audioRef.current.volume = vol;
+                    if (vol > 0 && isMuted) setIsMuted(false);
+                  }}
+                  className="w-full h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer accent-white"
+                />
+              </div>
+            </div>
+
+            {/* Time display */}
+            <div className="text-xs font-mono text-zinc-300 select-none">
+              {formatTime(currentTime)} <span className="text-zinc-500 mx-1">/</span> {formatTime(duration)}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            {/* Settings Button */}
+            <button
+              onClick={() => setShowSettings(!showSettings)}
+              className={`text-white transition-colors ${showSettings || pitch !== 0 || speed !== 1 ? 'text-primary-500' : 'hover:text-primary-400'}`}
+              title="Configuración de audio"
+            >
+              <Settings size={20} className={`transition-transform duration-500 ${showSettings ? 'rotate-90' : ''}`} />
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      {/* Countdown Overlay (Giant) */}
+      <AnimatePresence>
+        {countdownNumber !== null && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm pointer-events-none"
+          >
+            <motion.div
+              key={countdownNumber}
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 1.5, opacity: 0 }}
+              transition={{ duration: 0.5 }}
+              className="text-8xl md:text-9xl font-black text-primary-500 drop-shadow-[0_0_40px_rgba(var(--color-primary-500),0.8)]"
+            >
+              {countdownNumber}
+            </motion.div>
+            <p className="text-white/80 font-bold mt-4 text-sm uppercase tracking-widest">Preparate...</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+        </>
+      )}
+    </div>
+  );
+});

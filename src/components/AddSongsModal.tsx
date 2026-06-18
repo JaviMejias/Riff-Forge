@@ -69,7 +69,7 @@ export const AddSongsModal = ({
       subtitle={`Busca y selecciona ${itemLabel.toLowerCase()} a incluir.`}
       icon={<PlusCircle size={24} />}
     >
-      <div className="flex flex-col h-[60vh] max-h-[500px]">
+      <div className="flex flex-col h-[70vh] sm:h-[60vh] max-h-[600px]">
         {/* Search Bar */}
         <div className="p-4 border-b border-white/5 shrink-0">
           <div className="relative">
@@ -123,21 +123,21 @@ export const AddSongsModal = ({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-white/5 bg-zinc-900 shrink-0 flex items-center justify-between">
-          <span className="text-sm font-bold text-zinc-400">
+        <div className="p-4 border-t border-white/5 bg-zinc-900 shrink-0 flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-0">
+          <span className="text-sm font-bold text-zinc-400 w-full sm:w-auto text-center sm:text-left">
             {selectedIds.size} seleccionada{selectedIds.size !== 1 ? 's' : ''}
           </span>
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
             <button
               onClick={handleClose}
-              className="px-5 py-2.5 rounded-xl font-bold text-zinc-400 hover:text-white hover:bg-white/5 transition-all"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl font-bold text-zinc-400 hover:text-white hover:bg-white/5 transition-all order-2 sm:order-1"
             >
               Cancelar
             </button>
             <button
               onClick={handleConfirm}
               disabled={selectedIds.size === 0}
-              className="px-6 py-2.5 rounded-xl font-bold bg-primary-500 text-zinc-950 hover:bg-primary-400 transition-all shadow-[0_0_20px_var(--theme-glow)] disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full sm:w-auto px-6 py-2.5 rounded-xl font-bold bg-primary-500 text-zinc-950 hover:bg-primary-400 transition-all shadow-[0_0_20px_var(--theme-glow)] disabled:opacity-50 disabled:cursor-not-allowed order-1 sm:order-2"
             >
               Añadir a la lista
             </button>

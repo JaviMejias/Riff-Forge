@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Settings, Download, Upload, AlertTriangle, CheckCircle2, Menu } from 'lucide-react';
+import { Download, Upload, Palette, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { db } from '../db';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 import { useUiStore } from '../store/uiStore';
+import { Navbar } from './Navbar';
 import { Button } from './ui/Button';
-import { Palette } from 'lucide-react';
 
 const MySwal = withReactContent(Swal);
 
@@ -16,7 +16,7 @@ interface SettingsViewProps {
 }
 
 export const SettingsView = (_props: SettingsViewProps) => {
-  const { setMobileMenuOpen, theme, setTheme } = useUiStore();
+  const { theme, setTheme } = useUiStore();
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
 
@@ -157,7 +157,7 @@ export const SettingsView = (_props: SettingsViewProps) => {
         confirmButtonText: 'Reemplazar Todo',
         denyButtonText: 'Fusionar',
         cancelButtonText: 'Cancelar',
-        confirmButtonColor: '#ef4444',
+        confirmButtonColor: 'var(--primary-500)',
         denyButtonColor: '#f59e0b',
         cancelButtonColor: '#3f3f46',
         background: '#18181b',
@@ -288,30 +288,20 @@ export const SettingsView = (_props: SettingsViewProps) => {
   };
 
   return (
-    <div className="h-full flex flex-col bg-zinc-950 overflow-y-auto hide-scrollbar">
-      {/* HEADER */}
-      <div className="sticky top-0 z-20 bg-zinc-950/80 backdrop-blur-md border-b border-white/5 p-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => setMobileMenuOpen(true)}
-            className="md:hidden p-2 rounded-xl bg-zinc-900 border border-white/5 text-zinc-400 hover:text-white"
-          >
-            <Menu size={20} />
-          </button>
-          <div className="flex items-center gap-3">
-            <Settings className="text-primary-500 hidden md:block" size={24} />
-            <h1 className="text-xl md:text-2xl font-black text-white">Ajustes</h1>
-          </div>
-        </div>
+    <div className="flex flex-col h-full w-full bg-zinc-950 overflow-y-auto custom-scrollbar">
+      {/* Navbar area */}
+      <div className="p-8 pb-4 shrink-0">
+        <Navbar title="Ajustes" subtitle="Configuración y personalización" />
       </div>
 
-      <div className="max-w-4xl mx-auto w-full p-6 md:p-12">
+      <div className="w-full p-4 sm:p-8">
+        <div className="bg-zinc-900/30 border border-white/5 rounded-[2rem] p-6 sm:p-10 shadow-2xl backdrop-blur-sm flex flex-col gap-12">
         
         {/* APARIENCIA */}
-        <div className="mb-12">
+        <div>
           <h2 className="text-sm font-bold text-zinc-500 uppercase tracking-widest mb-6">Apariencia</h2>
           
-          <div className="bg-zinc-900 border border-white/5 rounded-3xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-lg">
+          <div className="bg-zinc-900/50 border border-white/5 rounded-3xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-xl transition-all duration-300 hover:border-primary-500/20 hover:shadow-[0_0_30px_rgba(245,158,11,0.1)]">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-primary-500/10 rounded-2xl flex items-center justify-center border border-primary-500/20">
                 <Palette className="text-primary-500" size={24} />
@@ -324,13 +314,18 @@ export const SettingsView = (_props: SettingsViewProps) => {
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center justify-start md:justify-end gap-3">
               {[
                 { id: 'amber', color: '#f59e0b', name: 'Riff Forge (Ámbar)' },
-                { id: 'rose', color: '#f43f5e', name: 'Rosa' },
+                { id: 'ruby', color: '#ef4444', name: 'Carmín (Rojo)' },
+                { id: 'rose', color: '#ff8096', name: 'Rosa Pastel' },
                 { id: 'emerald', color: '#10b981', name: 'Esmeralda' },
+                { id: 'lime', color: '#84cc16', name: 'Lima (Verde Neón)' },
+                { id: 'cyan', color: '#06b6d4', name: 'Cian (Aqua)' },
                 { id: 'blue', color: '#3b82f6', name: 'Azul' },
-                { id: 'violet', color: '#8b5cf6', name: 'Violeta' }
+                { id: 'indigo', color: '#6366f1', name: 'Índigo (Nocturno)' },
+                { id: 'violet', color: '#8b5cf6', name: 'Violeta' },
+                { id: 'silver', color: '#d4d4d8', name: 'Plata (Monocromo)' }
               ].map((t) => (
                 <button
                   key={t.id}
@@ -346,8 +341,10 @@ export const SettingsView = (_props: SettingsViewProps) => {
           </div>
         </div>
 
+
+
         <div className="mb-12">
-          <h2 className="text-sm font-bold text-zinc-500 uppercase tracking-widest mb-6">Portabilidad y Respaldo</h2>
+          <h2 className="text-sm font-bold text-zinc-500 uppercase tracking-widest mb-6">Portabilidad y Respaldo Local</h2>
           
           <motion.div 
             initial="hidden"
@@ -366,7 +363,7 @@ export const SettingsView = (_props: SettingsViewProps) => {
                 show: { opacity: 1, y: 0 }
               }}
               whileHover={{ y: -4 }}
-              className="bg-zinc-900 border border-white/5 rounded-3xl p-6 flex flex-col justify-between shadow-lg"
+              className="bg-zinc-900 border border-white/5 rounded-3xl p-6 flex flex-col justify-between shadow-lg transition-all duration-300 hover:border-primary-500/20 hover:shadow-[0_0_30px_var(--theme-glow)]"
             >
               <div>
                 <div className="w-12 h-12 bg-primary-500/10 rounded-2xl flex items-center justify-center mb-4 border border-primary-500/20">
@@ -396,7 +393,7 @@ export const SettingsView = (_props: SettingsViewProps) => {
                 show: { opacity: 1, y: 0 }
               }}
               whileHover={{ y: -4 }}
-              className="bg-zinc-900 border border-white/5 rounded-3xl p-6 flex flex-col justify-between shadow-lg"
+              className="bg-zinc-900 border border-white/5 rounded-3xl p-6 flex flex-col justify-between shadow-lg transition-all duration-300 hover:border-primary-500/20 hover:shadow-[0_0_30px_var(--theme-glow)]"
             >
               <div>
                 <div className="w-12 h-12 bg-indigo-500/10 rounded-2xl flex items-center justify-center mb-4 border border-indigo-500/20">
@@ -427,6 +424,7 @@ export const SettingsView = (_props: SettingsViewProps) => {
           </motion.div>
         </div>
 
+        </div>
       </div>
     </div>
   );

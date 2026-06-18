@@ -1,4 +1,4 @@
-import { Gauge, Bell, Repeat, LayoutTemplate, Music, Timer, SlidersHorizontal } from 'lucide-react';
+import { Gauge, Bell, Repeat, LayoutTemplate, Music, Timer } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
 import { CustomSelect } from './CustomSelect';
@@ -17,8 +17,6 @@ interface PracticeControlsProps {
   toggleLoop: () => void;
   isHorizontalMode: boolean;
   toggleLayoutMode: () => void;
-  isMixerOpen: boolean;
-  toggleMixer: () => void;
 }
 
 const Tooltip = ({ text, children }: { text: string; children: React.ReactNode }) => {
@@ -61,8 +59,6 @@ export const PracticeControls = ({
   toggleLoop,
   isHorizontalMode,
   toggleLayoutMode,
-  isMixerOpen,
-  toggleMixer,
 }: PracticeControlsProps) => {
   return (
     <div className="bg-zinc-900/40 backdrop-blur-md p-4 rounded-2xl border border-white/5 flex flex-wrap gap-3 items-center justify-center lg:justify-start shadow-inner shadow-black/20">
@@ -187,22 +183,6 @@ export const PracticeControls = ({
         </motion.button>
       </Tooltip>
 
-      <Tooltip text="Abrir Mezclador de Pistas">
-        <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          disabled={isLoading}
-          onClick={toggleMixer}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all disabled:opacity-50 ml-auto w-full md:w-auto mt-2 md:mt-0 ${
-            isMixerOpen
-              ? 'bg-primary-500/20 border-primary-500/50 text-primary-400 shadow-[0_0_10px_var(--theme-glow)]'
-              : 'bg-zinc-950/80 border-white/5 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
-          }`}
-        >
-          <SlidersHorizontal size={18} />{' '}
-          <span className="text-sm font-bold hidden xl:inline tracking-wide">Mezclador</span>
-        </motion.button>
-      </Tooltip>
     </div>
   );
 };

@@ -21,18 +21,18 @@ const EditChordModalContent = ({ chordToEdit, onReplace, onClose }: EditChordMod
   return (
     <div className="flex flex-col gap-6 text-left">
       {/* CABECERA PERSONALIZADA */}
-      <div className="flex items-center gap-4 border-b border-white/5 pb-5">
-        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary-400/20 to-primary-600/5 border border-primary-500/20 flex items-center justify-center shrink-0 shadow-inner">
-          <PenLine className="text-primary-400" size={24} />
+      <div className="flex items-center gap-3 sm:gap-4 border-b border-white/5 pb-4 sm:pb-5">
+        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-primary-400/20 to-primary-600/5 border border-primary-500/20 flex items-center justify-center shrink-0 shadow-inner">
+          <PenLine className="text-primary-400" size={20} />
         </div>
         <div className="flex flex-col min-w-0">
-          <h2 className="text-xl md:text-2xl font-black text-white m-0 truncate">Personalizar Acorde</h2>
-          <p className="text-zinc-500 text-xs md:text-sm font-medium mt-0.5 truncate">
+          <h2 className="text-lg sm:text-xl md:text-2xl font-black text-white m-0 truncate">Personalizar Acorde</h2>
+          <p className="hidden sm:block text-zinc-500 text-xs md:text-sm font-medium mt-0.5 truncate">
             Reemplazar en toda la canción
           </p>
         </div>
-        <div className="ml-auto px-4 py-2 bg-zinc-950 border border-white/10 rounded-xl shadow-inner flex items-center justify-center">
-          <span className="text-primary-500 font-black text-xl md:text-2xl tracking-tighter leading-none">{chordToEdit}</span>
+        <div className="ml-auto px-3 py-1.5 sm:px-4 sm:py-2 bg-zinc-950 border border-white/10 rounded-xl shadow-inner flex items-center justify-center">
+          <span className="text-primary-500 font-black text-lg sm:text-xl md:text-2xl tracking-tighter leading-none">{chordToEdit}</span>
         </div>
       </div>
 
@@ -81,7 +81,7 @@ export const openEditChordModal = (chordToEdit: string, onReplace: (oldChord: st
     background: '#18181b',
     color: '#f4f4f5',
     customClass: {
-      popup: 'border border-white/10 rounded-3xl !p-6'
+      popup: 'border border-white/10 rounded-3xl !p-4 sm:!p-6 overflow-hidden flex flex-col max-h-[90vh]'
     }
   });
 };

@@ -52,6 +52,11 @@ export function useAlphaTab(song: Song | null) {
     setIsLoading(true);
     setLoadingMsg(`Renderizando pista: ${track.name}...`);
     apiRef.current?.renderTracks([track]);
+
+    // Safety timeout in case alphaTab hangs during render
+    setTimeout(() => {
+      setIsLoading(false);
+    }, 4000);
   };
 
   useEffect(() => {
@@ -175,11 +180,19 @@ export function useAlphaTab(song: Song | null) {
       setIsPlaying(e.state === alphaTab.synth.PlayerState.Playing);
     });
 
+    apiRef.current.playerReady.on(() => {
+      if (apiRef.current) {
+        apiRef.current.masterVolume = usePlayerStore.getState().masterVolume;
+      }
+    });
+
     return () => {
       apiRef.current?.destroy();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const lastLoadedSongRef = useRef<number | string | null>(null);
 
   useEffect(() => {
     if (!song) return;
@@ -193,6 +206,9 @@ export function useAlphaTab(song: Song | null) {
     }
 
     if (song.data && apiRef.current) {
+      if (lastLoadedSongRef.current === song.id) return;
+      lastLoadedSongRef.current = song.id || 'temp';
+
       setTracks([]); 
       setErrorMsg(null);
       setIsLoading(true);
@@ -200,10 +216,17 @@ export function useAlphaTab(song: Song | null) {
       
       try {
         const buffer = song.data instanceof Uint8Array ? song.data : new Uint8Array(song.data);
-        apiRef.current.load(buffer);
+        
+        // Wait a tick for the DOM to paint so AlphaTab reads correct container dimensions
+        setTimeout(() => {
+          if (apiRef.current) {
+            apiRef.current.load(buffer);
+          }
+        }, 100);
+
       } catch (e) {
         setIsLoading(false);
-        setErrorMsg("Error crítico al intentar cargar el archivo desde tu biblioteca.");
+        setErrorMsg("Error crítico al intentar preparar el archivo.");
       }
     }
   }, [song]);

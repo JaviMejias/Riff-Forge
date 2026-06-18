@@ -13,8 +13,6 @@ interface TrackMixerProps {
   onMuteToggle: (trackIndex: number) => void;
   onSoloToggle: (trackIndex: number) => void;
   onResetMixer: () => void;
-  masterVolume: number;
-  onMasterVolumeChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
 export const TrackMixer = ({
@@ -27,17 +25,15 @@ export const TrackMixer = ({
   onVolumeChange,
   onMuteToggle,
   onSoloToggle,
-  onResetMixer,
-  masterVolume,
-  onMasterVolumeChange
+  onResetMixer
 }: TrackMixerProps) => {
   if (!isOpen) return null;
 
   const isAnySolo = Object.values(trackSolos).some(s => s);
 
   return createPortal(
-    <div className="fixed inset-0 z-99999 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 transition-opacity duration-300">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-h-[80vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-300">
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 transition-opacity duration-300" onClick={onClose}>
+      <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-h-[80vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-300" onClick={(e) => e.stopPropagation()}>
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 border-b border-slate-800 bg-slate-900/50 gap-4">
           <div className="flex items-center gap-3 text-indigo-400">
@@ -46,21 +42,6 @@ export const TrackMixer = ({
           </div>
 
           <div className="flex items-center gap-4 w-full sm:w-auto">
-            <div className="flex items-center gap-2 bg-slate-950 px-3 py-2 rounded-lg border border-slate-700 flex-1 sm:flex-none">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-1">Master</span>
-              <Volume2 size={16} className="text-indigo-400" />
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                value={masterVolume}
-                onChange={onMasterVolumeChange}
-                className="w-full sm:w-24 accent-indigo-500 cursor-pointer"
-                title="Volumen Maestro"
-              />
-            </div>
-
             <button
               onClick={onResetMixer}
               className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-bold bg-slate-800 text-slate-300 hover:bg-indigo-500 hover:text-white rounded-lg transition-all duration-300 shadow-md active:scale-95 flex-1 sm:flex-none"
@@ -71,7 +52,7 @@ export const TrackMixer = ({
             </button>
             <button
               onClick={onClose}
-              className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors hidden sm:block"
+              className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors ml-auto sm:ml-0"
             >
               <X size={20} />
             </button>
@@ -133,7 +114,7 @@ export const TrackMixer = ({
                       </button>
                     </div>
                     <div className="flex items-center gap-2 flex-1 max-w-[200px] bg-slate-950 px-3 py-2 rounded-lg border border-slate-700 transition-colors duration-300">
-                      {vol === 0 || isEffectivelyMuted ? <VolumeX size={16} className="text-slate-600 transition-colors" /> : <Volume2 size={16} className={`${isSolo ? 'text-primary-400' : 'text-indigo-400'} transition-colors`} />}
+                      {vol === 0 || isEffectivelyMuted ? <VolumeX size={16} className="text-slate-600 transition-colors shrink-0" /> : <Volume2 size={16} className={`${isSolo ? 'text-primary-400' : 'text-indigo-400'} transition-colors shrink-0`} />}
                       <input
                         type="range"
                         min="0"
@@ -143,6 +124,9 @@ export const TrackMixer = ({
                         onChange={(e) => onVolumeChange(i, parseInt(e.target.value))}
                         className={`w-full cursor-pointer transition-all ${isSolo ? 'accent-primary-500' : 'accent-indigo-500'}`}
                       />
+                      <span className="text-[10px] font-bold text-slate-400 w-8 text-right shrink-0">
+                        {isEffectivelyMuted ? 0 : Math.round((vol / 16) * 100)}%
+                      </span>
                     </div>
                   </div>
                 </div>

@@ -14,6 +14,9 @@ import { usePlayerStore } from './store/playerStore';
 const MySwal = withReactContent(Swal);
 
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { GlobalAmbilight } from './components/GlobalAmbilight';
+import { LoginView } from './components/LoginView';
+import { useAuthStore } from './store/authStore';
 
 // Lazy loaded views
 const TabPlayer = React.lazy(() => import('./components/TabPlayer').then(m => ({ default: m.TabPlayer })));
@@ -113,11 +116,16 @@ function App() {
   const theme = useUiStore(state => state.theme);
   const setTheme = useUiStore(state => state.setTheme);
   const { setMainViewMode } = usePlayerStore();
+  const { token, loading } = useAuthStore();
 
   React.useEffect(() => {
     // Initial theme sync when the app loads
     setTheme(theme);
-  }, []);
+
+    const handleLogout = () => navigate('/');
+    window.addEventListener('auth-logout', handleLogout);
+    return () => window.removeEventListener('auth-logout', handleLogout);
+  }, [theme, setTheme, navigate]);
 
   const handlePlaySong = (song: Song, autoEdit?: boolean) => {
     if (song.type !== 'text' && song.textContent) {
@@ -242,8 +250,24 @@ function App() {
     ? parseInt(location.pathname.split('/')[2]) 
     : null;
 
+  if (loading) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-zinc-950 text-primary-500">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="animate-spin w-12 h-12" />
+          <p className="font-bold tracking-widest text-sm uppercase">Verificando sesión...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!token) {
+    return <LoginView />;
+  }
+
   return (
     <div className={`flex h-screen bg-zinc-950 text-zinc-100 overflow-hidden font-sans ${isImmersiveMode ? 'bg-black' : 'bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-[var(--theme-glow)] via-zinc-950 to-zinc-950'}`}>
+        <GlobalAmbilight />
         {/* OVERLAY MOBILE */}
         <AnimatePresence>
           {isMobileMenuOpen && (
@@ -259,7 +283,7 @@ function App() {
 
         {!isImmersiveMode && <Sidebar />}
 
-        <main className="flex-1 relative bg-zinc-950 overflow-hidden flex flex-col h-full z-10 w-full min-w-0 p-4 sm:p-6 md:p-8 lg:p-10">
+        <main className="flex-1 relative overflow-hidden flex flex-col h-full z-10 w-full min-w-0 p-4 sm:p-6 md:p-8 lg:p-10">
           <ErrorBoundary>
             <Suspense fallback={
               <div className="h-full flex items-center justify-center bg-zinc-950 text-primary-500">

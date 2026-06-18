@@ -10,7 +10,8 @@ export const parseLrc = (lrcString: string): LrcLine[] => {
   if (!lrcString) return [];
   
   const lines = lrcString.split('\n');
-  const result: LrcLine[] = [];
+  const synced: LrcLine[] = [];
+  const unsynced: LrcLine[] = [];
 
   for (const line of lines) {
     const match = line.match(LRC_REGEX);
@@ -22,18 +23,25 @@ export const parseLrc = (lrcString: string): LrcLine[] => {
       const msFraction = msStr.length === 2 ? ms / 100 : ms / 1000;
       
       const timeInSeconds = min * 60 + sec + msFraction;
-      result.push({
+      synced.push({
         time: timeInSeconds,
         text: match[4].trim(),
       });
+    } else {
+      const trimmed = line.trim();
+      if (trimmed) {
+        unsynced.push({ time: -1, text: trimmed });
+      }
     }
   }
 
-  return result.sort((a, b) => a.time - b.time);
+  synced.sort((a, b) => a.time - b.time);
+  return [...synced, ...unsynced];
 };
 
 export const buildLrc = (lines: LrcLine[]): string => {
   return lines.map(l => {
+    if (l.time <= 0) return l.text;
     const min = Math.floor(l.time / 60).toString().padStart(2, '0');
     const sec = Math.floor(l.time % 60).toString().padStart(2, '0');
     const ms = Math.floor((l.time % 1) * 100).toString().padStart(2, '0');
@@ -43,5 +51,5 @@ export const buildLrc = (lines: LrcLine[]): string => {
 
 export const hasLrcTags = (text: string): boolean => {
   if (!text) return false;
-  return parseLrc(text).length > 0;
+  return LRC_REGEX.test(text);
 };

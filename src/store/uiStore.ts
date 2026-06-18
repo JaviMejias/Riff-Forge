@@ -27,10 +27,20 @@ export const useUiStore = create<UiState>()(
       toggleImmersiveMode: () => set((state) => {
         const nextState = !state.isImmersiveMode;
         if (nextState) {
-          document.documentElement.requestFullscreen().catch(() => {});
+          document.documentElement.requestFullscreen().then(() => {
+            // Intentar bloquear la pantalla en horizontal
+            if (window.screen && window.screen.orientation && window.screen.orientation.lock) {
+              window.screen.orientation.lock('landscape').catch(() => {
+                console.warn('La API de orientación no está soportada o fue bloqueada por el navegador.');
+              });
+            }
+          }).catch(() => {});
         } else {
           if (document.fullscreenElement) {
             document.exitFullscreen().catch(() => {});
+          }
+          if (window.screen && window.screen.orientation && window.screen.orientation.unlock) {
+            window.screen.orientation.unlock();
           }
         }
         return { isImmersiveMode: nextState };
@@ -50,6 +60,7 @@ export const useUiStore = create<UiState>()(
           html.classList.add(`theme-${theme}`);
         }
         
+        setTimeout(() => window.dispatchEvent(new Event('trigger-auto-sync')), 100);
         return { theme };
       }),
     }),

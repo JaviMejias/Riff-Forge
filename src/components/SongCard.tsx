@@ -82,7 +82,7 @@ export const SongCard = ({ song, isActive, onPlay, onAdd, onDelete, onRemove, in
             )}
           </div>
           {/* Floating actions */}
-          <div className="flex opacity-0 group-hover:opacity-100 transition-opacity -mt-1 -mr-1 shrink-0 ml-2">
+          <div className="flex opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity -mt-1 -mr-1 shrink-0 ml-2">
             {onAdd && (
               <button
                 onClick={onAdd}
