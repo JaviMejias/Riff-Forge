@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { AlertCircle, Edit3, AlignLeft, MonitorPlay, Music, MoreVertical, Loader2, Disc } from 'lucide-react';
+import { AlertCircle, Edit3, AlignLeft, MonitorPlay, Music, MoreVertical } from 'lucide-react';
 import { Navbar } from '../Navbar';
 import { LocalAudioPlayer } from './player/LocalAudioPlayer';
 import type { LocalAudioPlayerRef } from './player/LocalAudioPlayer';
@@ -40,7 +40,7 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
   // Countdown state
   const [isCountInEnabled, setIsCountInEnabled] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
-  const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const countdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Cover Art
   const { coverUrl } = useCoverArt(karaoke.artist, karaoke.name);

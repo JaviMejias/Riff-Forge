@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
-import { Play, Pause, Volume2, VolumeX, RotateCcw, Loader2, FastForward, Music, Settings, Timer, ChevronDown, ChevronUp } from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX, RotateCcw, Loader2, FastForward, Settings, Timer } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '../../../db';
 import type { Karaoke } from '../../../db';
@@ -220,23 +220,12 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
     return `${min}:${sec.toString().padStart(2, '0')}`;
   };
 
-  const handlePitchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const p = parseFloat(e.target.value);
-    setPitch(p);
-    // El useEffect [pitch] maneja la conmutación bypass / pitchShift
-  };
-
   const handleSpeedChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const s = parseFloat(e.target.value);
     setSpeed(s);
     if (audioRef.current) {
       audioRef.current.playbackRate = s;
     }
-  };
-
-  const resetPitch = () => {
-    setPitch(0);
-    // El useEffect [pitch] pone bypass activo y pitchShift silenciado
   };
 
   const resetSpeed = () => {
