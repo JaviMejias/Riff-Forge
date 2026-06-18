@@ -30,7 +30,7 @@ export const CreateKaraokeModal = ({ isOpen, onClose, onSuccess }: CreateKaraoke
       setIsDownloading(true);
       try {
         const token = useAuthStore.getState().token;
-        const res = await fetch('http://localhost:3001/api/karaokes/download-audio', {
+        const res = await fetch('http://146.181.34.184:3001/api/karaokes/download-audio', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -49,7 +49,7 @@ export const CreateKaraokeModal = ({ isOpen, onClose, onSuccess }: CreateKaraoke
         // Intentar descargar la letra automáticamente
         try {
           const params = new URLSearchParams({ title: title.trim(), artist: artist.trim() || '' });
-          const lyricsRes = await fetch(`http://localhost:3001/api/karaokes/lyrics?${params}`, {
+          const lyricsRes = await fetch(`http://146.181.34.184:3001/api/karaokes/lyrics?${params}`, {
             headers: {
               ...(token ? { 'Authorization': `Bearer ${token}` } : {})
             }

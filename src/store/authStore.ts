@@ -16,7 +16,7 @@ interface AuthStore {
   verifyToken: () => Promise<void>;
 }
 
-const API_URL = 'http://localhost:3001/api';
+const API_URL = 'http://146.181.34.184:3001/api';
 
 export const useAuthStore = create<AuthStore>((set, get) => ({
   user: null,
