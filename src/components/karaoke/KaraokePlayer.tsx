@@ -408,6 +408,17 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
   };
 
 
+  const ytOpts = useMemo(() => ({
+    playerVars: {
+      autoplay: 0,
+      controls: 0,
+      rel: 0,
+      disablekb: 0,
+      mute: 1, // Inicia el reproductor nativamente en mute para evitar el "eco" inicial
+      origin: window.location.origin
+    }
+  }), []);
+
   return (
     <div className="flex flex-col h-full w-full p-4 sm:p-8 relative z-0">
       
@@ -550,51 +561,45 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
             ) : activeSource === 'youtube' && ytVideoId ? (
               <div className="flex-1 w-full flex items-center justify-center bg-black overflow-hidden">
                 <div className="w-full aspect-video lg:aspect-auto lg:w-full lg:h-full relative group">
-                  <YouTube
-                    videoId={ytVideoId}
-                    className="absolute inset-0 w-full h-full border-0"
-                    iframeClassName="w-full h-full"
-                    opts={{
-                      playerVars: {
-                        autoplay: 0,
-                        controls: 0,
-                        rel: 0,
-                        disablekb: 0,
-                        mute: 1 // Inicia el reproductor nativamente en mute para evitar el "eco" inicial
-                      }
-                    }}
-                    onReady={(e) => {
-                      setYtPlayer(e.target);
-                    }}
-                    onPlay={() => {
-                      if (!hasStarted) setHasStarted(true);
-                      if (ytPlayer) ytPlayer.mute(); // Forzar silencio siempre
-                      if (hasLocalAudio && activeSource === 'youtube') {
-                        localPlayerRef.current?.seek(ytPlayer.getCurrentTime());
-                        localPlayerRef.current?.play();
-                      }
-                    }}
-                    onPause={() => {
-                      if (hasLocalAudio && activeSource === 'youtube') {
-                        localPlayerRef.current?.pause();
-                      }
-                    }}
-                    onStateChange={(e) => {
-                      // Si el video se búfea (3) o termina (0), paramos el local
-                      if (e.data === 3 || e.data === 0) {
-                        localPlayerRef.current?.pause();
-                      }
-                      if (e.data === 0) {
-                        setGlobalIsPlaying(false);
-                      }
-                      
-                      // Si terminó de bufferear y empezó a reproducir, sincronizar y reproducir
-                      if (e.data === 1 && hasLocalAudio && activeSource === 'youtube') {
-                        localPlayerRef.current?.seek(ytPlayer.getCurrentTime());
-                        localPlayerRef.current?.play();
-                      }
-                    }}
-                  />
+                  <div>
+                    <YouTube
+                      videoId={ytVideoId}
+                      className="absolute inset-0 w-full h-full border-0"
+                      iframeClassName="w-full h-full"
+                      opts={ytOpts}
+                      onReady={(e) => {
+                        setYtPlayer(e.target);
+                      }}
+                      onPlay={() => {
+                        if (!hasStarted) setHasStarted(true);
+                        if (ytPlayer) ytPlayer.mute(); // Forzar silencio siempre
+                        if (hasLocalAudio && activeSource === 'youtube') {
+                          localPlayerRef.current?.seek(ytPlayer.getCurrentTime());
+                          localPlayerRef.current?.play();
+                        }
+                      }}
+                      onPause={() => {
+                        if (hasLocalAudio && activeSource === 'youtube') {
+                          localPlayerRef.current?.pause();
+                        }
+                      }}
+                      onStateChange={(e) => {
+                        // Si el video se búfea (3) o termina (0), paramos el local
+                        if (e.data === 3 || e.data === 0) {
+                          localPlayerRef.current?.pause();
+                        }
+                        if (e.data === 0) {
+                          setGlobalIsPlaying(false);
+                        }
+                        
+                        // Si terminó de bufferear y empezó a reproducir, sincronizar y reproducir
+                        if (e.data === 1 && hasLocalAudio && activeSource === 'youtube') {
+                          localPlayerRef.current?.seek(ytPlayer.getCurrentTime());
+                          localPlayerRef.current?.play();
+                        }
+                      }}
+                    />
+                  </div>
                 
                 {/* Click-to-Start Overlay to bypass Autoplay Policies */}
                 {!hasStarted && ytPlayer && (
