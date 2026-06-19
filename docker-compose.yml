@@ -13,7 +13,7 @@ services:
       - PORT=3001
     volumes:
       # Guardar la base de datos de forma permanente
-      - backend_data:/app/prisma
+      - backend_data:/app/data
       # Guardar los audios subidos de forma permanente
       - uploads_data:/app/uploads
 
