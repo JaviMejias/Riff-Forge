@@ -47,7 +47,7 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
   // Cover Art
   const { coverUrl } = useCoverArt(karaoke.artist, karaoke.name);
 
-  const pitchDebounceRef = useRef<NodeJS.Timeout>();
+  const pitchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const setPitch = async (newPitch: number) => {
     setPitchState(newPitch);
