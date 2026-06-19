@@ -46,6 +46,12 @@ export const CommunityView = ({ isSidebarOpen, onToggleSidebar }: CommunityViewP
   };
 
   const cloneSong = async (item: any) => {
+    const currentUser = useAuthStore.getState().user;
+    if (currentUser && item.userId === currentUser.id) {
+      Toast.fire({ icon: 'info', title: 'Este aporte es tuyo', text: 'Ya tienes este elemento en tu biblioteca.' });
+      return;
+    }
+
     const confirm = await MySwal.fire({
       title: `¿Clonar "${item.name}"?`,
       text: `Se añadirá a tu biblioteca personal.`,
@@ -195,8 +201,17 @@ export const CommunityView = ({ isSidebarOpen, onToggleSidebar }: CommunityViewP
                     <div className="absolute inset-0 z-20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                       <div className="bg-black/50 absolute inset-0 rounded-2xl"></div>
                       <div className="flex flex-col items-center justify-center transform translate-y-4 group-hover:translate-y-0 transition-all">
-                        <Download size={32} className="text-primary-400 mb-2 drop-shadow-[0_0_10px_rgba(245,158,11,0.8)]" />
-                        <span className="text-white font-bold tracking-widest uppercase text-xs">Clonar a Biblioteca</span>
+                        {useAuthStore.getState().user?.id === item.userId ? (
+                          <>
+                            <div className="text-primary-400 mb-2 drop-shadow-[0_0_10px_rgba(245,158,11,0.8)]">🌐</div>
+                            <span className="text-white font-bold tracking-widest uppercase text-xs text-center px-2">Tu Aporte<br/>Público</span>
+                          </>
+                        ) : (
+                          <>
+                            <Download size={32} className="text-primary-400 mb-2 drop-shadow-[0_0_10px_rgba(245,158,11,0.8)]" />
+                            <span className="text-white font-bold tracking-widest uppercase text-xs text-center px-2">Clonar a<br/>Biblioteca</span>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
