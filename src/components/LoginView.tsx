@@ -84,26 +84,30 @@ export const LoginView = () => {
 
             <div>
               <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Correo Electrónico</label>
-              <input
-                type="email"
-                value={email}
-                autoComplete={isSignup ? "off" : "email"}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-zinc-950/50 border border-white/5 rounded-xl p-4 text-white placeholder-zinc-600 focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/50 transition-all"
-                placeholder="correo@ejemplo.com"
-              />
+              <div className="relative">
+                <input
+                  type="email"
+                  value={email}
+                  autoComplete={isSignup ? "off" : "email"}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-zinc-950/50 border border-white/5 rounded-xl p-4 text-white placeholder-zinc-600 focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/50 transition-all"
+                  placeholder="correo@ejemplo.com"
+                />
+              </div>
             </div>
 
             <div>
               <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Contraseña</label>
-              <input
-                type="password"
-                value={password}
-                autoComplete={isSignup ? "new-password" : "current-password"}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-zinc-950/50 border border-white/5 rounded-xl p-4 text-white placeholder-zinc-600 focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/50 transition-all"
-                placeholder="••••••••"
-              />
+              <div className="relative">
+                <input
+                  type="password"
+                  value={password}
+                  autoComplete={isSignup ? "new-password" : "current-password"}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full bg-zinc-950/50 border border-white/5 rounded-xl p-4 text-white placeholder-zinc-600 focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/50 transition-all"
+                  placeholder="••••••••"
+                />
+              </div>
             </div>
 
             <label className="flex items-center gap-3 cursor-pointer mt-2 group w-max">

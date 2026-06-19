@@ -202,15 +202,15 @@ export const CommunityView = ({ isSidebarOpen, onToggleSidebar }: CommunityViewP
                       <div className="bg-black/50 absolute inset-0 rounded-2xl"></div>
                       <div className="flex flex-col items-center justify-center transform translate-y-4 group-hover:translate-y-0 transition-all">
                         {useAuthStore.getState().user?.id === item.userId ? (
-                          <>
+                          <div key="own" className="flex flex-col items-center">
                             <div className="text-primary-400 mb-2 drop-shadow-[0_0_10px_rgba(245,158,11,0.8)]">🌐</div>
                             <span className="text-white font-bold tracking-widest uppercase text-xs text-center px-2">Tu Aporte<br/>Público</span>
-                          </>
+                          </div>
                         ) : (
-                          <>
+                          <div key="other" className="flex flex-col items-center">
                             <Download size={32} className="text-primary-400 mb-2 drop-shadow-[0_0_10px_rgba(245,158,11,0.8)]" />
                             <span className="text-white font-bold tracking-widest uppercase text-xs text-center px-2">Clonar a<br/>Biblioteca</span>
-                          </>
+                          </div>
                         )}
                       </div>
                     </div>
