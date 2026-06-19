@@ -20,7 +20,7 @@ import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 const MySwal = withReactContent(Swal);
 
 interface LibraryViewProps {
-  songs: Song[];
+  songs: Song[] | undefined;
   activeSongId: number | null;
   onPlaySong: (song: Song, autoEdit?: boolean) => void;
   onImport: (e: React.ChangeEvent<HTMLInputElement>) => void;

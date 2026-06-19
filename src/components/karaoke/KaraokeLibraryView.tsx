@@ -16,7 +16,7 @@ import { Toast } from '../../utils/toast';
 const MySwal = withReactContent(Swal);
 
 interface KaraokeLibraryViewProps {
-  karaokes: Karaoke[];
+  karaokes: Karaoke[] | undefined;
   activeKaraokeId: number | null;
   onPlayKaraoke: (karaoke: Karaoke) => void;
   isSidebarOpen: boolean;
