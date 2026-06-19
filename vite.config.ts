@@ -9,7 +9,25 @@ export default defineConfig({
     exclude: ['bungee-pitch-shift', '@coderline/alphatab']
   },
   server: {
-    allowedHosts: true
+    allowedHosts: true,
+    proxy: {
+      '/api': {
+        target: 'http://146.181.32.238:3001',
+        changeOrigin: true,
+      },
+      '/downloads': {
+        target: 'http://146.181.32.238:3001',
+        changeOrigin: true,
+      },
+      '/uploads': {
+        target: 'http://146.181.32.238:3001',
+        changeOrigin: true,
+      },
+      '/media': {
+        target: 'http://146.181.32.238:3001',
+        changeOrigin: true,
+      }
+    }
   },
   plugins: [
     tailwindcss(),
@@ -23,7 +41,7 @@ export default defineConfig({
         description: 'Reproductor de partituras y tablaturas avanzado para músicos',
         theme_color: '#f59e0b', // amber-500
         background_color: '#09090b', // zinc-950
-        display: 'standalone',
+        display: 'fullscreen',
         orientation: 'portrait-primary',
         icons: [
           {

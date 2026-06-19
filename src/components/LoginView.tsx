@@ -35,7 +35,7 @@ export const LoginView = () => {
   };
 
   return (
-    <div className="flex h-screen w-full bg-zinc-950 text-zinc-100 overflow-hidden font-sans items-center justify-center bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary-900/20 via-zinc-950 to-zinc-950">
+    <div className="flex min-h-[100dvh] w-full bg-zinc-950 text-zinc-100 overflow-x-hidden overflow-y-auto font-sans items-center justify-center bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary-900/20 via-zinc-950 to-zinc-950 py-8 relative">
       
       {/* Decorative Orbs */}
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary-500/10 rounded-full blur-[100px] pointer-events-none" />
@@ -112,8 +112,8 @@ export const LoginView = () => {
               </div>
             </div>
 
-            <label className="flex items-center gap-3 cursor-pointer mt-2 group w-max">
-              <div className="relative flex items-center">
+            <label className="flex items-center gap-3 cursor-pointer mt-2 group">
+              <div className="relative flex items-center shrink-0">
                 <input
                   type="checkbox"
                   checked={isSignup}

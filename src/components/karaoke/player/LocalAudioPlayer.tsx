@@ -105,7 +105,22 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
     const loadAudio = async () => {
       try {
         if (karaoke.cloudUrl) {
-          const fullUrl = `${API_BASE_URL}${karaoke.cloudUrl}`; // FE-1 fix
+          let fullUrl = karaoke.cloudUrl;
+          if (fullUrl.startsWith('http')) {
+            if (window.location.protocol === 'https:' && fullUrl.startsWith('http://')) {
+              try {
+                const urlObj = new URL(fullUrl);
+                fullUrl = urlObj.pathname + urlObj.search;
+              } catch (e) {}
+            }
+          } else {
+            if (API_BASE_URL && window.location.protocol === 'https:' && API_BASE_URL.startsWith('http://')) {
+              fullUrl = fullUrl.startsWith('/') ? fullUrl : `/${fullUrl}`;
+            } else {
+              fullUrl = `${API_BASE_URL}${fullUrl.startsWith('/') ? '' : '/'}${fullUrl}`;
+            }
+          }
+          
           if (isMounted) {
             setAudioUrl(fullUrl);
           }

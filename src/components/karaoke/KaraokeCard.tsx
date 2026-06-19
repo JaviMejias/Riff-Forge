@@ -1,4 +1,4 @@
-import { Mic2, Play, Trash2, MonitorPlay, Disc3, Globe } from 'lucide-react';
+import { Mic2, Play, Trash2, MonitorPlay, Disc3, Globe, Edit3 } from 'lucide-react';
 import { motion, useMotionValue, useMotionTemplate } from 'framer-motion';
 import type { Karaoke } from '../../db';
 import { useCoverArt } from '../../hooks/useCoverArt';
@@ -10,9 +10,12 @@ interface KaraokeCardProps {
   onPlay: () => void;
   onDelete: (e: React.MouseEvent) => void;
   onTogglePublic?: (e: React.MouseEvent) => void;
+  onEditMetadata?: (e: React.MouseEvent) => void;
+  isSelected?: boolean;
+  onToggleSelect?: (e: React.MouseEvent) => void;
 }
 
-export const KaraokeCard = ({ karaoke, index, isActive, onPlay, onDelete, onTogglePublic }: KaraokeCardProps) => {
+export const KaraokeCard = ({ karaoke, index, isActive, onPlay, onDelete, onTogglePublic, onEditMetadata, isSelected = false, onToggleSelect }: KaraokeCardProps) => {
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
 
@@ -50,13 +53,25 @@ export const KaraokeCard = ({ karaoke, index, isActive, onPlay, onDelete, onTogg
       animate={{ opacity: 1, y: 0, transition: { duration: 0.3, delay: index * 0.05 } }}
       whileHover={{ y: -5, scale: 1.02 }}
       className={`group relative overflow-hidden rounded-2xl border transition-all duration-300 cursor-pointer opacity-0 ${
-        isActive 
+        isActive || isSelected
           ? 'bg-primary-500/10 border-primary-500/50 shadow-[0_0_30px_var(--theme-glow)]' 
           : 'bg-zinc-900/40 border-white/5 hover:bg-zinc-800/60 hover:border-primary-500/30 hover:shadow-[0_0_15px_var(--theme-glow)]'
       }`}
       onClick={onPlay}
       onMouseMove={handleMouseMove}
     >
+      {/* Checkbox for Multi-Select */}
+      {onToggleSelect && (
+        <div 
+          className="absolute left-2 top-2 z-30 flex items-center justify-center p-2"
+          onClick={onToggleSelect}
+        >
+          <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors shadow-lg backdrop-blur-md ${isSelected ? 'bg-primary-500 border-primary-500 text-zinc-950' : 'border-white/50 bg-black/30 group-hover:border-primary-500'}`}>
+            {isSelected && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-3 h-3"><polyline points="20 6 9 17 4 12"></polyline></svg>}
+          </div>
+        </div>
+      )}
+
       {/* Spotlight Effect */}
       <motion.div
         className="pointer-events-none absolute -inset-px rounded-2xl opacity-0 transition duration-300 group-hover:opacity-100 z-0"
@@ -81,6 +96,15 @@ export const KaraokeCard = ({ karaoke, index, isActive, onPlay, onDelete, onTogg
             <Globe size={16} />
           </button>
         )}
+        {onEditMetadata && (
+          <button
+            onClick={onEditMetadata}
+            className="p-2 rounded-xl shadow-lg transition-all backdrop-blur-md hover:scale-110 bg-zinc-800/90 text-zinc-400 hover:bg-zinc-700 hover:text-primary-400"
+            title="Editar Metadatos"
+          >
+            <Edit3 size={16} />
+          </button>
+        )}
         <button
           onClick={onDelete}
           className="p-2 bg-rose-500/90 text-white rounded-xl shadow-lg hover:bg-rose-500 hover:scale-110 transition-all backdrop-blur-md"
@@ -97,6 +121,7 @@ export const KaraokeCard = ({ karaoke, index, isActive, onPlay, onDelete, onTogg
             <img 
               src={displayImage} 
               alt={karaoke.name} 
+              loading="lazy"
               className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${coverUrl ? 'opacity-80 group-hover:opacity-100' : 'opacity-60 group-hover:opacity-80'}`} 
             />
           ) : (

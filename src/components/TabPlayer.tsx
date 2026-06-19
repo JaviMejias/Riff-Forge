@@ -139,24 +139,9 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
     window.addEventListener('touchstart', handleMouseMove);
     handleMouseMove(); // Initial trigger
 
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if (e.code === 'Space' || e.code === 'Enter') {
-        e.preventDefault();
-        if (!apiRef.current) return;
-        if (apiRef.current.playerState === alphaTab.synth.PlayerState.Playing) {
-          apiRef.current.pause();
-        } else {
-          apiRef.current.play();
-        }
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('touchstart', handleMouseMove);
-      window.removeEventListener('keydown', handleKeyDown);
       if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
     };
   }, []);
@@ -277,6 +262,65 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
       apiRef.current.changeTrackMute([tracks[index]], newMute);
     }
   };
+
+  // === KEYBOARD SHORTCUTS ===
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      switch (e.code) {
+        case 'Space':
+        case 'Enter':
+          e.preventDefault();
+          if (mainViewMode === 'cifra') {
+            setIsAutoScrolling(prev => !prev);
+          } else {
+            if (!apiRef.current) return;
+            if (apiRef.current.playerState === alphaTab.synth.PlayerState.Playing) {
+              apiRef.current.pause();
+            } else {
+              apiRef.current.play();
+            }
+          }
+          break;
+
+        case 'KeyM':
+          e.preventDefault();
+          if (mainViewMode === 'pro') handleTrackMuteToggle(activeTrackIndex);
+          break;
+
+        case 'KeyS':
+          e.preventDefault();
+          if (mainViewMode === 'pro') {
+            const newSolo = !trackSolos[activeTrackIndex];
+            setTrackSolos(prev => ({ ...prev, [activeTrackIndex]: newSolo }));
+            if (apiRef.current && tracks[activeTrackIndex]) {
+              apiRef.current.changeTrackSolo([tracks[activeTrackIndex]], newSolo);
+            }
+          }
+          break;
+
+        case 'ArrowLeft':
+          e.preventDefault();
+          if (apiRef.current && mainViewMode === 'pro') {
+            const currentTick = apiRef.current.tickPosition;
+            apiRef.current.tickPosition = Math.max(0, currentTick - 1920); // Retroceder ~2 tiempos
+          }
+          break;
+
+        case 'ArrowRight':
+          e.preventDefault();
+          if (apiRef.current && mainViewMode === 'pro') {
+            const currentTick = apiRef.current.tickPosition;
+            apiRef.current.tickPosition = currentTick + 1920; // Avanzar ~2 tiempos
+          }
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [mainViewMode, activeTrackIndex, trackMutes, trackSolos, tracks]);
 
   const handleTrackSoloToggle = (index: number) => {
     const newSolo = !trackSolos[index];

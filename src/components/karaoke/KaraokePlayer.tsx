@@ -346,6 +346,34 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
+  // === KEYBOARD SHORTCUTS ===
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      switch (e.code) {
+        case 'Space':
+        case 'Enter':
+          e.preventDefault();
+          togglePlayPause();
+          break;
+
+        case 'ArrowLeft':
+          e.preventDefault();
+          handleAbstractSeek(Math.max(0, localCurrentTime - 5)); // Retroceder 5 segundos
+          break;
+
+        case 'ArrowRight':
+          e.preventDefault();
+          handleAbstractSeek(localCurrentTime + 5); // Avanzar 5 segundos
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [togglePlayPause, handleAbstractSeek, localCurrentTime]);
+
   const handleVolumeChange = (vol: number) => {
     setVolume(vol);
     setIsMuted(vol === 0);
@@ -528,7 +556,7 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
         }`}>
           {/* Selector de Fuente (superpuesto para ahorrar espacio) */}
           {!isFullscreen && ytVideoId && hasLocalAudio && (
-            <div className="absolute top-2 right-2 sm:top-4 sm:right-4 flex bg-black/60 backdrop-blur-md p-1 rounded-xl z-50 border border-white/10 shadow-xl">
+            <div className="absolute top-2 right-2 sm:top-4 sm:right-4 flex bg-black/60 backdrop-blur-md p-1 rounded-xl z-40 border border-white/10 shadow-xl">
               <button
                 onClick={() => handleSourceChange('youtube')}
                 disabled={isEditing}

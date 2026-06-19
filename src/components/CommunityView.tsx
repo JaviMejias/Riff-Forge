@@ -23,6 +23,9 @@ export const CommunityView = ({ isSidebarOpen, onToggleSidebar }: CommunityViewP
   const [activeTab, setActiveTab] = useState<'songs' | 'karaokes'>('songs');
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const isMultiSelectMode = selectedIds.size > 0;
+
   const token = useAuthStore(state => state.token);
   const currentUser = useAuthStore(state => state.user); // FE-8: use hook, not getState() in render
 
@@ -54,6 +57,116 @@ export const CommunityView = ({ isSidebarOpen, onToggleSidebar }: CommunityViewP
     return () => { isMounted = false; controller.abort(); };
   }, [activeTab, token]);
 
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [activeTab]);
+
+  const toggleSelect = (id: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newSet = new Set(selectedIds);
+    if (newSet.has(id)) {
+      newSet.delete(id);
+    } else {
+      newSet.add(id);
+    }
+    setSelectedIds(newSet);
+  };
+
+  const selectAll = () => {
+    if (selectedIds.size === items.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(items.map(i => i.id!)));
+    }
+  };
+
+  const executeCloneItem = async (item: any) => {
+    if (currentUser && item.userId === currentUser.id) return;
+    try {
+      if (activeTab === 'songs') {
+        let fileData = undefined;
+        if (item.cloudUrl) {
+          const res = await fetch(`${API_BASE_URL}${item.cloudUrl}`, {
+            headers: { 'ngrok-skip-browser-warning': 'true' }
+          });
+          if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
+          const blob = await res.blob();
+          const arrayBuffer = await blob.arrayBuffer();
+          fileData = new Uint8Array(arrayBuffer);
+        }
+        await db.songs.add({
+          name: item.name,
+          artist: item.artist,
+          album: item.album,
+          type: item.type,
+          textContent: item.textContent,
+          originalKey: item.originalKey,
+          tuning: item.tuning,
+          strummingPattern: item.strummingPattern,
+          capo: item.capo,
+          data: fileData,
+          dateAdded: Date.now(),
+          isPublic: false
+        });
+      } else {
+        const targetId = await db.karaokes.add({
+          name: item.name,
+          artist: item.artist,
+          youtubeUrl: item.youtubeUrl,
+          cloudUrl: item.cloudUrl,
+          hasLocalAudio: item.hasLocalAudio,
+          pitchShift: item.pitchShift,
+          textContent: item.textContent,
+          dateAdded: Date.now(),
+          isPublic: false
+        }) as number;
+
+        if (item.cloudUrl) {
+          const res = await fetch(`${API_BASE_URL}${item.cloudUrl}`, {
+            headers: { 'ngrok-skip-browser-warning': 'true' }
+          });
+          if (res.ok) {
+              const blob = await res.blob();
+              const arrayBuffer = await blob.arrayBuffer();
+              await db.karaokeFiles.put({
+                  karaokeId: targetId,
+                  data: new Uint8Array(arrayBuffer)
+              });
+          }
+        }
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const cloneMultiple = async () => {
+    const confirm = await MySwal.fire({
+      title: `¿Clonar ${selectedIds.size} elementos?`,
+      text: `Se añadirán a tu biblioteca personal.`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: 'var(--primary-500)',
+      cancelButtonColor: '#3f3f46',
+      confirmButtonText: 'Sí, clonar',
+      cancelButtonText: 'Cancelar',
+      background: '#18181b',
+      color: '#f4f4f5'
+    });
+
+    if (confirm.isConfirmed) {
+      Toast.fire({ icon: 'info', title: 'Clonando...' });
+      for (const id of selectedIds) {
+        const item = items.find(i => i.id === id);
+        if (item) {
+          await executeCloneItem(item);
+        }
+      }
+      Toast.fire({ icon: 'success', title: 'Elementos clonados a tu biblioteca' });
+      setSelectedIds(new Set());
+    }
+  };
+
   const cloneSong = async (item: any) => {
     if (currentUser && item.userId === currentUser.id) {
       Toast.fire({ icon: 'info', title: 'Este aporte es tuyo', text: 'Ya tienes este elemento en tu biblioteca.' });
@@ -74,101 +187,81 @@ export const CommunityView = ({ isSidebarOpen, onToggleSidebar }: CommunityViewP
     });
 
     if (confirm.isConfirmed) {
-      try {
-        if (activeTab === 'songs') {
-          // Clone Song
-          let fileData = undefined;
-          // If song is GP, we need to download it
-          if (item.cloudUrl) {
-            const res = await fetch(`${API_BASE_URL}${item.cloudUrl}`);
-            const blob = await res.blob();
-            const arrayBuffer = await blob.arrayBuffer();
-            fileData = new Uint8Array(arrayBuffer);
-          }
-
-          await db.songs.add({
-            name: item.name,
-            artist: item.artist,
-            album: item.album,
-            type: item.type,
-            textContent: item.textContent,
-            originalKey: item.originalKey,
-            tuning: item.tuning,
-            strummingPattern: item.strummingPattern,
-            capo: item.capo,
-            data: fileData,
-            dateAdded: Date.now(),
-            isPublic: false
-          });
-        } else {
-          // Clone Karaoke
-          const targetId = await db.karaokes.add({
-            name: item.name,
-            artist: item.artist,
-            youtubeUrl: item.youtubeUrl,
-            cloudUrl: item.cloudUrl,
-            hasLocalAudio: item.hasLocalAudio,
-            pitchShift: item.pitchShift,
-            textContent: item.textContent,
-            dateAdded: Date.now(),
-            isPublic: false
-          }) as number;
-
-          if (item.cloudUrl) {
-            // Need to download the mp3 if exists
-            const res = await fetch(`${API_BASE_URL}${item.cloudUrl}`);
-            if (res.ok) {
-                const blob = await res.blob();
-                const arrayBuffer = await blob.arrayBuffer();
-                await db.karaokeFiles.put({
-                    karaokeId: targetId,
-                    data: new Uint8Array(arrayBuffer)
-                });
-            }
-          }
-        }
-        Toast.fire({ icon: 'success', title: 'Añadido a tu biblioteca' });
-      } catch (error) {
-        console.error(error);
-        Toast.fire({ icon: 'error', title: 'Error al clonar' });
-      }
+      Toast.fire({ icon: 'info', title: 'Clonando...' });
+      await executeCloneItem(item);
+      Toast.fire({ icon: 'success', title: 'Añadido a tu biblioteca' });
     }
   };
 
   return (
     <div className="flex flex-col h-full w-full p-8">
       <Navbar
-        title="Comunidad"
-        subtitle="Explora y clona contenido de otros usuarios"
+        title={isMultiSelectMode ? `${selectedIds.size} seleccionados` : "Comunidad"}
+        subtitle={isMultiSelectMode ? "Acciones en lote" : "Explora y clona contenido de otros usuarios"}
         isSidebarOpen={isSidebarOpen}
         onToggleSidebar={onToggleSidebar}
       >
-        <div className="flex bg-zinc-900/80 p-1 rounded-xl border border-white/5 shadow-inner">
-          <button
-            onClick={() => setActiveTab('songs')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all duration-300 ${
-              activeTab === 'songs' 
-                ? 'bg-primary-500 text-zinc-950 shadow-lg' 
-                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
-            }`}
-          >
-            <Music size={16} /> Canciones
-          </button>
-          <button
-            onClick={() => setActiveTab('karaokes')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all duration-300 ${
-              activeTab === 'karaokes' 
-                ? 'bg-primary-500 text-zinc-950 shadow-lg' 
-                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
-            }`}
-          >
-            <Mic2 size={16} /> Karaokes
-          </button>
+        <div className="flex gap-2 flex-wrap justify-end items-center">
+          {isMultiSelectMode ? (
+            <>
+              <button
+                onClick={cloneMultiple}
+                className="flex items-center gap-2 bg-primary-500 hover:bg-primary-400 text-zinc-950 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl transition-all font-bold text-sm shadow-[0_0_20px_var(--theme-glow)]"
+              >
+                <Download size={18} />
+                <span className="hidden sm:inline">Clonar a Biblioteca</span>
+              </button>
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="flex items-center gap-2 bg-zinc-800/50 hover:bg-zinc-800 text-zinc-400 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl transition-all text-sm"
+              >
+                <span>Cancelar</span>
+              </button>
+            </>
+          ) : (
+            <div className="flex bg-zinc-900/80 p-1 rounded-xl border border-white/5 shadow-inner">
+              <button
+                onClick={() => setActiveTab('songs')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all duration-300 ${
+                  activeTab === 'songs' 
+                    ? 'bg-primary-500 text-zinc-950 shadow-lg' 
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
+                }`}
+              >
+                <Music size={16} /> Canciones
+              </button>
+              <button
+                onClick={() => setActiveTab('karaokes')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all duration-300 ${
+                  activeTab === 'karaokes' 
+                    ? 'bg-primary-500 text-zinc-950 shadow-lg' 
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
+                }`}
+              >
+                <Mic2 size={16} /> Karaokes
+              </button>
+            </div>
+          )}
         </div>
       </Navbar>
 
       <div className="flex-1 overflow-y-auto hide-scrollbar pb-10 mt-6">
         <div className="bg-zinc-900/30 border border-white/5 rounded-3xl p-4 sm:p-6 min-h-[500px]">
+          
+          {/* HEADER DEL CONTENEDOR */}
+          {items.length > 0 && !loading && (
+            <div className="flex mb-6">
+              <button
+                onClick={selectAll}
+                className={`p-2.5 rounded-xl border transition-all shrink-0 ${isMultiSelectMode && selectedIds.size === items.length ? 'bg-primary-500 border-primary-500 text-zinc-950' : 'bg-zinc-900/50 border-white/5 text-zinc-400 hover:text-white hover:border-white/20'}`}
+                title={isMultiSelectMode && selectedIds.size === items.length ? "Deseleccionar todo" : "Seleccionar todo"}
+              >
+                <div className="w-4 h-4 rounded-sm border border-current flex items-center justify-center">
+                  {isMultiSelectMode && selectedIds.size === items.length && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-3 h-3"><polyline points="20 6 9 17 4 12"></polyline></svg>}
+                </div>
+              </button>
+            </div>
+          )}
           {loading ? (
             <div className="flex flex-col items-center justify-center h-[400px] text-zinc-500">
               <Loader2 className="animate-spin w-10 h-10 mb-4 text-primary-500" />
@@ -189,6 +282,8 @@ export const CommunityView = ({ isSidebarOpen, onToggleSidebar }: CommunityViewP
                       <SongCard
                         song={item}
                         isActive={false}
+                        isSelected={selectedIds.has(item.id!)}
+                        onToggleSelect={(e) => toggleSelect(item.id!, e)}
                         index={index}
                         onPlay={() => cloneSong(item)}
                       />
@@ -196,6 +291,8 @@ export const CommunityView = ({ isSidebarOpen, onToggleSidebar }: CommunityViewP
                       <KaraokeCard
                         karaoke={item}
                         isActive={false}
+                        isSelected={selectedIds.has(item.id!)}
+                        onToggleSelect={(e) => toggleSelect(item.id!, e)}
                         index={index}
                         onPlay={() => cloneSong(item)}
                         onDelete={() => {}}

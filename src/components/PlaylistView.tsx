@@ -12,6 +12,8 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useState, useRef, useEffect } from 'react';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import type { DropResult } from '@hello-pangea/dnd';
 
 const MySwal = withReactContent(Swal);
 
@@ -44,7 +46,9 @@ export const PlaylistView = ({ playlistId, activeSongId, onPlaySong, onBackToLib
   const playlist = useLiveQuery(() => db.playlists.get(playlistId));
   const songs = useLiveQuery(async () => {
     if (!playlist) return [];
-    return await db.songs.where('id').anyOf(playlist.songIds).toArray();
+    const fetchedSongs = await db.songs.where('id').anyOf(playlist.songIds).toArray();
+    // Ordenar de acuerdo al array songIds original
+    return fetchedSongs.sort((a, b) => playlist.songIds.indexOf(a.id!) - playlist.songIds.indexOf(b.id!));
   }, [playlist]);
 
   const allSongs = useLiveQuery(() => db.songs.toArray());
@@ -164,6 +168,28 @@ export const PlaylistView = ({ playlistId, activeSongId, onPlaySong, onBackToLib
 
   const { visibleItems: displayedSongs, loadMoreRef, hasMore } = useInfiniteScroll({ items: filteredSongs, itemsPerPage: 20 });
 
+  const handleDragEnd = async (result: DropResult) => {
+    if (!result.destination || !playlist || !playlist.id) return;
+    
+    // Solo permitir drag and drop si no hay búsqueda activa (ya que altera el array)
+    if (searchQuery) {
+      MySwal.fire({
+        title: 'Búsqueda Activa',
+        text: 'No puedes reordenar canciones mientras hay una búsqueda activa.',
+        icon: 'warning',
+        background: '#18181b',
+        color: '#f4f4f5'
+      });
+      return;
+    }
+
+    const newSongIds = Array.from(playlist.songIds);
+    const [reorderedItem] = newSongIds.splice(result.source.index, 1);
+    newSongIds.splice(result.destination.index, 0, reorderedItem);
+
+    await db.playlists.update(playlist.id, { songIds: newSongIds });
+  };
+
   if (!playlist) return null;
 
   return (
@@ -249,25 +275,49 @@ export const PlaylistView = ({ playlistId, activeSongId, onPlaySong, onBackToLib
               <p className="text-sm">Ve a tu biblioteca y añade algunas canciones.</p>
             </motion.div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              <AnimatePresence>
-                {songs === undefined ? (
-                  Array.from({ length: 8 }).map((_, i) => (
-                    <SongSkeleton key={`skel-${i}`} />
-                  ))
-                ) : (
-                  displayedSongs?.map((song, index) => (
-                    <SongCard
-                      key={song.id}
-                      song={song}
-                      index={index}
-                      isActive={activeSongId === song.id}
-                      onPlay={() => onPlaySong(song)}
-                      onRemove={(e) => removeSongFromPlaylist(song.id!, e)}
-                    />
-                  ))
-                )}
-              </AnimatePresence>
+            <>
+              <DragDropContext onDragEnd={handleDragEnd}>
+                <Droppable droppableId="playlist-songs" direction="horizontal">
+                  {(provided) => (
+                    <div 
+                      {...provided.droppableProps} 
+                      ref={provided.innerRef}
+                      className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+                    >
+                      <AnimatePresence>
+                        {songs === undefined ? (
+                          Array.from({ length: 8 }).map((_, i) => (
+                            <SongSkeleton key={`skel-${i}`} />
+                          ))
+                        ) : (
+                          displayedSongs?.map((song, index) => (
+                            <Draggable key={song.id!.toString()} draggableId={song.id!.toString()} index={index} isDragDisabled={!!searchQuery}>
+                              {(provided, snapshot) => (
+                                <div
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  {...provided.dragHandleProps}
+                                  className={`${snapshot.isDragging ? 'z-50 scale-105 opacity-90 shadow-2xl' : ''}`}
+                                  style={provided.draggableProps.style}
+                                >
+                                  <SongCard
+                                    song={song}
+                                    index={index}
+                                    isActive={activeSongId === song.id}
+                                    onPlay={() => onPlaySong(song)}
+                                    onRemove={(e) => removeSongFromPlaylist(song.id!, e)}
+                                  />
+                                </div>
+                              )}
+                            </Draggable>
+                          ))
+                        )}
+                      </AnimatePresence>
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </DragDropContext>
 
               {hasMore && (
                 <div ref={loadMoreRef} className="col-span-full h-20 flex items-center justify-center">
@@ -280,7 +330,7 @@ export const PlaylistView = ({ playlistId, activeSongId, onPlaySong, onBackToLib
                   No se encontraron resultados para "{searchQuery}"
                 </div>
               )}
-            </div>
+            </>
           )}
         </div>
       </div>

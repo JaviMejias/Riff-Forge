@@ -1,8 +1,28 @@
 import { useState, useEffect } from 'react';
 
-// Caché en memoria para evitar llamadas repetidas a la API durante la misma sesión
-const coverCache = new Map<string, string | null>();
-const MAX_CACHE_SIZE = 100; // L-6 fix: limit cache size
+// Caché persistente usando localStorage
+const CACHE_KEY = 'riff_forge_cover_cache';
+const MAX_CACHE_SIZE = 200;
+
+let coverCache = new Map<string, string | null>();
+try {
+  const stored = localStorage.getItem(CACHE_KEY);
+  if (stored) {
+    const parsed = JSON.parse(stored);
+    coverCache = new Map(Object.entries(parsed));
+  }
+} catch (e) {
+  console.warn('Could not load cover cache', e);
+}
+
+const persistCache = () => {
+  try {
+    const obj = Object.fromEntries(coverCache.entries());
+    localStorage.setItem(CACHE_KEY, JSON.stringify(obj));
+  } catch (e) {
+    // Ignore quota errors
+  }
+};
 
 const addToCache = (key: string, value: string | null) => {
   if (coverCache.size >= MAX_CACHE_SIZE) {
@@ -10,6 +30,8 @@ const addToCache = (key: string, value: string | null) => {
     if (firstKey) coverCache.delete(firstKey);
   }
   coverCache.set(key, value);
+  // Pequeño debounce rudimentario para no escribir a localStorage en cada cover en masa
+  setTimeout(persistCache, 1000);
 };
 
 export const useCoverArt = (artist?: string, title?: string) => {

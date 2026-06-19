@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@coderline/alphatab": "^1.8.3",
+    "@hello-pangea/dnd": "^18.0.1",
     "@tailwindcss/vite": "^4.3.1",
     "bungee-pitch-shift": "^1.0.8",
     "chordsheetjs": "^15.4.0",

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Maximize, Minimize, Play, Pause, Volume2, VolumeX, Loader2, Timer } from 'lucide-react';
 import { CustomSelect } from '../../CustomSelect';
 
@@ -54,8 +55,7 @@ export const PlayerControls = ({
   isCountInEnabled,
   onCountInToggle
 }: PlayerControlsProps) => {
-
-  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const [isVolumeOpen, setIsVolumeOpen] = useState(false);
 
   return (
     <div className="flex flex-col w-full bg-zinc-950/80 backdrop-blur-md border-t border-white/10 p-2 sm:p-4 mt-auto z-50">
@@ -63,20 +63,14 @@ export const PlayerControls = ({
       {/* Seekbar */}
       <div className="flex items-center gap-2 sm:gap-3 w-full mb-1.5 sm:mb-3 group">
         <span className="text-[10px] sm:text-xs text-zinc-400 font-mono w-8 sm:w-10 text-right">{formatTime(currentTime)}</span>
-        <div 
-          className="relative flex-1 h-1.5 sm:h-2 bg-zinc-800 rounded-full overflow-hidden cursor-pointer"
-          onClick={(e) => {
-             const rect = e.currentTarget.getBoundingClientRect();
-             const x = e.clientX - rect.left;
-             const p = Math.max(0, Math.min(1, x / rect.width));
-             onSeek(p * duration);
-          }}
-        >
-          <div 
-            className="absolute top-0 left-0 h-full bg-primary-500 rounded-full transition-all duration-100 ease-linear"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
+        <input
+          type="range"
+          min={0}
+          max={duration || 100}
+          value={currentTime}
+          onChange={(e) => onSeek(parseFloat(e.target.value))}
+          className="flex-1 h-1.5 sm:h-2 bg-zinc-800 rounded-full appearance-none cursor-pointer accent-primary-500 focus:outline-none"
+        />
         <span className="text-[10px] sm:text-xs text-zinc-400 font-mono w-8 sm:w-10">{formatTime(duration)}</span>
       </div>
 
@@ -92,35 +86,49 @@ export const PlayerControls = ({
             {isPlaying ? <Pause size={16} className="fill-current sm:w-5 sm:h-5" /> : <Play size={16} className="fill-current ml-0.5 sm:ml-1 sm:w-5 sm:h-5" />}
           </button>
           
-          <div className="flex items-center gap-2 group relative">
-            <button onClick={onMuteToggle} className="text-zinc-400 hover:text-white transition-colors">
+          <div className="flex items-center gap-2 relative" onMouseEnter={() => setIsVolumeOpen(true)} onMouseLeave={() => setIsVolumeOpen(false)}>
+            <button 
+              onClick={() => {
+                // En móvil alternamos el popup. En desktop (donde hay hover) mutear
+                if (window.innerWidth < 640) {
+                  setIsVolumeOpen(!isVolumeOpen);
+                } else {
+                  onMuteToggle();
+                }
+              }} 
+              className="text-zinc-400 hover:text-white transition-colors p-1"
+            >
               {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
             </button>
-            <input
-              type="range"
-              min="0" max="1" step="0.05"
-              value={isMuted ? 0 : volume}
-              onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
-              className="w-12 opacity-100 sm:w-0 sm:opacity-0 sm:group-hover:w-20 sm:group-hover:opacity-100 transition-all duration-300 h-1.5 bg-zinc-800 rounded-full appearance-none cursor-pointer accent-primary-500"
-            />
+            <div className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-zinc-900 border border-white/10 rounded-xl p-3 shadow-2xl transition-all origin-bottom sm:static sm:mb-0 sm:p-0 sm:border-none sm:bg-transparent sm:flex-row sm:translate-x-0 overflow-hidden flex items-center justify-center ${
+              isVolumeOpen ? 'opacity-100 visible' : 'opacity-0 invisible sm:w-0 sm:opacity-0 sm:invisible sm:group-hover:opacity-100 sm:group-hover:visible sm:group-hover:w-20'
+            }`}>
+              <input
+                type="range"
+                min="0" max="1" step="0.05"
+                value={isMuted ? 0 : volume}
+                onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
+                className="w-24 sm:w-full h-1.5 bg-zinc-800 rounded-full appearance-none cursor-pointer accent-primary-500"
+              />
+            </div>
           </div>
         </div>
 
         {/* Centro/Derecha: Pitch, Velocidad, Count-in */}
-        <div className="flex items-center gap-1.5 sm:gap-6 justify-end flex-1 whitespace-nowrap">
+        <div className="flex items-center gap-1 sm:gap-6 justify-end flex-1 whitespace-nowrap overflow-x-auto hide-scrollbar sm:overflow-visible">
           
           {/* Count-in Toggle */}
           {onCountInToggle && (
             <button
               onClick={onCountInToggle}
-              className={`flex items-center justify-center p-1.5 sm:p-2 rounded-xl transition-all border shrink-0 ${
+              className={`flex items-center justify-center p-1 sm:p-2 rounded-lg sm:rounded-xl transition-all border shrink-0 ${
                 isCountInEnabled 
                   ? 'bg-primary-500/20 text-primary-400 border-primary-500/50 shadow-inner' 
                   : 'bg-zinc-900/50 text-zinc-500 border-white/5 hover:text-white hover:bg-zinc-800'
               }`}
               title="Cuenta Regresiva (3s)"
             >
-              <Timer size={16} />
+              <Timer size={14} className="sm:w-4 sm:h-4" />
             </button>
           )}
 
@@ -139,28 +147,28 @@ export const PlayerControls = ({
               onChange={(val) => onSpeedChange(Number(val))}
               theme="amber"
               dropup={true}
-              className="w-20"
+              className="w-[60px] sm:w-20 text-[10px] sm:text-xs"
             />
           </div>
 
           {/* Pitch */}
-          <div className="flex items-center bg-zinc-900/50 border border-white/5 rounded-lg sm:rounded-xl px-1.5 sm:px-2 py-0.5 sm:py-1 gap-1 shrink-0">
+          <div className="flex items-center bg-zinc-900/50 border border-white/5 rounded-lg sm:rounded-xl px-1 sm:px-2 py-0.5 sm:py-1 gap-0.5 sm:gap-1 shrink-0">
             <span className="hidden sm:inline text-[10px] font-bold text-zinc-500 uppercase px-1">Tono</span>
             <div className="flex items-center gap-0.5">
               <button
                 onClick={() => onPitchChange(Math.max(-12, pitch - 1))}
                 disabled={pitch <= -12 || isProcessingPitch}
-                className="w-5 h-5 sm:w-6 sm:h-6 rounded bg-zinc-800 hover:bg-primary-500/20 text-zinc-300 flex items-center justify-center disabled:opacity-30 transition-colors text-xs"
+                className="w-5 h-5 sm:w-6 sm:h-6 rounded bg-zinc-800 hover:bg-primary-500/20 text-zinc-300 flex items-center justify-center disabled:opacity-30 transition-colors text-xs shrink-0"
               >
                 -
               </button>
-              <span className={`text-[10px] sm:text-xs font-black w-6 sm:w-8 text-center flex items-center justify-center ${pitch !== 0 ? 'text-primary-400' : 'text-white'}`}>
+              <span className={`text-[10px] sm:text-xs font-black w-4 sm:w-8 text-center flex items-center justify-center shrink-0 ${pitch !== 0 ? 'text-primary-400' : 'text-white'}`}>
                 {isProcessingPitch ? <Loader2 size={10} className="animate-spin text-primary-500" /> : (pitch > 0 ? `+${pitch}` : pitch)}
               </span>
               <button
                 onClick={() => onPitchChange(Math.min(12, pitch + 1))}
                 disabled={pitch >= 12 || isProcessingPitch}
-                className="w-5 h-5 sm:w-6 sm:h-6 rounded bg-zinc-800 hover:bg-primary-500/20 text-zinc-300 flex items-center justify-center disabled:opacity-30 transition-colors text-xs"
+                className="w-5 h-5 sm:w-6 sm:h-6 rounded bg-zinc-800 hover:bg-primary-500/20 text-zinc-300 flex items-center justify-center disabled:opacity-30 transition-colors text-xs shrink-0"
               >
                 +
               </button>
@@ -170,10 +178,10 @@ export const PlayerControls = ({
           {/* Fullscreen */}
           <button
             onClick={onFullscreenToggle}
-            className="text-zinc-400 hover:text-white transition-colors p-1.5 sm:p-2 rounded-lg hover:bg-white/5 shrink-0 ml-1"
+            className="text-zinc-400 hover:text-white transition-colors p-1 sm:p-2 rounded-lg hover:bg-white/5 shrink-0 ml-0.5 sm:ml-1"
             title={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
           >
-            {isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
+            {isFullscreen ? <Minimize size={14} className="sm:w-4 sm:h-4" /> : <Maximize size={14} className="sm:w-4 sm:h-4" />}
           </button>
           
         </div>

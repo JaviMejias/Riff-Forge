@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { KaraokeCard } from './KaraokeCard';
 import { CreateKaraokeModal } from './CreateKaraokeModal';
 import { AddKaraokeOptionsModal } from './AddKaraokeOptionsModal';
+import { EditMetadataModal } from '../EditMetadataModal';
 import { SongSkeleton } from '../SongSkeleton';
 import { db } from '../../db';
 import type { Karaoke } from '../../db';
@@ -27,6 +28,7 @@ export const KaraokeLibraryView = ({ karaokes, activeKaraokeId, onPlayKaraoke, i
   const [searchQuery, setSearchQuery] = useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isAddOptionsModalOpen, setIsAddOptionsModalOpen] = useState(false);
+  const [editingKaraoke, setEditingKaraoke] = useState<Karaoke | null>(null);
 
   // Helper function to normalize strings for comparison
   const normalizeString = (str: string) => {
@@ -238,6 +240,35 @@ export const KaraokeLibraryView = ({ karaokes, activeKaraokeId, onPlayKaraoke, i
     });
   };
 
+  const handleEditMetadata = async (karaoke: Karaoke, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingKaraoke(karaoke);
+  };
+
+  const handleSaveMetadata = async (newTitle: string, newArtist: string) => {
+    if (!editingKaraoke) return;
+
+      if (!newTitle) {
+        Toast.fire({ icon: 'error', title: 'El título es obligatorio' });
+        return;
+      }
+
+      await db.karaokes.update(editingKaraoke.id!, {
+        name: newTitle,
+        artist: newArtist,
+        updatedAt: Date.now()
+      });
+
+      const { SyncService } = await import('../../services/syncService');
+      SyncService.scheduleAutoSync();
+
+      Toast.fire({
+        icon: 'success',
+        title: 'Metadatos guardados'
+      });
+    setEditingKaraoke(null);
+  };
+
   const filteredKaraokes = karaokes?.filter(k => {
     return k.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
            (k.artist && k.artist.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -314,6 +345,7 @@ export const KaraokeLibraryView = ({ karaokes, activeKaraokeId, onPlayKaraoke, i
                       onPlay={() => onPlayKaraoke(karaoke)}
                       onDelete={(e) => deleteKaraoke(karaoke.id!, e)}
                       onTogglePublic={(e) => handleTogglePublic(karaoke.id!, e)}
+                      onEditMetadata={(e) => handleEditMetadata(karaoke, e)}
                     />
                   ))
                 )}
@@ -344,6 +376,13 @@ export const KaraokeLibraryView = ({ karaokes, activeKaraokeId, onPlayKaraoke, i
         onClose={() => setIsAddOptionsModalOpen(false)}
         onCreateNew={handleAddKaraoke}
         onUpload={handleFileUpload}
+      />
+      <EditMetadataModal
+        isOpen={!!editingKaraoke}
+        onClose={() => setEditingKaraoke(null)}
+        initialTitle={editingKaraoke?.name || ''}
+        initialArtist={editingKaraoke?.artist || ''}
+        onSave={handleSaveMetadata}
       />
     </div>
   );

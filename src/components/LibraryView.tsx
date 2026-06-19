@@ -7,6 +7,7 @@ import { PasteChordsModal } from './PasteChordsModal';
 import { ManagePlaylistsModal } from './ManagePlaylistsModal';
 import { CreateSongModal } from './CreateSongModal';
 import { AddSongOptionsModal } from './AddSongOptionsModal';
+import { EditMetadataModal } from './EditMetadataModal';
 import { Navbar } from './Navbar';
 import { db } from '../db';
 import type { Song } from '../db';
@@ -38,7 +39,32 @@ export const LibraryView = ({ songs, activeSongId, onPlaySong, onImport, isSideb
   const [isCreateSongModalOpen, setIsCreateSongModalOpen] = useState(false);
   const [isAddOptionsModalOpen, setIsAddOptionsModalOpen] = useState(false);
   const [songForManagePlaylists, setSongForManagePlaylists] = useState<number | null>(null);
+  const [editingSong, setEditingSong] = useState<Song | null>(null);
   const playlists = useLiveQuery(() => db.playlists.toArray()) || [];
+
+  // Batch Selection State
+  const [selectedSongIds, setSelectedSongIds] = useState<Set<number>>(new Set());
+  const isMultiSelectMode = selectedSongIds.size > 0;
+
+  const toggleSelect = (id: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newSet = new Set(selectedSongIds);
+    if (newSet.has(id)) {
+      newSet.delete(id);
+    } else {
+      newSet.add(id);
+    }
+    setSelectedSongIds(newSet);
+  };
+
+  const selectAll = () => {
+    if (!filteredSongs) return;
+    if (selectedSongIds.size === filteredSongs.length) {
+      setSelectedSongIds(new Set());
+    } else {
+      setSelectedSongIds(new Set(filteredSongs.map(s => s.id!)));
+    }
+  };
 
   const deleteFullSong = async (id: number) => {
     await db.songs.delete(id);
@@ -147,6 +173,75 @@ export const LibraryView = ({ songs, activeSongId, onPlaySong, onImport, isSideb
     });
   };
 
+  const deleteMultiple = () => {
+    MySwal.fire({
+      title: `¿Eliminar ${selectedSongIds.size} canciones?`,
+      text: "Esta acción no se puede deshacer.",
+      icon: 'warning',
+      background: '#18181b',
+      color: '#f4f4f5',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#3f3f46',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar'
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        for (const id of selectedSongIds) {
+          await deleteFullSong(id);
+        }
+        setSelectedSongIds(new Set());
+        Toast.fire({
+          icon: 'success',
+          title: 'Canciones eliminadas'
+        });
+      }
+    });
+  };
+
+  const toggleMultiplePublic = async () => {
+    for (const id of selectedSongIds) {
+      const s = await db.songs.get(id);
+      if (s) {
+        await db.songs.update(id, { isPublic: !s.isPublic, updatedAt: Date.now() });
+      }
+    }
+    const { SyncService } = await import('../services/syncService');
+    SyncService.scheduleAutoSync();
+    
+    Toast.fire({ icon: 'success', title: 'Privacidad actualizada en lote' });
+    setSelectedSongIds(new Set());
+  };
+
+  const handleEditMetadata = async (song: Song, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingSong(song);
+  };
+
+  const handleSaveMetadata = async (newTitle: string, newArtist: string) => {
+    if (!editingSong) return;
+
+      if (!newTitle) {
+        Toast.fire({ icon: 'error', title: 'El título es obligatorio' });
+        return;
+      }
+
+      await db.songs.update(editingSong.id!, {
+        name: newTitle,
+        artist: newArtist,
+        updatedAt: Date.now()
+      });
+
+      const { SyncService } = await import('../services/syncService');
+      SyncService.scheduleAutoSync();
+
+      Toast.fire({
+        icon: 'success',
+        title: 'Metadatos guardados'
+      });
+    setEditingSong(null);
+  };
+
   const handleAddToPlaylistClick = (songId: number, e: React.MouseEvent) => {
     e.stopPropagation();
     if (playlists.length === 0) {
@@ -214,20 +309,43 @@ export const LibraryView = ({ songs, activeSongId, onPlaySong, onImport, isSideb
   return (
     <div className="flex flex-col h-full w-full p-8">
       <Navbar
-        title="Todas las Tabs"
-        subtitle="Colección Principal"
+        title={isMultiSelectMode ? `${selectedSongIds.size} seleccionadas` : "Todas las Tabs"}
+        subtitle={isMultiSelectMode ? "Acciones en lote" : "Colección Principal"}
         isSidebarOpen={isSidebarOpen}
         onToggleSidebar={onToggleSidebar}
       >
         <div className="flex gap-2 flex-wrap justify-end">
-          <button
-            onClick={() => setIsAddOptionsModalOpen(true)}
-            className="flex items-center gap-2 bg-primary-500 hover:bg-primary-400 text-zinc-950 px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl transition-all font-bold text-sm shadow-[0_0_20px_var(--theme-glow)]"
-            title="Añadir nueva canción"
-          >
-            <Plus size={18} />
-            <span className="hidden sm:inline">Añadir Canción</span>
-          </button>
+          {isMultiSelectMode ? (
+            <>
+              <button
+                onClick={toggleMultiplePublic}
+                className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl transition-all font-bold text-sm"
+              >
+                <span>Privacidad</span>
+              </button>
+              <button
+                onClick={deleteMultiple}
+                className="flex items-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl transition-all font-bold text-sm border border-rose-500/20"
+              >
+                <span>Eliminar</span>
+              </button>
+              <button
+                onClick={() => setSelectedSongIds(new Set())}
+                className="flex items-center gap-2 bg-zinc-800/50 hover:bg-zinc-800 text-zinc-400 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl transition-all text-sm"
+              >
+                <span>Cancelar</span>
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => setIsAddOptionsModalOpen(true)}
+              className="flex items-center gap-2 bg-primary-500 hover:bg-primary-400 text-zinc-950 px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl transition-all font-bold text-sm shadow-[0_0_20px_var(--theme-glow)]"
+              title="Añadir nueva canción"
+            >
+              <Plus size={18} />
+              <span className="hidden sm:inline">Añadir Canción</span>
+            </button>
+          )}
         </div>
       </Navbar>
 
@@ -236,25 +354,37 @@ export const LibraryView = ({ songs, activeSongId, onPlaySong, onImport, isSideb
 
           {/* HEADER DEL CONTENEDOR: Filtros y Buscador */}
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
-            <div className="flex bg-zinc-900/50 border border-white/5 rounded-xl p-1 shadow-inner w-full sm:w-auto">
+            <div className="flex items-center gap-3 w-full sm:w-auto">
               <button
-                onClick={() => setFilterType('all')}
-                className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold transition-all ${filterType === 'all' ? 'bg-primary-500 text-zinc-950 shadow-sm' : 'text-zinc-400 hover:text-white'}`}
+                onClick={selectAll}
+                className={`p-2.5 rounded-xl border transition-all shrink-0 ${isMultiSelectMode && selectedSongIds.size === filteredSongs?.length ? 'bg-primary-500 border-primary-500 text-zinc-950' : 'bg-zinc-900/50 border-white/5 text-zinc-400 hover:text-white hover:border-white/20'}`}
+                title={isMultiSelectMode && selectedSongIds.size === filteredSongs?.length ? "Deseleccionar todo" : "Seleccionar todo"}
               >
-                Todos
+                <div className="w-4 h-4 rounded-sm border border-current flex items-center justify-center">
+                  {isMultiSelectMode && selectedSongIds.size === filteredSongs?.length && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-3 h-3"><polyline points="20 6 9 17 4 12"></polyline></svg>}
+                </div>
               </button>
-              <button
-                onClick={() => setFilterType('text')}
-                className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold transition-all ${filterType === 'text' ? 'bg-primary-500 text-zinc-950 shadow-sm' : 'text-zinc-400 hover:text-white'}`}
-              >
-                Acordes
-              </button>
-              <button
-                onClick={() => setFilterType('gp')}
-                className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold transition-all ${filterType === 'gp' ? 'bg-primary-500 text-zinc-950 shadow-sm' : 'text-zinc-400 hover:text-white'}`}
-              >
-                Tabs
-              </button>
+
+              <div className="flex bg-zinc-900/50 border border-white/5 rounded-xl p-1 shadow-inner flex-1 sm:flex-none">
+                <button
+                  onClick={() => setFilterType('all')}
+                  className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold transition-all ${filterType === 'all' ? 'bg-primary-500 text-zinc-950 shadow-sm' : 'text-zinc-400 hover:text-white'}`}
+                >
+                  Todos
+                </button>
+                <button
+                  onClick={() => setFilterType('text')}
+                  className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold transition-all ${filterType === 'text' ? 'bg-primary-500 text-zinc-950 shadow-sm' : 'text-zinc-400 hover:text-white'}`}
+                >
+                  Acordes
+                </button>
+                <button
+                  onClick={() => setFilterType('gp')}
+                  className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold transition-all ${filterType === 'gp' ? 'bg-primary-500 text-zinc-950 shadow-sm' : 'text-zinc-400 hover:text-white'}`}
+                >
+                  Tabs
+                </button>
+              </div>
             </div>
 
             <div className="relative w-full max-w-md">
@@ -298,10 +428,13 @@ export const LibraryView = ({ songs, activeSongId, onPlaySong, onImport, isSideb
                       song={song}
                       index={index}
                       isActive={activeSongId === song.id}
+                      isSelected={selectedSongIds.has(song.id!)}
+                      onToggleSelect={(e) => toggleSelect(song.id!, e)}
                       onPlay={() => onPlaySong(song)}
                       onAdd={(e) => handleAddToPlaylistClick(song.id!, e)}
                       onDelete={(e) => deleteSong(song.id!, e)}
                       onTogglePublic={(e) => handleTogglePublic(song.id!, e)}
+                      onEditMetadata={(e) => handleEditMetadata(song, e)}
                     />
                   ))
                 )}
@@ -365,6 +498,13 @@ export const LibraryView = ({ songs, activeSongId, onPlaySong, onImport, isSideb
             showConfirmButton: false
           });
         }}
+      />
+      <EditMetadataModal
+        isOpen={!!editingSong}
+        onClose={() => setEditingSong(null)}
+        initialTitle={editingSong?.name || ''}
+        initialArtist={editingSong?.artist || ''}
+        onSave={handleSaveMetadata}
       />
     </div>
   );

@@ -220,7 +220,13 @@ export function useAlphaTab(song: Song | null) {
         // Wait a tick for the DOM to paint so AlphaTab reads correct container dimensions
         setTimeout(() => {
           if (apiRef.current) {
-            apiRef.current.load(buffer);
+            try {
+              apiRef.current.load(buffer);
+            } catch (innerErr) {
+              console.error("AlphaTab load error:", innerErr);
+              setIsLoading(false);
+              setErrorMsg("No se pudo leer el archivo. Formato no compatible o corrupto.");
+            }
           }
         }, 100);
 
