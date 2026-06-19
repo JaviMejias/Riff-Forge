@@ -3,7 +3,7 @@ import { Navbar } from './Navbar';
 import { SongCard } from './SongCard';
 import { KaraokeCard } from './karaoke/KaraokeCard';
 import { Users, Loader2, Download, Music, Mic2 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../store/authStore';
 import { db } from '../db';
 import Swal from 'sweetalert2';
