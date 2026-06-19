@@ -262,11 +262,18 @@ function App() {
     );
   }
 
-  if (!token) {
-    return <LoginView />;
-  }
-
   return (
+    <>
+      {/* 
+        Mantenemos el LoginView montado y solo lo ocultamos con CSS para evitar que
+        React explote con 'removeChild' cuando gestores de contraseñas de Chrome 
+        inyectan íconos en el DOM.
+      */}
+      <div style={{ display: !token ? 'block' : 'none', height: '100%', width: '100%' }}>
+        <LoginView />
+      </div>
+
+      {token && (
     <div className={`flex h-screen bg-zinc-950 text-zinc-100 overflow-hidden font-sans ${isImmersiveMode ? 'bg-black' : 'bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-[var(--theme-glow)] via-zinc-950 to-zinc-950'}`}>
         <GlobalAmbilight />
         {/* OVERLAY MOBILE */}
@@ -462,6 +469,8 @@ function App() {
           </ErrorBoundary>
         </main>
     </div>
+      )}
+    </>
   );
 }
 
