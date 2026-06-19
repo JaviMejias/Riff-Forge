@@ -24,10 +24,12 @@ export const LoginView = () => {
     setLoading(true);
     try {
       await signIn(email, password, isSignup, name);
-      Toast.fire({ icon: 'success', title: '¡Bienvenido!' });
+      // Hard reload to avoid Chrome extensions (Google Translate, etc.) corrupting
+      // the React DOM tree during the login → app transition, which causes a black screen.
+      // The token is already in localStorage so the app will boot authenticated.
+      window.location.reload();
     } catch (error: any) {
       Toast.fire({ icon: 'error', title: error.message || 'Hubo un error al iniciar sesión' });
-    } finally {
       setLoading(false);
     }
   };
@@ -144,7 +146,7 @@ export const LoginView = () => {
               ) : (
                 <>
                   <LogIn className="w-5 h-5 mr-2" />
-                  {isSignup ? 'Crear Cuenta' : 'Entrar a Riff Forge'}
+                  <span>{isSignup ? 'Crear Cuenta' : 'Entrar a Riff Forge'}</span>
                 </>
               )}
             </Button>
