@@ -26,18 +26,6 @@ function playTone(frequency: number, startTime: number, duration: number) {
   oscillator.stop(startTime + duration);
 }
 
-// Map of note names to MIDI numbers
-const noteToMidi = (note: string): number => {
-  const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-  const match = note.match(/([A-G]#?)(-?\d+)/);
-  if (!match) return 60; // Default C4
-  
-  const pitchClass = notes.indexOf(match[1]);
-  const octave = parseInt(match[2], 10);
-  
-  return pitchClass + (octave + 1) * 12;
-};
-
 // Convert MIDI number to frequency
 const midiToFreq = (midi: number): number => {
   return 440 * Math.pow(2, (midi - 69) / 12);
