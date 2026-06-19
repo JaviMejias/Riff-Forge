@@ -25,7 +25,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   loading: true,
 
   signIn: async (email, password, isSignup, name) => {
-    try {
       const endpoint = isSignup ? '/auth/signup' : '/auth/login';
       const res = await fetch(`${API_URL}${endpoint}`, {
         method: 'POST',
@@ -46,9 +45,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       } catch (err) {
         console.error("Error auto-syncing after login", err);
       }
-    } catch (error: any) {
-      throw error;
-    }
   },
 
   logOut: async () => {

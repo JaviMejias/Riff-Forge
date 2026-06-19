@@ -268,9 +268,8 @@ export const SyncService = {
       const songs = await db.songs.toArray();
       const cloudIdToSongId = new Map(songs.map(s => [s.cloudId, s.id]));
 
-      for (const data of serverPlaylists) {
-        const cloudId = data.id;
-        delete data.id;
+      for (const item of serverPlaylists) {
+        const { id: cloudId, ...data } = item;
         const songIds = (data.songCloudIds || []).map((id: string) => cloudIdToSongId.get(id)).filter(Boolean);
         const existing = await db.playlists.where('cloudId').equals(cloudId).first();
         if (existing) {
@@ -287,9 +286,8 @@ export const SyncService = {
       const karaokes = await db.karaokes.toArray();
       const cloudIdToKaraokeId = new Map(karaokes.map(k => [k.cloudId, k.id]));
 
-      for (const data of serverKaraokePlaylists) {
-        const cloudId = data.id;
-        delete data.id;
+      for (const item of serverKaraokePlaylists) {
+        const { id: cloudId, ...data } = item;
         const karaokeIds = (data.karaokeCloudIds || []).map((id: string) => cloudIdToKaraokeId.get(id)).filter(Boolean);
         const existing = await db.karaokePlaylists.where('cloudId').equals(cloudId).first();
         if (existing) {
@@ -303,9 +301,8 @@ export const SyncService = {
     res = await fetch(`${API_URL}/chords`, { headers });
     if (res.ok) {
       const serverChords = await res.json();
-      for (const data of serverChords) {
-        const cloudId = data.id;
-        delete data.id;
+      for (const item of serverChords) {
+        const { id: cloudId, ...data } = item;
         const existing = await db.customChords.where('cloudId').equals(cloudId).first();
         // Parse JSON strings from db
         const frets = typeof data.frets === 'string' ? JSON.parse(data.frets) : data.frets;

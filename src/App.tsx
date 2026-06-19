@@ -31,11 +31,11 @@ const KaraokePlaylistView = React.lazy(() => import('./components/playlists/Kara
 const CommunityView = React.lazy(() => import('./components/CommunityView').then(m => ({ default: m.CommunityView })));
 
 // Wrappers for routes
-const PlayerRoute = ({ songs }: { songs: Song[] | undefined }) => {
+const PlayerRoute = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { isDesktopSidebarOpen, toggleDesktopSidebar } = useUiStore();
-  const song = songs?.find(s => s.id === parseInt(id || '0'));
+  const song = useLiveQuery(() => db.songs.get(parseInt(id || '0')), [id]);
 
   if (!song) return <div className="p-8 text-zinc-400">Cargando canción...</div>;
 
@@ -495,7 +495,7 @@ function App() {
                       transition={{ duration: 0.3, ease: "easeOut" }}
                       className="absolute inset-0 h-full w-full"
                     >
-                      <PlayerRoute songs={songs} />
+                      <PlayerRoute />
                     </motion.div>
                   } />
                 </Routes>

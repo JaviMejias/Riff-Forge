@@ -47,60 +47,66 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
   // Cover Art
   const { coverUrl } = useCoverArt(karaoke.artist, karaoke.name);
 
+  const pitchDebounceRef = useRef<NodeJS.Timeout>();
+
   const setPitch = async (newPitch: number) => {
+    setPitchState(newPitch);
     if (isProcessingPitch) return;
     
-    setPitchState(newPitch);
-    setIsProcessingPitch(true);
-    const prevTime = activeSource === 'youtube' && ytPlayer ? ytPlayer.getCurrentTime() : (localPlayerRef.current?.getCurrentTime() || 0);
-    const wasPlaying = globalIsPlaying;
+    if (pitchDebounceRef.current) clearTimeout(pitchDebounceRef.current);
+    
+    pitchDebounceRef.current = setTimeout(async () => {
+      setIsProcessingPitch(true);
+      const prevTime = activeSource === 'youtube' && ytPlayer ? ytPlayer.getCurrentTime() : (localPlayerRef.current?.getCurrentTime() || 0);
+      const wasPlaying = globalIsPlaying;
 
-    if (wasPlaying) {
-      if (activeSource === 'youtube' && ytPlayer) ytPlayer.pauseVideo();
-      if (activeSource === 'local' && localPlayerRef.current) localPlayerRef.current.pause();
-    }
-
-    try {
-      if (!karaoke.cloudUrl) throw new Error('Este karaoke no tiene audio local para procesar.');
-
-      const response = await fetch(`${API_BASE_URL}/api/karaokes/process-pitch`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          // FE-2 fix: read token from store, not directly from localStorage
-          'Authorization': `Bearer ${useAuthStore.getState().token}`
-        },
-        body: JSON.stringify({ cloudUrl: karaoke.cloudUrl, pitchShift: newPitch })
-      });
-
-      if (!response.ok) throw new Error('Failed to process pitch');
-      const data = await response.json();
-      
-      // Update local db
-      karaoke.pitchShift = newPitch;
-      karaoke.cloudUrl = data.cloudUrl; // Update in-memory so LocalAudioPlayer uses the new URL
-      setCloudUrlState(data.cloudUrl);
-      if (karaoke.id) {
-        await db.karaokes.update(karaoke.id, { pitchShift: newPitch });
+      if (wasPlaying) {
+        if (activeSource === 'youtube' && ytPlayer) ytPlayer.pauseVideo();
+        if (activeSource === 'local' && localPlayerRef.current) localPlayerRef.current.pause();
       }
 
-      // Small delay to ensure LocalAudioPlayer updates its URL and loads the new audio
-      setTimeout(() => {
-        if (activeSource === 'youtube' && ytPlayer) {
-          ytPlayer.seekTo(prevTime, true);
-          if (wasPlaying) ytPlayer.playVideo();
-        } else if (activeSource === 'local' && localPlayerRef.current) {
-          localPlayerRef.current.seek(prevTime);
-          if (wasPlaying) localPlayerRef.current.play();
-        }
-      }, 500);
+      try {
+        if (!karaoke.cloudUrl) throw new Error('Este karaoke no tiene audio local para procesar.');
 
-    } catch (e) {
-      console.error(e);
-      Swal.fire('Error', e instanceof Error ? e.message : 'No se pudo cambiar el tono. Asegúrate de tener conexión al servidor.', 'error');
-    } finally {
-      setIsProcessingPitch(false);
-    }
+        const response = await fetch(`${API_BASE_URL}/api/karaokes/process-pitch`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${useAuthStore.getState().token}`
+          },
+          body: JSON.stringify({ cloudUrl: karaoke.cloudUrl, pitchShift: newPitch })
+        });
+
+        if (!response.ok) throw new Error('Failed to process pitch');
+        const data = await response.json();
+        
+        // Update local db
+        karaoke.pitchShift = newPitch;
+        karaoke.cloudUrl = data.cloudUrl; // Update in-memory so LocalAudioPlayer uses the new URL
+        setCloudUrlState(data.cloudUrl);
+        if (karaoke.id) {
+          await db.karaokes.update(karaoke.id, { pitchShift: newPitch });
+        }
+
+        // Small delay to ensure LocalAudioPlayer updates its URL and loads the new audio
+        setTimeout(() => {
+          if (activeSource === 'youtube' && ytPlayer) {
+            ytPlayer.seekTo(prevTime, true);
+            if (wasPlaying) ytPlayer.playVideo();
+          } else if (activeSource === 'local' && localPlayerRef.current) {
+            localPlayerRef.current.seek(prevTime);
+            if (wasPlaying) localPlayerRef.current.play();
+          }
+        }, 500);
+
+      } catch (e) {
+        console.error(e);
+        const Swal = (await import('sweetalert2')).default;
+        Swal.fire('Error', e instanceof Error ? e.message : 'No se pudo cambiar el tono. Asegúrate de tener conexión al servidor.', 'error');
+      } finally {
+        setIsProcessingPitch(false);
+      }
+    }, 500);
   };
 
   // Estados de audio unificados para las letras
