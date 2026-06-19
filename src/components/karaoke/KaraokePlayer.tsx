@@ -13,9 +13,11 @@ import type { Karaoke } from '../../db';
 import Swal from 'sweetalert2';
 import YouTube from 'react-youtube';
 import { useAudioStore } from '../../store/audioStore';
+import { useAuthStore } from '../../store/authStore';
 import { parseLrc } from '../../utils/lrcParser';
 import { PlayerControls } from './player/PlayerControls';
 import { useCoverArt } from '../../hooks/useCoverArt';
+import { API_BASE_URL } from '../../config'; // FE-1: use central config
 
 interface KaraokePlayerProps {
   karaoke: Karaoke;
@@ -61,11 +63,12 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
     try {
       if (!karaoke.cloudUrl) throw new Error('Este karaoke no tiene audio local para procesar.');
 
-      const response = await fetch(`http://146.181.32.238:3001/api/karaokes/process-pitch`, {
+      const response = await fetch(`${API_BASE_URL}/api/karaokes/process-pitch`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('riff_token')}`
+          // FE-2 fix: read token from store, not directly from localStorage
+          'Authorization': `Bearer ${useAuthStore.getState().token}`
         },
         body: JSON.stringify({ cloudUrl: karaoke.cloudUrl, pitchShift: newPitch })
       });
@@ -127,11 +130,12 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
   useEffect(() => {
     if (karaoke.pitchShift && karaoke.pitchShift !== 0 && karaoke.cloudUrl) {
       setIsProcessingPitch(true);
-      fetch(`http://146.181.32.238:3001/api/karaokes/process-pitch`, {
+      fetch(`${API_BASE_URL}/api/karaokes/process-pitch`, { // FE-1: use config
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('riff_token')}`
+          // FE-2 fix: read token from store, not directly from localStorage
+          'Authorization': `Bearer ${useAuthStore.getState().token}`
         },
         body: JSON.stringify({ cloudUrl: karaoke.cloudUrl, pitchShift: karaoke.pitchShift })
       })
@@ -144,6 +148,15 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
       .finally(() => setIsProcessingPitch(false));
     }
   }, [karaoke.id]);
+
+  // FE-9 fix: clear countdown interval when the component unmounts
+  useEffect(() => {
+    return () => {
+      if (countdownTimerRef.current) {
+        clearInterval(countdownTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     useAudioStore.getState().setGlobalIsPlaying(globalIsPlaying);
@@ -248,8 +261,10 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
       
       osc.start(ctx.currentTime);
       osc.stop(ctx.currentTime + 0.05);
+      // FE-3 fix: close AudioContext after oscillator stops to prevent resource leak
+      osc.onended = () => ctx.close();
     } catch (e) {
-      // Ignorar si falla
+      console.warn('AudioContext error:', e);
     }
   };
 

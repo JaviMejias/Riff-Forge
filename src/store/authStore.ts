@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { API_BASE_URL } from '../config'; // FE-1: use central config
 
 
 interface User {
@@ -16,7 +17,7 @@ interface AuthStore {
   verifyToken: () => Promise<void>;
 }
 
-const API_URL = 'http://146.181.32.238:3001/api';
+const API_URL = `${API_BASE_URL}/api`;
 
 export const useAuthStore = create<AuthStore>((set, get) => ({
   user: null,
@@ -100,8 +101,10 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         await db.karaokeFiles.clear();
       });
 
-      // Clear UI settings
-      localStorage.clear();
+      // FE-7 fix: only remove keys this app owns — localStorage.clear() also wipes
+      // browser extension data and unrelated app data on the same origin.
+      const APP_KEYS = ['riff_token', 'lastSyncAt', 'deleted_cloud_ids', 'ui-storage'];
+      APP_KEYS.forEach(key => localStorage.removeItem(key));
 
       await Swal.fire({ 
         icon: 'success', 

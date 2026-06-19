@@ -9,9 +9,10 @@ import { db } from '../db';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 import { Toast } from '../utils/toast';
+import { API_BASE_URL } from '../config'; // FE-1: use central config, no hardcoded IPs
 
 const MySwal = withReactContent(Swal);
-const API_URL = 'http://146.181.32.238:3001/api';
+const API_URL = `${API_BASE_URL}/api`;
 
 interface CommunityViewProps {
   isSidebarOpen: boolean;
@@ -23,30 +24,37 @@ export const CommunityView = ({ isSidebarOpen, onToggleSidebar }: CommunityViewP
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const token = useAuthStore(state => state.token);
+  const currentUser = useAuthStore(state => state.user); // FE-8: use hook, not getState() in render
 
+  // FE-5: AbortController prevents race conditions when switching tabs quickly
   useEffect(() => {
-    fetchItems();
-  }, [activeTab]);
+    const controller = new AbortController();
+    let isMounted = true;
 
-  const fetchItems = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`${API_URL}/community/${activeTab}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!res.ok) throw new Error('Error fetching community items');
-      const data = await res.json();
-      setItems(data);
-    } catch (error) {
-      console.error(error);
-      Toast.fire({ icon: 'error', title: 'Error al cargar la comunidad' });
-    } finally {
-      setLoading(false);
-    }
-  };
+    const run = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`${API_URL}/community/${activeTab}`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+          signal: controller.signal
+        });
+        if (!res.ok) throw new Error('Error fetching community items');
+        const data = await res.json();
+        if (isMounted) setItems(data);
+      } catch (error: any) {
+        if (error.name === 'AbortError') return; // tab switched — ignore stale response
+        console.error(error);
+        if (isMounted) Toast.fire({ icon: 'error', title: 'Error al cargar la comunidad' });
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    run();
+    return () => { isMounted = false; controller.abort(); };
+  }, [activeTab, token]);
 
   const cloneSong = async (item: any) => {
-    const currentUser = useAuthStore.getState().user;
     if (currentUser && item.userId === currentUser.id) {
       Toast.fire({ icon: 'info', title: 'Este aporte es tuyo', text: 'Ya tienes este elemento en tu biblioteca.' });
       return;
@@ -72,7 +80,7 @@ export const CommunityView = ({ isSidebarOpen, onToggleSidebar }: CommunityViewP
           let fileData = undefined;
           // If song is GP, we need to download it
           if (item.cloudUrl) {
-            const res = await fetch(`http://146.181.32.238:3001${item.cloudUrl}`);
+            const res = await fetch(`${API_BASE_URL}${item.cloudUrl}`);
             const blob = await res.blob();
             const arrayBuffer = await blob.arrayBuffer();
             fileData = new Uint8Array(arrayBuffer);
@@ -108,7 +116,7 @@ export const CommunityView = ({ isSidebarOpen, onToggleSidebar }: CommunityViewP
 
           if (item.cloudUrl) {
             // Need to download the mp3 if exists
-            const res = await fetch(`http://146.181.32.238:3001${item.cloudUrl}`);
+            const res = await fetch(`${API_BASE_URL}${item.cloudUrl}`);
             if (res.ok) {
                 const blob = await res.blob();
                 const arrayBuffer = await blob.arrayBuffer();
@@ -201,7 +209,7 @@ export const CommunityView = ({ isSidebarOpen, onToggleSidebar }: CommunityViewP
                     <div className="absolute inset-0 z-20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                       <div className="bg-black/50 absolute inset-0 rounded-2xl"></div>
                       <div className="flex flex-col items-center justify-center transform translate-y-4 group-hover:translate-y-0 transition-all">
-                        {useAuthStore.getState().user?.id === item.userId ? (
+                        {currentUser?.id === item.userId ? (
                           <div key="own" className="flex flex-col items-center">
                             <div className="text-primary-400 mb-2 drop-shadow-[0_0_10px_rgba(245,158,11,0.8)]">🌐</div>
                             <span className="text-white font-bold tracking-widest uppercase text-xs text-center px-2">Tu Aporte<br/>Público</span>

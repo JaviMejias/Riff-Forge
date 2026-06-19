@@ -3,9 +3,12 @@ import { v4 as uuidv4 } from 'uuid';
 import { useAuthStore } from '../store/authStore';
 import { useUiStore } from '../store/uiStore';
 
-const API_URL = 'http://146.181.32.238:3001/api';
+import { API_BASE_URL } from '../config'; // FE-1: use central config
+
+const API_URL = `${API_BASE_URL}/api`;
 
 let syncTimeout: any = null;
+let syncInProgress: Promise<void> | null = null; // FE-6: lock to prevent concurrent syncs
 
 export const SyncService = {
   scheduleAutoSync() {
@@ -15,7 +18,15 @@ export const SyncService = {
     }, 3000);
   },
 
-  async performAutoSync(onProgress?: (msg: string) => void) {
+  performAutoSync(onProgress?: (msg: string) => void) {
+    if (syncInProgress) return syncInProgress;
+    syncInProgress = this._doSync(onProgress).finally(() => {
+      syncInProgress = null;
+    });
+    return syncInProgress;
+  },
+
+  async _doSync(onProgress?: (msg: string) => void) {
     const token = useAuthStore.getState().token;
     if (!token) return;
 
@@ -186,15 +197,14 @@ export const SyncService = {
     let res = await fetch(`${API_URL}/songs`, { headers });
     if (res.ok) {
       const serverSongs = await res.json();
-      for (const data of serverSongs) {
-        const cloudId = data.id;
-        delete data.id;
+      for (const item of serverSongs) {
+        const { id: cloudId, ...data } = item; // M-4: destructuring instead of delete
         const existing = await db.songs.where('cloudId').equals(cloudId).first();
         
         let binaryData = null;
         if (data.cloudUrl && (!existing || !existing.data)) {
           try {
-            const resp = await fetch(`http://146.181.32.238:3001${data.cloudUrl}`);
+            const resp = await fetch(`${API_BASE_URL}${data.cloudUrl}`); // FE-1: use config
             if (resp.ok) {
               const arrayBuffer = await resp.arrayBuffer();
               binaryData = new Uint8Array(arrayBuffer);
@@ -204,10 +214,11 @@ export const SyncService = {
 
         if (existing) {
           if (data.updatedAt > (existing.updatedAt || 0)) {
-            await db.songs.update(existing.id!, { ...data, data: binaryData || existing.data });
+            // FE-7 fix updatedAt for db hooks bypassing
+            await db.songs.update(existing.id!, { ...data, updatedAt: data.updatedAt || Date.now(), data: binaryData || existing.data });
           }
         } else {
-          await db.songs.add({ ...data, cloudId, data: binaryData } as any);
+          await db.songs.add({ ...data, cloudId, updatedAt: data.updatedAt || Date.now(), data: binaryData } as any);
         }
       }
     }
@@ -217,25 +228,24 @@ export const SyncService = {
     res = await fetch(`${API_URL}/karaokes`, { headers });
     if (res.ok) {
       const serverKaraokes = await res.json();
-      for (const data of serverKaraokes) {
-        const cloudId = data.id;
-        delete data.id;
+      for (const item of serverKaraokes) {
+        const { id: cloudId, ...data } = item;
         const existing = await db.karaokes.where('cloudId').equals(cloudId).first();
         let localKaraokeId = existing?.id;
 
         if (existing) {
           if (data.updatedAt > (existing.updatedAt || 0)) {
-            await db.karaokes.update(existing.id!, { ...data });
+            await db.karaokes.update(existing.id!, { ...data, updatedAt: data.updatedAt || Date.now() });
           }
         } else {
-          localKaraokeId = await db.karaokes.add({ ...data, cloudId } as any) as number;
+          localKaraokeId = await db.karaokes.add({ ...data, cloudId, updatedAt: data.updatedAt || Date.now() } as any) as number;
         }
 
         if (data.cloudUrl && localKaraokeId) {
           const existingFile = await db.karaokeFiles.get(localKaraokeId);
           if (!existingFile || !existingFile.data) {
             try {
-              const resp = await fetch(`http://146.181.32.238:3001${data.cloudUrl}`);
+              const resp = await fetch(`${API_BASE_URL}${data.cloudUrl}`);
               if (resp.ok) {
                 const arrayBuffer = await resp.arrayBuffer();
                 const binaryData = new Uint8Array(arrayBuffer);
