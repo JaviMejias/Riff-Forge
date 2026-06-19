@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  backend:
+    build: 
+      context: ../riff-forge-api
+    container_name: riff_backend
+    restart: always
+    ports:
+      - "3001:3001"
+    environment:
+      - JWT_SECRET=secreto_super_seguro_riff_forge
+      - PORT=3001
+    volumes:
+      # Guardar la base de datos de forma permanente
+      - backend_data:/app/prisma
+      # Guardar los audios subidos de forma permanente
+      - uploads_data:/app/uploads
+
+  frontend:
+    build:
+      context: .
+    container_name: riff_frontend
+    restart: always
+    ports:
+      - "8080:8080"
+    depends_on:
+      - backend
+
+volumes:
+  backend_data:
+  uploads_data:
