@@ -128,7 +128,13 @@ export const LibraryView = ({ songs, activeSongId, onPlaySong, onImport, isSideb
     const song = await db.songs.get(id);
     if (!song) return;
     
-    await db.songs.update(id, { isPublic: !song.isPublic });
+    await db.songs.update(id, { 
+      isPublic: !song.isPublic,
+      updatedAt: Date.now()
+    });
+    
+    const { SyncService } = await import('../services/syncService');
+    SyncService.scheduleAutoSync();
     
     Toast.fire({
       icon: 'success',

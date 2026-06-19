@@ -224,7 +224,13 @@ export const KaraokeLibraryView = ({ karaokes, activeKaraokeId, onPlayKaraoke, i
     const karaoke = await db.karaokes.get(id);
     if (!karaoke) return;
     
-    await db.karaokes.update(id, { isPublic: !karaoke.isPublic });
+    await db.karaokes.update(id, { 
+      isPublic: !karaoke.isPublic,
+      updatedAt: Date.now()
+    });
+    
+    const { SyncService } = await import('../../services/syncService');
+    SyncService.scheduleAutoSync();
     
     Toast.fire({
       icon: 'success',
