@@ -28,7 +28,6 @@
     "sweetalert2-react-content": "^5.1.2",
     "tailwind-merge": "^3.6.0",
     "tailwindcss": "^4.3.1",
-    "tone": "^15.1.22",
     "uuid": "^14.0.0",
     "zustand": "^5.0.14"
   },
