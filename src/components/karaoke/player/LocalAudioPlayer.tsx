@@ -5,6 +5,7 @@ import { db } from '../../../db';
 import type { Karaoke } from '../../../db';
 import { VinylAnimation } from './VinylAnimation';
 import { useAudioStore } from '../../../store/audioStore';
+import { API_BASE_URL } from '../../../config'; // FE-1: use config
 
 export interface LocalAudioPlayerRef {
   play: () => void;
@@ -59,10 +60,20 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
 
   useImperativeHandle(ref, () => ({
     play: () => {
-      if (audioRef.current && audioRef.current.paused) togglePlay();
+      // FE-11 fix: don't use togglePlay() because it reads stale closure state
+      // FE-10 fix: catch unhandled promise rejection if autoplay is blocked
+      audioRef.current?.play().catch(err => {
+        console.warn('Autoplay prevented:', err);
+        setIsPlaying(false);
+        if (onPlayStateChange) onPlayStateChange(false);
+      });
+      setIsPlaying(true);
+      if (onPlayStateChange) onPlayStateChange(true);
     },
     pause: () => {
-      if (audioRef.current && !audioRef.current.paused) togglePlay();
+      audioRef.current?.pause();
+      setIsPlaying(false);
+      if (onPlayStateChange) onPlayStateChange(false);
     },
     getCurrentTime: () => audioRef.current ? audioRef.current.currentTime : 0,
     seek: (time: number) => {
@@ -94,7 +105,7 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
     const loadAudio = async () => {
       try {
         if (karaoke.cloudUrl) {
-          const fullUrl = `http://146.181.32.238:3001${karaoke.cloudUrl}`;
+          const fullUrl = `${API_BASE_URL}${karaoke.cloudUrl}`; // FE-1 fix
           if (isMounted) {
             setAudioUrl(fullUrl);
           }
@@ -154,7 +165,12 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
         if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
         countdownTimerRef.current = null;
         setCountdownNumber(null);
-        audioRef.current?.play();
+        // FE-10 fix: catch unhandled promise rejection
+        audioRef.current?.play().catch(err => {
+          console.warn('Autoplay prevented:', err);
+          setIsPlaying(false);
+          if (onPlayStateChange) onPlayStateChange(false);
+        });
         setIsPlaying(true);
         if (onPlayStateChange) onPlayStateChange(true);
       }
@@ -180,7 +196,12 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
           startCountdownAndPlay();
         } else {
           // Play immediately
-          audioRef.current?.play();
+          // FE-10 fix: catch unhandled promise rejection
+          audioRef.current?.play().catch(err => {
+            console.warn('Autoplay prevented:', err);
+            setIsPlaying(false);
+            if (onPlayStateChange) onPlayStateChange(false);
+          });
           setIsPlaying(true);
           if (onPlayStateChange) onPlayStateChange(true);
         }

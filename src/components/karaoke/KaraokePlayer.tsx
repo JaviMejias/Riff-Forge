@@ -215,12 +215,14 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
     let interval: any;
     if (activeSource === 'youtube' && ytPlayer) {
       interval = setInterval(() => {
-        setLocalCurrentTime(ytPlayer.getCurrentTime());
-        setGlobalIsPlaying(ytPlayer.getPlayerState() === 1);
+        const time = ytPlayer.getCurrentTime();
+        const playing = ytPlayer.getPlayerState() === 1;
+        setLocalCurrentTime(prev => Math.abs(prev - time) > 0.05 ? time : prev);
+        setGlobalIsPlaying(playing);
         if (ytPlayer.getDuration && ytPlayer.getDuration() > 0) {
           setGlobalDuration(ytPlayer.getDuration());
         }
-      }, 50); // Fast polling for smooth lyric sync
+      }, 100); // M-1 fix: 10fps is plenty for lyric sync and saves React re-renders
     }
     return () => clearInterval(interval);
   }, [activeSource, ytPlayer]);

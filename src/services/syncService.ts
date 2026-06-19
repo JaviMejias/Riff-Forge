@@ -117,7 +117,8 @@ export const SyncService = {
           id: p.cloudId || uuidv4(),
           songCloudIds: p.songIds.map(id => songIdToCloudId.get(id)).filter(Boolean)
         }));
-        await fetch(`${API_URL}/playlists/sync`, { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify(playlistsPayload) });
+        const res = await fetch(`${API_URL}/playlists/sync`, { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify(playlistsPayload) });
+        if (!res.ok) throw new Error(`Playlist sync failed: ${res.status}`);
       }
 
       const kPlaylistsChanged = await db.karaokePlaylists.filter(p => (p.updatedAt || 0) > lastSyncAt).count();
@@ -129,7 +130,8 @@ export const SyncService = {
           id: p.cloudId || uuidv4(),
           karaokeCloudIds: p.karaokeIds.map(id => karaokeIdToCloudId.get(id)).filter(Boolean)
         }));
-        await fetch(`${API_URL}/karaoke-playlists/sync`, { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify(kPlaylistsPayload) });
+        const res = await fetch(`${API_URL}/karaoke-playlists/sync`, { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify(kPlaylistsPayload) });
+        if (!res.ok) throw new Error(`Karaoke Playlist sync failed: ${res.status}`);
       }
 
       const chordsChanged = await db.customChords.filter(c => (c.updatedAt || 0) > lastSyncAt).count();
@@ -140,23 +142,24 @@ export const SyncService = {
           ...c,
           id: c.cloudId || uuidv4()
         }));
-        await fetch(`${API_URL}/chords/sync`, { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify(chordsPayload) });
+        const res = await fetch(`${API_URL}/chords/sync`, { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify(chordsPayload) });
+        if (!res.ok) throw new Error(`Chords sync failed: ${res.status}`);
       }
 
       // 5. Sync Settings
       onProgress?.('Subiendo ajustes de usuario...');
+      const SYNC_KEYS = ['ui-storage']; // L-5 fix: allowlist instead of denylist
       const settings: Record<string, string> = {};
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key !== 'riff_token' && key !== 'deleted_cloud_ids' && key !== 'lastSyncAt') {
-          settings[key] = localStorage.getItem(key) || '';
-        }
-      }
-      await fetch(`${API_URL}/auth/settings`, {
+      SYNC_KEYS.forEach(key => {
+        const val = localStorage.getItem(key);
+        if (val !== null) settings[key] = val;
+      });
+      const resSettings = await fetch(`${API_URL}/auth/settings`, {
         method: 'POST',
         headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({ uiStorage: settings })
       });
+      if (!resSettings.ok) throw new Error(`Settings sync failed: ${resSettings.status}`);
 
       localStorage.setItem('lastSyncAt', newSyncTime.toString());
       onProgress?.('¡Respaldo en el servidor completado!');

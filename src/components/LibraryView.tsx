@@ -96,9 +96,14 @@ export const LibraryView = ({ songs, activeSongId, onPlaySong, onImport, isSideb
             MySwal.close();
             db.songs.update(id, { type: 'gp', textContent: undefined });
           });
-          document.getElementById('btn-del-all')?.addEventListener('click', () => {
+          document.getElementById('btn-del-all')?.addEventListener('click', async () => {
             MySwal.close();
-            deleteFullSong(id);
+            try {
+              await deleteFullSong(id);
+            } catch (e) {
+              console.error(e);
+              MySwal.fire({ icon: 'error', title: 'Error al borrar' });
+            }
           });
         }
       });

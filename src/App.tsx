@@ -192,11 +192,13 @@ function App() {
     let importedCount = 0;
     let lastId: number | null = null;
     let lastData: Uint8Array | null = null;
+    let failedFiles: string[] = []; // M-8 fix
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      const buffer = await file.arrayBuffer();
-      const uint8Array = new Uint8Array(buffer);
+      try {
+        const buffer = await file.arrayBuffer();
+        const uint8Array = new Uint8Array(buffer);
       
       let finalName = file.name.replace(/\.[^/.]+$/, "");
       let finalArtist = 'Desconocido';
@@ -239,6 +241,22 @@ function App() {
 
       lastData = uint8Array;
       importedCount++;
+      } catch (err) {
+        console.warn('Error importando archivo:', file.name, err);
+        failedFiles.push(file.name);
+      }
+    }
+
+    MySwal.close(); // Close the loading modal unconditionally first
+
+    if (failedFiles.length > 0) {
+      await MySwal.fire({ 
+        icon: 'warning', 
+        title: `${failedFiles.length} archivo(s) fallaron`,
+        text: `No se pudieron importar: ${failedFiles.join(', ')}`,
+        background: '#18181b',
+        color: '#f4f4f5'
+      });
     }
 
     if (importedCount > 0 && lastId !== null && lastData !== null) {
@@ -258,8 +276,6 @@ function App() {
       if (result.isConfirmed) {
         navigate(`/song/${lastId}`);
       }
-    } else {
-      MySwal.close();
     }
     
     e.target.value = '';
