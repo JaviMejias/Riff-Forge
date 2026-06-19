@@ -89,16 +89,34 @@ const KaraokePlayerRoute = () => {
   const { isDesktopSidebarOpen, toggleDesktopSidebar } = useUiStore();
   const karaoke = useLiveQuery(() => db.karaokes.get(parseInt(id || '0')), [id]);
 
-  if (karaoke === undefined) return <div className="p-8 text-zinc-400">Cargando karaoke...</div>;
+  if (karaoke === undefined) return (
+    <div className="h-full flex items-center justify-center bg-zinc-950 text-primary-500">
+      <div className="flex flex-col items-center gap-4">
+        <Loader2 className="animate-spin w-12 h-12" />
+        <p className="font-bold tracking-widest text-sm uppercase">Cargando Karaoke...</p>
+      </div>
+    </div>
+  );
   if (karaoke === null) return <div className="p-8 text-zinc-400">Karaoke no encontrado.</div>;
 
   return (
-    <KaraokePlayer 
-      karaoke={karaoke} 
-      onBack={() => navigate('/karaokes')} 
-      isSidebarOpen={isDesktopSidebarOpen}
-      onToggleSidebar={toggleDesktopSidebar}
-    />
+    // key forces a fresh KaraokePlayer instance per karaoke, avoiding stale YouTube player state
+    <Suspense fallback={
+      <div className="h-full flex items-center justify-center bg-zinc-950 text-primary-500">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="animate-spin w-12 h-12" />
+          <p className="font-bold tracking-widest text-sm uppercase">Cargando Módulo...</p>
+        </div>
+      </div>
+    }>
+      <KaraokePlayer
+        key={karaoke.id}
+        karaoke={karaoke} 
+        onBack={() => navigate('/karaokes')} 
+        isSidebarOpen={isDesktopSidebarOpen}
+        onToggleSidebar={toggleDesktopSidebar}
+      />
+    </Suspense>
   );
 };
 

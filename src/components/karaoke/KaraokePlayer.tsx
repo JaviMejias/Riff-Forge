@@ -415,7 +415,9 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
       rel: 0,
       disablekb: 0,
       mute: 1, // Inicia el reproductor nativamente en mute para evitar el "eco" inicial
-      origin: window.location.origin
+      // Note: 'origin' is intentionally omitted — it causes postMessage errors on HTTP deployments.
+      // YouTube's iframe API only validates this correctly with HTTPS origins.
+      enablejsapi: 1,
     }
   }), []);
 
