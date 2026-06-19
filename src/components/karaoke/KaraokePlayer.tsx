@@ -386,6 +386,7 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
     } catch (e) { console.warn(e); }
     if (localPlayerRef.current) localPlayerRef.current.pause();
     setGlobalIsPlaying(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSource]);
 
   // Sync state if karaoke prop changes
@@ -396,6 +397,7 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
     // Update active source if the available sources change (prioritize youtube)
     if (ytVideoId) setActiveSource('youtube');
     else if (hasLocalAudio) setActiveSource('local');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [karaoke.id, ytVideoId, hasLocalAudio]);
 
   const handleSaveLyrics = async (content: string) => {
