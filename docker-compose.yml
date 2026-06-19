@@ -8,8 +8,9 @@ services:
     restart: always
     ports:
       - "3001:3001"
+    env_file:
+      - .env.backend      # ← secretos fuera del git (ver instrucciones abajo)
     environment:
-      - JWT_SECRET=secreto_super_seguro_riff_forge
       - PORT=3001
     volumes:
       # Guardar la base de datos de forma permanente
