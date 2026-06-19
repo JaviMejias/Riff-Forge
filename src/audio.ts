@@ -43,8 +43,8 @@ const midiToFreq = (midi: number): number => {
   return 440 * Math.pow(2, (midi - 69) / 12);
 };
 
-export const playChordAudio = async (notes: string[]) => {
-  if (!notes || notes.length === 0) return;
+export const playChordAudio = async (frets: number[]) => {
+  if (!frets || frets.length === 0) return;
   
   if (audioCtx.state === 'suspended') {
     await audioCtx.resume();
@@ -52,10 +52,17 @@ export const playChordAudio = async (notes: string[]) => {
 
   const now = audioCtx.currentTime;
   
-  notes.forEach((noteStr, i) => {
-    // Add a slight arpeggio effect (staggered start times)
-    const startTime = now + (i * 0.03); 
-    const freq = midiToFreq(noteToMidi(noteStr));
-    playTone(freq, startTime, 1.5);
+  // Standard tuning MIDI numbers: E2, A2, D3, G3, B3, E4
+  const baseMidi = [40, 45, 50, 55, 59, 64];
+  
+  let stringIndex = 0;
+  frets.forEach((fret) => {
+    if (fret >= 0 && stringIndex < 6) { // Skip muted strings (-1)
+      const startTime = now + (stringIndex * 0.04); 
+      const midi = baseMidi[stringIndex] + fret;
+      const freq = midiToFreq(midi);
+      playTone(freq, startTime, 1.5);
+    }
+    stringIndex++;
   });
 };
