@@ -9,6 +9,7 @@ export interface ChordDef {
   root?: string;
   suffix?: string;
   isCustom?: boolean;
+  isPublic?: boolean;
 }
 
 export const CHORD_DICTIONARY: ChordDef[] = [

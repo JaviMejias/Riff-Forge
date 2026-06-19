@@ -28,6 +28,7 @@ const KaraokeLibraryView = React.lazy(() => import('./components/karaoke/Karaoke
 const KaraokePlayer = React.lazy(() => import('./components/karaoke/KaraokePlayer').then(m => ({ default: m.KaraokePlayer })));
 const PlaylistsIndexView = React.lazy(() => import('./components/playlists/PlaylistsIndexView').then(m => ({ default: m.PlaylistsIndexView })));
 const KaraokePlaylistView = React.lazy(() => import('./components/playlists/KaraokePlaylistView').then(m => ({ default: m.KaraokePlaylistView })));
+const CommunityView = React.lazy(() => import('./components/CommunityView').then(m => ({ default: m.CommunityView })));
 
 // Wrappers for routes
 const PlayerRoute = ({ songs }: { songs: Song[] }) => {
@@ -335,6 +336,21 @@ function App() {
                       className="absolute inset-0"
                     >
                       <ChordDictionaryView 
+                        isSidebarOpen={isDesktopSidebarOpen}
+                        onToggleSidebar={toggleDesktopSidebar}
+                      />
+                    </motion.div>
+                  } />
+
+                  <Route path="/community" element={
+                    <motion.div
+                      initial={{ opacity: 0, y: 40 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -40 }}
+                      transition={{ duration: 0.3, ease: "easeOut" }}
+                      className="absolute inset-0"
+                    >
+                      <CommunityView 
                         isSidebarOpen={isDesktopSidebarOpen}
                         onToggleSidebar={toggleDesktopSidebar}
                       />

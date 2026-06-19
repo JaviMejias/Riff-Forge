@@ -123,6 +123,19 @@ export const LibraryView = ({ songs, activeSongId, onPlaySong, onImport, isSideb
     }
   };
 
+  const handleTogglePublic = async (id: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const song = await db.songs.get(id);
+    if (!song) return;
+    
+    await db.songs.update(id, { isPublic: !song.isPublic });
+    
+    Toast.fire({
+      icon: 'success',
+      title: !song.isPublic ? 'Canción hecha pública 🌐' : 'Canción ahora es privada 🔒',
+    });
+  };
+
   const handleAddToPlaylistClick = (songId: number, e: React.MouseEvent) => {
     e.stopPropagation();
     if (playlists.length === 0) {
@@ -277,6 +290,7 @@ export const LibraryView = ({ songs, activeSongId, onPlaySong, onImport, isSideb
                       onPlay={() => onPlaySong(song)}
                       onAdd={(e) => handleAddToPlaylistClick(song.id!, e)}
                       onDelete={(e) => deleteSong(song.id!, e)}
+                      onTogglePublic={(e) => handleTogglePublic(song.id!, e)}
                     />
                   ))
                 )}

@@ -1,5 +1,5 @@
 import { motion, useMotionValue, useMotionTemplate } from 'framer-motion';
-import { Trash2, Plus, User, Disc3, X, FileText, Guitar } from 'lucide-react';
+import { Trash2, Plus, User, Disc3, X, FileText, Guitar, Globe } from 'lucide-react';
 import type { Song } from '../db';
 
 interface SongCardProps {
@@ -9,10 +9,11 @@ interface SongCardProps {
   onAdd?: (e: React.MouseEvent) => void;
   onDelete?: (e: React.MouseEvent) => void;
   onRemove?: (e: React.MouseEvent) => void;
+  onTogglePublic?: (e: React.MouseEvent) => void;
   index?: number;
 }
 
-export const SongCard = ({ song, isActive, onPlay, onAdd, onDelete, onRemove, index = 0 }: SongCardProps) => {
+export const SongCard = ({ song, isActive, onPlay, onAdd, onDelete, onRemove, onTogglePublic, index = 0 }: SongCardProps) => {
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
 
@@ -83,6 +84,15 @@ export const SongCard = ({ song, isActive, onPlay, onAdd, onDelete, onRemove, in
           </div>
           {/* Floating actions */}
           <div className="flex opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity -mt-1 -mr-1 shrink-0 ml-2">
+            {onTogglePublic && (
+              <button
+                onClick={onTogglePublic}
+                className={`p-1.5 rounded-lg transition-all ${song.isPublic ? 'text-primary-400 bg-primary-400/10' : 'text-zinc-500 hover:text-primary-400 hover:bg-primary-400/10'}`}
+                title={song.isPublic ? 'Hacer Privado' : 'Hacer Público'}
+              >
+                <Globe size={16} />
+              </button>
+            )}
             {onAdd && (
               <button
                 onClick={onAdd}

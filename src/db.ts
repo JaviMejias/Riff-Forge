@@ -12,6 +12,7 @@ export interface Karaoke {
   hasLocalAudio?: boolean; // Replaces localFile blob for lightweight metadata
   pitchShift?: number; // In semitones
   textContent?: string;
+  isPublic?: boolean;
   dateAdded: number;
 }
 
@@ -27,6 +28,7 @@ export interface KaraokePlaylist {
   updatedAt?: number;
   name: string;
   karaokeIds: number[]; // LOCAL ids
+  isPublic?: boolean;
   createdAt: number;
 }
 
@@ -45,6 +47,7 @@ export interface Song {
   tuning?: string;
   strummingPattern?: string;
   capo?: string;
+  isPublic?: boolean;
   dateAdded: number;
 }
 
@@ -54,6 +57,7 @@ export interface Playlist {
   updatedAt?: number;
   name: string;
   songIds: number[]; // LOCAL ids
+  isPublic?: boolean;
   createdAt: number;
 }
 
@@ -127,6 +131,16 @@ export class MiRiffPlayerDB extends Dexie {
       customChords: '++id, name, root, cloudId',
       karaokes: '++id, name, artist, dateAdded, cloudId',
       karaokePlaylists: '++id, name, createdAt, cloudId',
+      karaokeFiles: 'karaokeId'
+    });
+
+    // Version 8: Add isPublic indexes for Community sharing
+    this.version(8).stores({
+      songs: '++id, name, artist, dateAdded, cloudId, isPublic',
+      playlists: '++id, name, createdAt, cloudId, isPublic',
+      customChords: '++id, name, root, cloudId, isPublic',
+      karaokes: '++id, name, artist, dateAdded, cloudId, isPublic',
+      karaokePlaylists: '++id, name, createdAt, cloudId, isPublic',
       karaokeFiles: 'karaokeId'
     });
   }

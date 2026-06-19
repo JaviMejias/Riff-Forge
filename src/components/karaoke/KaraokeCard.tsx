@@ -1,4 +1,4 @@
-import { Mic2, Play, Trash2, MonitorPlay, Disc3 } from 'lucide-react';
+import { Mic2, Play, Trash2, MonitorPlay, Disc3, Globe } from 'lucide-react';
 import { motion, useMotionValue, useMotionTemplate } from 'framer-motion';
 import type { Karaoke } from '../../db';
 import { useCoverArt } from '../../hooks/useCoverArt';
@@ -9,9 +9,10 @@ interface KaraokeCardProps {
   isActive: boolean;
   onPlay: () => void;
   onDelete: (e: React.MouseEvent) => void;
+  onTogglePublic?: (e: React.MouseEvent) => void;
 }
 
-export const KaraokeCard = ({ karaoke, index, isActive, onPlay, onDelete }: KaraokeCardProps) => {
+export const KaraokeCard = ({ karaoke, index, isActive, onPlay, onDelete, onTogglePublic }: KaraokeCardProps) => {
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
 
@@ -70,7 +71,16 @@ export const KaraokeCard = ({ karaoke, index, isActive, onPlay, onDelete }: Kara
         }}
       />
       {/* Opciones hover (arriba a la derecha) */}
-      <div className="absolute top-3 right-3 z-20 flex gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
+      <div className="absolute top-3 right-3 z-20 flex gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200 pointer-events-auto">
+        {onTogglePublic && (
+          <button
+            onClick={onTogglePublic}
+            className={`p-2 rounded-xl shadow-lg transition-all backdrop-blur-md hover:scale-110 ${karaoke.isPublic ? 'bg-primary-500/90 text-zinc-900 hover:bg-primary-500' : 'bg-zinc-800/90 text-zinc-400 hover:bg-zinc-700 hover:text-primary-400'}`}
+            title={karaoke.isPublic ? 'Hacer Privado' : 'Hacer Público'}
+          >
+            <Globe size={16} />
+          </button>
+        )}
         <button
           onClick={onDelete}
           className="p-2 bg-rose-500/90 text-white rounded-xl shadow-lg hover:bg-rose-500 hover:scale-110 transition-all backdrop-blur-md"

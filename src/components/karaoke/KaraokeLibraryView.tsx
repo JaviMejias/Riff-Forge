@@ -219,6 +219,19 @@ export const KaraokeLibraryView = ({ karaokes, activeKaraokeId, onPlayKaraoke, i
     }
   };
 
+  const handleTogglePublic = async (id: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const karaoke = await db.karaokes.get(id);
+    if (!karaoke) return;
+    
+    await db.karaokes.update(id, { isPublic: !karaoke.isPublic });
+    
+    Toast.fire({
+      icon: 'success',
+      title: !karaoke.isPublic ? 'Karaoke hecho público 🌐' : 'Karaoke ahora es privado 🔒',
+    });
+  };
+
   const filteredKaraokes = karaokes?.filter(k => {
     return k.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
            (k.artist && k.artist.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -294,6 +307,7 @@ export const KaraokeLibraryView = ({ karaokes, activeKaraokeId, onPlayKaraoke, i
                       isActive={activeKaraokeId === karaoke.id}
                       onPlay={() => onPlayKaraoke(karaoke)}
                       onDelete={(e) => deleteKaraoke(karaoke.id!, e)}
+                      onTogglePublic={(e) => handleTogglePublic(karaoke.id!, e)}
                     />
                   ))
                 )}
