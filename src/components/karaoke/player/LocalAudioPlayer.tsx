@@ -6,7 +6,7 @@ import { VinylAnimation } from './VinylAnimation';
 import { useAudioStore } from '../../../store/audioStore';
 import { API_BASE_URL } from '../../../config'; // FE-1: use config
 import { BungeePitchShift } from 'bungee-pitch-shift';
-import * as Tone from 'tone';
+import { SoundTouchNode } from '../../../utils/SoundTouchNode';
 
 export interface LocalAudioPlayerRef {
   play: () => void;
@@ -84,9 +84,6 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
   // Handle AudioContext resume on play (browsers require user interaction to resume)
   useEffect(() => {
     if (isPlaying) {
-      if (!window.isSecureContext) {
-        Tone.start().catch(e => console.warn("Tone start issue:", e));
-      }
       if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
         audioCtxRef.current.resume().catch(console.error);
       }
@@ -210,12 +207,8 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
     const initAudio = async () => {
       try {
         if (!audioCtxRef.current) {
-          if (window.isSecureContext) {
-            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-            audioCtxRef.current = new AudioContextClass();
-          } else {
-            audioCtxRef.current = Tone.getContext().rawContext as AudioContext;
-          }
+          const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+          audioCtxRef.current = new AudioContextClass();
         }
         
         if (!sourceNodeRef.current) {
@@ -230,8 +223,9 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
               initialPitch: pitch
             });
           } else {
-            console.warn("Using Tone.js PitchShift fallback (HTTP insecure context)");
-            pitchShiftNodeRef.current = new Tone.PitchShift({ pitch: pitch });
+            console.warn("Using SoundTouchJS PitchShift fallback (HTTP insecure context)");
+            pitchShiftNodeRef.current = new SoundTouchNode(audioCtxRef.current);
+            pitchShiftNodeRef.current.setPitch(pitch);
           }
         }
         
@@ -240,9 +234,9 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
           try { sourceNodeRef.current.disconnect(); } catch (e) {}
           try { pitchShiftNodeRef.current.disconnect(); } catch (e) {}
           
-          if (pitchShiftNodeRef.current instanceof Tone.PitchShift) {
-            Tone.connect(sourceNodeRef.current as any, pitchShiftNodeRef.current);
-            pitchShiftNodeRef.current.toDestination();
+          if (pitchShiftNodeRef.current instanceof SoundTouchNode) {
+            sourceNodeRef.current.connect(pitchShiftNodeRef.current.node);
+            pitchShiftNodeRef.current.connect(audioCtxRef.current.destination);
           } else {
             sourceNodeRef.current.connect(pitchShiftNodeRef.current.node);
             pitchShiftNodeRef.current.connect(audioCtxRef.current.destination);
@@ -267,11 +261,7 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
   // Handle dynamic pitch changes
   useEffect(() => {
     if (pitchShiftNodeRef.current) {
-      if (pitchShiftNodeRef.current instanceof Tone.PitchShift) {
-        pitchShiftNodeRef.current.pitch = pitch;
-      } else {
-        pitchShiftNodeRef.current.setPitch(pitch);
-      }
+      pitchShiftNodeRef.current.setPitch(pitch);
     }
   }, [pitch]);
 
