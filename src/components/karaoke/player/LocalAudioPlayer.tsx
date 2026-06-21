@@ -84,11 +84,13 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
 
   // Handle AudioContext resume on play (browsers require user interaction to resume)
   useEffect(() => {
-    if (isPlaying && audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+    if (isPlaying) {
       if (!window.isSecureContext) {
-        Tone.start().catch(console.error);
+        Tone.start().catch(e => console.warn("Tone start issue:", e));
       }
-      audioCtxRef.current.resume().catch(console.error);
+      if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+        audioCtxRef.current.resume().catch(console.error);
+      }
     }
   }, [isPlaying]);
 
@@ -241,7 +243,7 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
           
           if (pitchShiftNodeRef.current instanceof Tone.PitchShift) {
             Tone.connect(sourceNodeRef.current as any, pitchShiftNodeRef.current);
-            Tone.connect(pitchShiftNodeRef.current, audioCtxRef.current.destination as any);
+            pitchShiftNodeRef.current.toDestination();
           } else {
             sourceNodeRef.current.connect(pitchShiftNodeRef.current.node);
             pitchShiftNodeRef.current.connect(audioCtxRef.current.destination);
