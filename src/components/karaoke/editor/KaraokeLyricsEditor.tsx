@@ -307,42 +307,7 @@ export const KaraokeLyricsEditor = ({
 
   const handleManualTimeChange = (idx: number, newTime: number) => {
     setSyncLines(prev => {
-      const oldTime = prev[idx].time;
       const newLines = [...prev];
-      
-      // Si la línea ya estaba sincronizada previamente, calculamos el delta (diferencia)
-      // y aplicamos esa misma diferencia a todas las líneas que le siguen y que también estén sincronizadas.
-      if (oldTime > 0) {
-        const delta = newTime - oldTime;
-        if (delta !== 0) {
-          let linesShifted = 0;
-          for (let i = idx; i < newLines.length; i++) {
-            if (newLines[i].time > 0) {
-              // Aplicamos el delta, asegurando que no queden en tiempo negativo
-              newLines[i] = { ...newLines[i], time: Math.max(0, newLines[i].time + delta) };
-              linesShifted++;
-            }
-          }
-          
-          // Mostrar notificación si el cambio es significativo (evita spam por clicks de +0.1)
-          if (Math.abs(delta) >= 1.0 && linesShifted > 1) {
-            Swal.fire({
-              toast: true,
-              position: 'bottom-end',
-              icon: 'success',
-              title: `Toda la letra desplazada ${delta > 0 ? '+' : ''}${delta.toFixed(1)}s`,
-              showConfirmButton: false,
-              timer: 3000,
-              background: '#18181b', // zinc-900
-              color: '#fff'
-            });
-          }
-          
-          return newLines;
-        }
-      }
-      
-      // Si no estaba sincronizada o el delta es 0, solo actualizamos esa línea
       newLines[idx] = { ...newLines[idx], time: newTime };
       return newLines;
     });
