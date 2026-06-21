@@ -66,7 +66,7 @@ export function useAlphaTab(song: Song | null) {
       core: {
         fontDirectory: 'https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/font/',
         useWorkers: true,
-        scriptFile: '/alphatab/alphaTab.worker.mjs'
+        scriptFile: '/alphatab/alphaTab.js'
       },
       player: {
         enablePlayer: true,

@@ -25,6 +25,11 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['bungee-pitch-shift', '@coderline/alphatab']
   },
+  resolve: {
+    alias: {
+      '@coderline/alphatab': path.resolve(__dirname, 'node_modules/@coderline/alphatab/dist/alphaTab.js')
+    }
+  },
   server: {
     allowedHosts: true,
     proxy: {
