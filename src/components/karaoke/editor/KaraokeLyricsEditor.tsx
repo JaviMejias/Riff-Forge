@@ -7,7 +7,6 @@ import { buildLrc, hasLrcTags, parseLrc, injectInstrumentals } from '../../../ut
 import type { LrcLine } from '../../../utils/lrcParser';
 import { EditorToolbar } from './EditorToolbar';
 import { SyncLineItem } from './SyncLineItem';
-import Swal from 'sweetalert2';
 
 import type { Karaoke } from '../../../db';
 
