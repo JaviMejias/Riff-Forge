@@ -1,85 +1,127 @@
 // @ts-ignore
-import { SoundTouch } from 'soundtouchjs';
+import { SoundTouch, SimpleFilter } from 'soundtouchjs';
+
+class Float32Fifo {
+  private buffer: Float32Array;
+  private head: number = 0;
+  private tail: number = 0;
+  public count: number = 0;
+
+  constructor(capacity: number) {
+    this.buffer = new Float32Array(capacity);
+  }
+
+  public push(samples: Float32Array) {
+    for (let i = 0; i < samples.length; i++) {
+      this.buffer[this.tail] = samples[i];
+      this.tail = (this.tail + 1) % this.buffer.length;
+      this.count++;
+    }
+  }
+
+  public pop(target: Float32Array, numFrames: number): number {
+    const samplesToRead = numFrames * 2; // Stereo
+    const actualRead = Math.min(samplesToRead, this.count);
+    for (let i = 0; i < actualRead; i++) {
+      target[i] = this.buffer[this.head];
+      this.head = (this.head + 1) % this.buffer.length;
+      this.count--;
+    }
+    // Return the number of frames actually read
+    return actualRead / 2;
+  }
+  
+  public clear() {
+    this.head = 0;
+    this.tail = 0;
+    this.count = 0;
+  }
+}
+
+class StreamSource {
+  private inFifo: Float32Fifo;
+  
+  constructor(inFifo: Float32Fifo) {
+    this.inFifo = inFifo;
+  }
+  
+  // Interfaz esperada por SimpleFilter
+  extract(target: Float32Array, numFrames: number, _position: number) {
+    return this.inFifo.pop(target, numFrames);
+  }
+}
 
 export class SoundTouchNode {
   public node: ScriptProcessorNode;
   private soundTouch: any;
-
-  private outFifo: Float32Array;
-  private fifoHead: number = 0;
-  private fifoTail: number = 0;
-  private fifoCount: number = 0;
+  private filter: any;
+  private inFifo: Float32Fifo;
   
   constructor(context: AudioContext, bufferSize: number = 4096) {
-    // Usamos ScriptProcessorNode (deprecated pero la única opción sin AudioWorklet)
     this.node = context.createScriptProcessor(bufferSize, 2, 2);
     this.soundTouch = new SoundTouch();
     
-    // Configuración base de SoundTouch para mantener el tiempo original
+    // Configuración WSOLA (pitch/tempo independent)
     this.soundTouch.pitch = 1.0;
     this.soundTouch.rate = 1.0;
     this.soundTouch.tempo = 1.0;
     
-    // FIFO circular grande (3x bufferSize estéreo) para absorber las fluctuaciones de latencia del algoritmo WSOLA
-    const fifoCapacity = bufferSize * 2 * 3; 
-    this.outFifo = new Float32Array(fifoCapacity);
+    // Configurar sample rate explícitamente si está disponible
+    if (this.soundTouch.stretch && this.soundTouch.stretch.sampleRate) {
+        this.soundTouch.stretch.sampleRate = context.sampleRate;
+    }
+    
+    // Capacidad para 10 chunks de 4096 (aprox 1 segundo de buffer de seguridad)
+    this.inFifo = new Float32Fifo(bufferSize * 2 * 10);
+    const source = new StreamSource(this.inFifo);
+    
+    // SimpleFilter se encarga de manejar el ruteo interno de los buffers (fillOutputBuffer, process, etc)
+    this.filter = new SimpleFilter(source, this.soundTouch);
 
     this.node.onaudioprocess = (e) => {
-      const inputLeft = e.inputBuffer.getChannelData(0);
-      const inputRight = e.inputBuffer.getChannelData(1);
-      const outputLeft = e.outputBuffer.getChannelData(0);
-      const outputRight = e.outputBuffer.getChannelData(1);
-      const numFrames = inputLeft.length;
-      
-      // Entrelazar L y R
-      const inSamples = new Float32Array(numFrames * 2);
-      for (let i = 0; i < numFrames; i++) {
-        inSamples[i * 2] = inputLeft[i];
-        inSamples[i * 2 + 1] = inputRight[i];
-      }
-      
-      // Alimentar el motor
-      this.soundTouch.inputBuffer.putSamples(inSamples);
-      this.soundTouch.process();
-      
-      // Extraer lo que el motor haya podido procesar
-      // WSOLA no siempre devuelve numFrames exactos, por eso usamos un FIFO
-      const chunk = new Float32Array(numFrames * 2);
-      const framesReceived = this.soundTouch.outputBuffer.receiveSamples(chunk, numFrames);
-      
-      // Guardar en el FIFO
-      const samplesReceived = framesReceived * 2;
-      for (let i = 0; i < samplesReceived; i++) {
-        if (this.fifoCount < fifoCapacity) {
-          this.outFifo[this.fifoTail] = chunk[i];
-          this.fifoTail = (this.fifoTail + 1) % fifoCapacity;
-          this.fifoCount++;
+      try {
+        const inputLeft = e.inputBuffer.getChannelData(0);
+        const inputRight = e.inputBuffer.getChannelData(1);
+        const outputLeft = e.outputBuffer.getChannelData(0);
+        const outputRight = e.outputBuffer.getChannelData(1);
+        const numFrames = inputLeft.length;
+        
+        // Entrelazar la entrada
+        const inSamples = new Float32Array(numFrames * 2);
+        for (let i = 0; i < numFrames; i++) {
+          inSamples[i * 2] = inputLeft[i];
+          inSamples[i * 2 + 1] = inputRight[i];
         }
-      }
-      
-      // Leer del FIFO para llenar exactamente el outputBuffer
-      const samplesNeeded = numFrames * 2;
-      const readBuffer = new Float32Array(samplesNeeded);
-      
-      let readCount = 0;
-      while (readCount < samplesNeeded && this.fifoCount > 0) {
-        readBuffer[readCount] = this.outFifo[this.fifoHead];
-        this.fifoHead = (this.fifoHead + 1) % fifoCapacity;
-        this.fifoCount--;
-        readCount++;
-      }
-      
-      // Desentrelazar a la salida
-      for (let i = 0; i < numFrames; i++) {
-        // Si no hay suficientes muestras, el readBuffer ya tiene ceros por defecto
-        outputLeft[i] = readBuffer[i * 2];
-        outputRight[i] = readBuffer[i * 2 + 1];
+        
+        // Empujar las muestras recibidas desde Web Audio al FIFO de entrada
+        this.inFifo.push(inSamples);
+        
+        // Pedirle al filtro que extraiga exactamente los frames que necesitamos
+        // SimpleFilter automáticamente tirará del StreamSource (y por tanto del inFifo),
+        // llamará a process() cuando tenga suficientes, y nos dará el resultado.
+        const outSamples = new Float32Array(numFrames * 2);
+        const framesExtracted = this.filter.extract(outSamples, numFrames);
+        
+        // Desentrelazar a la salida
+        for (let i = 0; i < framesExtracted; i++) {
+          outputLeft[i] = outSamples[i * 2];
+          outputRight[i] = outSamples[i * 2 + 1];
+        }
+        
+        // Si SimpleFilter devolvió menos frames de los necesarios (ej. llenando buffers iniciales)
+        // se rellenan con silencio para evitar clicks.
+        for (let i = framesExtracted; i < numFrames; i++) {
+          outputLeft[i] = 0;
+          outputRight[i] = 0;
+        }
+        
+      } catch (err) {
+        console.error("Error in SoundTouch onaudioprocess:", err);
       }
     };
   }
   
   public setPitch(semitones: number) {
-    // SoundTouch usa un ratio para el pitch (+12 = 2.0, -12 = 0.5)
     this.soundTouch.pitch = Math.pow(2, semitones / 12);
   }
   
@@ -94,5 +136,7 @@ export class SoundTouchNode {
   public dispose() {
     this.disconnect();
     this.soundTouch.clear();
+    if (this.filter) this.filter.clear();
+    this.inFifo.clear();
   }
 }
