@@ -61,20 +61,25 @@ export const SyncService = {
           await db.songs.update(song.id!, { cloudId: song.cloudId });
         }
         
-        const formData = new FormData();
-        Object.entries(song).forEach(([key, value]) => {
-          if (key === 'data' && value) {
-            formData.append('file', new Blob([value as any]), `${song.cloudId}.gp`);
-          } else if (value !== undefined && value !== null && key !== 'id') {
-            formData.append(key, typeof value === 'object' ? JSON.stringify(value) : value.toString());
-          }
-        });
-        formData.append('id', song.cloudId);
+        const createSongFormData = () => {
+          const fd = new FormData();
+          Object.entries(song).forEach(([key, value]) => {
+            if (key === 'data' && value) {
+              fd.append('file', new Blob([value as any]), `${song.cloudId}.gp`);
+            } else if (value !== undefined && value !== null && key !== 'id') {
+              fd.append(key, typeof value === 'object' ? JSON.stringify(value) : value.toString());
+            }
+          });
+          fd.append('id', song.cloudId!);
+          return fd;
+        };
 
         const method = 'PUT'; 
-        const res = await fetch(`${API_URL}/songs/${song.cloudId}`, { method, headers, body: formData });
+        const res = await fetch(`${API_URL}/songs/${song.cloudId}`, { method, headers, body: createSongFormData() });
         if (!res.ok && res.status === 404) {
-          await fetch(`${API_URL}/songs`, { method: 'POST', headers, body: formData });
+          await fetch(`${API_URL}/songs`, { method: 'POST', headers, body: createSongFormData() });
+        } else if (!res.ok) {
+          throw new Error(`Song update failed: ${res.status}`);
         }
       }
 
@@ -87,22 +92,24 @@ export const SyncService = {
           await db.karaokes.update(karaoke.id!, { cloudId: karaoke.cloudId } as any);
         }
 
-        const formData = new FormData();
-        Object.entries(karaoke).forEach(([key, value]) => {
-          if (value !== undefined && value !== null && key !== 'id') {
-            formData.append(key, value.toString());
+        const createKaraokeFormData = () => {
+          const fd = new FormData();
+          Object.entries(karaoke).forEach(([key, value]) => {
+            if (value !== undefined && value !== null && key !== 'id') {
+              fd.append(key, typeof value === 'object' ? JSON.stringify(value) : value.toString());
+            }
+          });
+          fd.append('id', karaoke.cloudId!);
+
+          if (karaokeFile && karaokeFile.data) {
+            fd.append('file', new Blob([karaokeFile.data as any]), `${karaoke.cloudId}.mp3`);
           }
-        });
-        formData.append('id', karaoke.cloudId);
+          return fd;
+        };
 
-        const karaokeFile = await db.karaokeFiles.get(karaoke.id!);
-        if (karaokeFile && karaokeFile.data) {
-          formData.append('file', new Blob([karaokeFile.data as any]), `${karaoke.cloudId}.mp3`);
-        }
-
-        const res = await fetch(`${API_URL}/karaokes/${karaoke.cloudId}`, { method: 'PUT', headers, body: formData });
+        const res = await fetch(`${API_URL}/karaokes/${karaoke.cloudId}`, { method: 'PUT', headers, body: createKaraokeFormData() });
         if (!res.ok && res.status === 404) {
-          await fetch(`${API_URL}/karaokes`, { method: 'POST', headers, body: formData });
+          await fetch(`${API_URL}/karaokes`, { method: 'POST', headers, body: createKaraokeFormData() });
         }
       }
 
