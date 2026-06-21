@@ -53,7 +53,9 @@ export const KaraokeLyricsEditor = ({
   const [textContent, setTextContent] = useState(initialContent);
   
   // Sync Mode State
-  const [syncLines, setSyncLines] = useState<LrcLine[]>([]);
+  const [syncLines, setSyncLines] = useState<LrcLine[]>(() => {
+    return isInitialDynamic ? parseLrc(initialContent) : [];
+  });
   const [syncIndex, setSyncIndex] = useState(0);
   const syncScrollRef = useRef<HTMLDivElement>(null);
   const activeSyncRef = useRef<HTMLDivElement>(null);
@@ -120,27 +122,6 @@ export const KaraokeLyricsEditor = ({
   };
 
   // Al entrar al modo Sync, preparamos las líneas
-  useEffect(() => {
-    if (mode === 'sync') {
-      const parsed = parseLrc(textContent);
-      setSyncLines(parsed);
-      
-      // Encontrar el primer índice no sincronizado para continuar desde ahí
-      let firstUnsynced = parsed.findIndex(l => l.time === -1);
-      if (firstUnsynced === -1) firstUnsynced = parsed.length;
-      
-      setSyncIndex(firstUnsynced);
-      
-      // Hacer seek al último tiempo sincronizado para dar contexto
-      if (firstUnsynced > 0) {
-        onSeek(parsed[firstUnsynced - 1].time);
-      } else {
-        onSeek(0);
-      }
-      onPause();
-    }
-  }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
-
   // El auto-tracker fue removido para dar 100% de control manual al usuario.
 
   // Scroll en modo Sync
@@ -367,9 +348,34 @@ export const KaraokeLyricsEditor = ({
     });
   };
 
+  const handleModeChange = (newMode: EditorMode) => {
+    if (newMode === 'text' && mode === 'sync') {
+      // Al salir de sync, pasamos los tiempos visuales al texto plano
+      setTextContent(buildLrc(syncLines));
+    } else if (newMode === 'sync' && mode === 'text') {
+      // Al entrar a sync, parseamos lo que haya en texto plano
+      const parsed = parseLrc(textContent);
+      setSyncLines(parsed);
+      
+      let firstUnsynced = parsed.findIndex(l => l.time === -1);
+      if (firstUnsynced === -1) firstUnsynced = parsed.length;
+      setSyncIndex(firstUnsynced);
+      
+      if (firstUnsynced > 0) {
+        onSeek(parsed[firstUnsynced - 1].time);
+      } else {
+        onSeek(0);
+      }
+      onPause();
+    }
+    setMode(newMode);
+  };
+
   const handleSave = () => {
     if (mode === 'sync') {
-      onSave(buildLrc(syncLines));
+      const newContent = buildLrc(syncLines);
+      setTextContent(newContent);
+      onSave(newContent);
     } else {
       onSave(textContent);
     }
@@ -381,7 +387,7 @@ export const KaraokeLyricsEditor = ({
       {/* HEADER */}
       <EditorToolbar 
         mode={mode} 
-        setMode={setMode} 
+        setMode={handleModeChange} 
         textContent={textContent} 
         onCancel={onCancel} 
         handleSave={handleSave}
