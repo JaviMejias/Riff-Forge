@@ -2,8 +2,24 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
-// @ts-expect-error - Bypassing package.json exports resolution bug by importing the specific mjs file
-import { alphaTab } from '@coderline/alphatab-vite/dist/alphaTab.vite.mjs'
+import fs from 'fs'
+import path from 'path'
+
+// Vite 8 Rolldown completely breaks the official alphatab-vite plugin.
+// So we just copy the alphaTab dist files to the public folder manually.
+function copyAlphaTabAssets() {
+  return {
+    name: 'copy-alphatab',
+    buildStart() {
+      const src = path.resolve(__dirname, 'node_modules/@coderline/alphatab/dist');
+      const dest = path.resolve(__dirname, 'public/alphatab');
+      if (!fs.existsSync(dest)) {
+        fs.mkdirSync(dest, { recursive: true });
+        fs.cpSync(src, dest, { recursive: true });
+      }
+    }
+  }
+}
 
 export default defineConfig({
   optimizeDeps: {
@@ -33,7 +49,7 @@ export default defineConfig({
   plugins: [
     tailwindcss(),
     react(),
-    alphaTab(),
+    copyAlphaTabAssets(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg', 'icon-192x192.png', 'icon-512x512.png'],
