@@ -35,12 +35,13 @@ export const CatalogView: React.FC = () => {
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedQuery(query);
-      setPage(1); // Reset page on new search
-      setTabs([]); // Clear previous results immediately
+      if (query !== debouncedQuery) {
+        setDebouncedQuery(query);
+        setPage(1); // Reset page on new search
+      }
     }, 500);
     return () => clearTimeout(timer);
-  }, [query]);
+  }, [query, debouncedQuery]);
 
   const fetchResults = async (searchQuery: string, pageNum: number) => {
     if (!token) return;
