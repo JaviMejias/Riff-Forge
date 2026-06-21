@@ -69,7 +69,7 @@ const CatalogItem = ({ tab, handlePlayDirectly, handleDownload }: { tab: Catalog
       <div className="flex items-center gap-2 shrink-0">
         <button 
           onClick={() => handlePlayDirectly(tab)}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold transition-all text-sm"
+          className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg font-bold transition-all text-sm"
         >
           <Play size={16} fill="currentColor" />
           <span className="hidden sm:inline">Tocar</span>
@@ -158,10 +158,10 @@ export const CatalogView: React.FC = () => {
       // Añadir a nuestra DB
       const newSong = {
         userId: useAuthStore.getState().user?.id || 'unknown',
-        name: tab.title,
-        artist: tab.artist,
+        name: formatName(tab.title),
+        artist: formatName(tab.artist),
         type: 'gp' as const,
-        data: buffer,
+        data: new Uint8Array(buffer),
         dateAdded: Date.now(),
         updatedAt: Date.now(),
         isPublic: false
@@ -210,10 +210,10 @@ export const CatalogView: React.FC = () => {
         // Para que no se pierda, mejor lo agregamos a su library y lo abrimos.
         const newSong = {
           userId: useAuthStore.getState().user?.id || 'unknown',
-          name: tab.title,
-          artist: tab.artist,
+          name: formatName(tab.title),
+          artist: formatName(tab.artist),
           type: 'gp' as const,
-          data: buffer,
+          data: new Uint8Array(buffer),
           dateAdded: Date.now(),
           updatedAt: Date.now(),
           isPublic: false
@@ -232,7 +232,7 @@ export const CatalogView: React.FC = () => {
   return (
     <div className="flex flex-col h-full bg-zinc-950 p-6 sm:p-8">
       <div className="flex items-center gap-4 mb-8">
-        <div className="p-3 bg-indigo-500/10 text-indigo-400 rounded-xl">
+        <div className="p-3 bg-primary-500/10 text-primary-400 rounded-xl">
           <Globe size={28} />
         </div>
         <div>
@@ -262,13 +262,37 @@ export const CatalogView: React.FC = () => {
       </div>
 
       <div className="flex-1 overflow-y-auto min-h-0 pr-2 custom-scrollbar space-y-3">
-        {tabs.map((tab) => (
-          <CatalogItem 
-            key={tab.id} 
-            tab={tab} 
-            handlePlayDirectly={handlePlayDirectly} 
-            handleDownload={handleDownload} 
-          />
+        {Object.values(tabs.reduce((acc, tab) => {
+          // Extraemos el título base (removiendo números y "version" al final)
+          const baseTitle = tab.title.replace(/[\s_]*(v\d+|version\s*\d+|\d+)$/i, '').trim();
+          const key = `${tab.artist}-${baseTitle}`;
+          if (!acc[key]) acc[key] = { base: tab, versions: [] };
+          else acc[key].versions.push(tab);
+          return acc;
+        }, {} as Record<string, { base: CatalogTab, versions: CatalogTab[] }>)).map(({ base, versions }) => (
+          <div key={base.id} className="space-y-2">
+            <CatalogItem 
+              tab={base} 
+              handlePlayDirectly={handlePlayDirectly} 
+              handleDownload={handleDownload} 
+            />
+            {versions.length > 0 && (
+              <div className="pl-14 sm:pl-20 space-y-2">
+                {versions.map(v => (
+                  <div key={v.id} className="flex items-center justify-between bg-zinc-900/30 p-2 px-4 rounded-lg border border-white/5">
+                    <span className="text-zinc-500 text-sm flex items-center gap-2">
+                      <span className="text-[9px] px-1.5 py-0.5 bg-zinc-800 rounded font-bold uppercase">{v.format}</span>
+                      {formatName(v.title)}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => handlePlayDirectly(v)} className="p-1.5 text-zinc-400 hover:text-primary-400 transition-colors bg-white/5 rounded-md"><Play size={14} fill="currentColor" /></button>
+                      <button onClick={() => handleDownload(v)} className="p-1.5 text-zinc-400 hover:text-white transition-colors bg-white/5 rounded-md"><Download size={14} /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         ))}
 
         {loading && (
