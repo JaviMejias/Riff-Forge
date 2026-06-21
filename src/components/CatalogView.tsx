@@ -31,7 +31,7 @@ const formatName = (str: string) => {
 const CatalogItem = ({ tab, handlePlayDirectly, handleDownload }: { tab: CatalogTab, handlePlayDirectly: any, handleDownload: any }) => {
   const [ref, setRef] = useState<HTMLDivElement | null>(null);
   const [inView, setInView] = useState(false);
-  
+
   useEffect(() => {
     if (!ref) return;
     const observer = new IntersectionObserver(([entry]) => {
@@ -68,14 +68,14 @@ const CatalogItem = ({ tab, handlePlayDirectly, handleDownload }: { tab: Catalog
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        <button 
+        <button
           onClick={() => handlePlayDirectly(tab)}
           className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg font-bold transition-all text-sm"
         >
           <Play size={16} fill="currentColor" />
           <span className="hidden sm:inline">Tocar</span>
         </button>
-        <button 
+        <button
           onClick={() => handleDownload(tab)}
           className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white border border-white/10 rounded-lg font-bold transition-all"
           title="Añadir a Mi Biblioteca"
@@ -89,44 +89,44 @@ const CatalogItem = ({ tab, handlePlayDirectly, handleDownload }: { tab: Catalog
 
 const GroupedCatalogItem = ({ base, versions, handlePlayDirectly, handleDownload }: { base: CatalogTab, versions: CatalogTab[], handlePlayDirectly: any, handleDownload: any }) => {
   const [expanded, setExpanded] = useState(false);
-  
+
   return (
     <div className="space-y-0.5 relative">
       <CatalogItem tab={base} handlePlayDirectly={handlePlayDirectly} handleDownload={handleDownload} />
-      
+
       {versions.length > 0 && (
-        <button 
-           onClick={() => setExpanded(!expanded)}
-           className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 px-3 py-1 bg-zinc-800 hover:bg-zinc-700 text-[10px] text-zinc-300 rounded-full font-bold border border-zinc-700 z-10 transition-all flex items-center gap-1 shadow-lg"
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 px-3 py-1 bg-zinc-800 hover:bg-zinc-700 text-[10px] text-zinc-300 rounded-full font-bold border border-zinc-700 z-10 transition-all flex items-center gap-1 shadow-lg"
         >
-           {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-           {versions.length} {versions.length === 1 ? 'versión más' : 'versiones más'}
+          {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+          {versions.length} {versions.length === 1 ? 'versión más' : 'versiones más'}
         </button>
       )}
 
       <AnimatePresence>
         {expanded && (
-           <motion.div
-             initial={{ height: 0, opacity: 0 }}
-             animate={{ height: 'auto', opacity: 1 }}
-             exit={{ height: 0, opacity: 0 }}
-             className="overflow-hidden sm:pl-16 pr-2"
-           >
-             <div className="pt-3 pb-2 space-y-1.5">
-               {versions.map(v => (
-                 <div key={v.id} className="flex items-center justify-between bg-zinc-900/50 p-2.5 px-4 rounded-xl border border-white/5 hover:bg-zinc-800/80 transition-colors group">
-                    <span className="text-zinc-400 text-sm font-medium flex items-center gap-3">
-                      <span className="text-[9px] px-2 py-0.5 bg-zinc-800 text-zinc-300 rounded uppercase font-black tracking-wider">{v.format}</span>
-                      <span className="truncate">{formatName(v.title)}</span>
-                    </span>
-                    <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => handlePlayDirectly(v)} className="p-2 text-zinc-400 hover:text-primary-400 hover:bg-white/5 transition-all rounded-lg" title="Tocar"><Play size={16} fill="currentColor" /></button>
-                      <button onClick={() => handleDownload(v)} className="p-2 text-zinc-400 hover:text-white hover:bg-white/5 transition-all rounded-lg" title="Descargar"><Download size={16} /></button>
-                    </div>
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden sm:pl-16 pr-2"
+          >
+            <div className="pt-3 pb-2 space-y-1.5">
+              {versions.map(v => (
+                <div key={v.id} className="flex items-center justify-between bg-zinc-900/50 p-2.5 px-4 rounded-xl border border-white/5 hover:bg-zinc-800/80 transition-colors group">
+                  <span className="text-zinc-400 text-sm font-medium flex items-center gap-3">
+                    <span className="text-[9px] px-2 py-0.5 bg-zinc-800 text-zinc-300 rounded uppercase font-black tracking-wider">{v.format}</span>
+                    <span className="truncate">{formatName(v.title)}</span>
+                  </span>
+                  <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => handlePlayDirectly(v)} className="p-2 text-zinc-400 hover:text-primary-400 hover:bg-white/5 transition-all rounded-lg" title="Tocar"><Play size={16} fill="currentColor" /></button>
+                    <button onClick={() => handleDownload(v)} className="p-2 text-zinc-400 hover:text-white hover:bg-white/5 transition-all rounded-lg" title="Descargar"><Download size={16} /></button>
                   </div>
-               ))}
-             </div>
-           </motion.div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
@@ -141,7 +141,7 @@ export const CatalogView: React.FC = () => {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [totalResults, setTotalResults] = useState(0);
-  
+
   const token = useAuthStore(state => state.token);
   const navigate = useNavigate();
 
@@ -164,15 +164,15 @@ export const CatalogView: React.FC = () => {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!res.ok) throw new Error('Error al buscar en el catálogo');
-      
+
       const data: SearchResponse = await res.json();
-      
+
       setTabs(prev => pageNum === 1 ? data.tabs : [...prev, ...data.tabs]);
       setHasMore(data.page < data.totalPages);
       setTotalResults(data.total);
     } catch (err) {
       console.error(err);
-      Swal.fire('Error', 'No se pudo conectar con el catálogo mundial.', 'error');
+      Swal.fire('Error', 'No se pudo conectar con el catálogo.', 'error');
     } finally {
       setLoading(false);
     }
@@ -202,22 +202,44 @@ export const CatalogView: React.FC = () => {
       const blob = await res.blob();
       const buffer = await blob.arrayBuffer();
 
-      // Guardar permanentemente en la biblioteca (sin isTemporary)
-      const newSong = {
-        userId: useAuthStore.getState().user?.id || 'unknown',
-        name: formatName(tab.title),
-        artist: formatName(tab.artist),
-        type: 'gp' as const,
-        data: new Uint8Array(buffer),
-        dateAdded: Date.now(),
-        updatedAt: Date.now(),
-        isPublic: false,
-        catalogSourceId: tab.id
-      };
+      const titleNorm = formatName(tab.title).toLowerCase();
+      const artistNorm = formatName(tab.artist).toLowerCase();
 
-      const id = await db.songs.add(newSong as any);
-      Swal.close();
+      const existingSongs = await db.songs.toArray();
+      const existing = existingSongs.find(s => 
+        s.name.toLowerCase() === titleNorm && 
+        s.artist.toLowerCase() === artistNorm
+      );
+
+      let id: number;
+
+      if (existing) {
+        // Combinar con la canción existente
+        await db.songs.update(existing.id!, {
+          type: existing.type === 'cifra' ? 'both' : 'gp',
+          data: new Uint8Array(buffer),
+          catalogSourceId: tab.id,
+          updatedAt: Date.now()
+        });
+        id = existing.id!;
+      } else {
+        // Crear nueva canción
+        const newSong = {
+          userId: useAuthStore.getState().user?.id || 'unknown',
+          name: formatName(tab.title),
+          artist: formatName(tab.artist),
+          type: 'gp' as const,
+          data: new Uint8Array(buffer),
+          dateAdded: Date.now(),
+          updatedAt: Date.now(),
+          isPublic: false,
+          catalogSourceId: tab.id
+        };
+        id = await db.songs.add(newSong as any) as number;
+      }
       
+      Swal.close();
+
       Swal.fire({
         title: '¡Añadida a tu Biblioteca!',
         text: `${formatName(tab.artist)} - ${formatName(tab.title)} ha sido guardada en tu biblioteca.`,
@@ -286,7 +308,7 @@ export const CatalogView: React.FC = () => {
           <Globe size={28} />
         </div>
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">Catálogo Mundial</h1>
+          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">Catálogo</h1>
           <p className="text-zinc-400 text-sm mt-1">Busca entre decenas de miles de tablaturas al instante.</p>
         </div>
       </div>
@@ -320,12 +342,12 @@ export const CatalogView: React.FC = () => {
           else acc[key].versions.push(tab);
           return acc;
         }, {} as Record<string, { base: CatalogTab, versions: CatalogTab[] }>)).map(({ base, versions }) => (
-          <GroupedCatalogItem 
-            key={base.id} 
-            base={base} 
+          <GroupedCatalogItem
+            key={base.id}
+            base={base}
             versions={versions}
-            handlePlayDirectly={handlePlayDirectly} 
-            handleDownload={handleDownload} 
+            handlePlayDirectly={handlePlayDirectly}
+            handleDownload={handleDownload}
           />
         ))}
 
@@ -342,7 +364,7 @@ export const CatalogView: React.FC = () => {
             <p className="text-zinc-600 max-w-sm">No encontramos ninguna tablatura que coincida con "{debouncedQuery}". Intenta con otra búsqueda.</p>
           </div>
         )}
-        
+
         {!loading && tabs.length === 0 && debouncedQuery === '' && (
           <div className="py-20 text-center flex flex-col items-center justify-center border-2 border-dashed border-white/5 rounded-2xl bg-zinc-900/30">
             <Globe size={48} className="text-zinc-800 mb-4" />

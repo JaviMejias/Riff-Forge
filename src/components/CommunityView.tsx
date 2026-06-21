@@ -94,20 +94,44 @@ export const CommunityView = ({ isSidebarOpen, onToggleSidebar }: CommunityViewP
           const arrayBuffer = await blob.arrayBuffer();
           fileData = new Uint8Array(arrayBuffer);
         }
-        await db.songs.add({
-          name: item.name,
-          artist: item.artist,
-          album: item.album,
-          type: item.type,
-          textContent: item.textContent,
-          originalKey: item.originalKey,
-          tuning: item.tuning,
-          strummingPattern: item.strummingPattern,
-          capo: item.capo,
-          data: fileData,
-          dateAdded: Date.now(),
-          isPublic: false
-        });
+        const titleNorm = item.name.toLowerCase();
+        const artistNorm = item.artist.toLowerCase();
+
+        const existingSongs = await db.songs.toArray();
+        const existing = existingSongs.find(s => 
+          s.name.toLowerCase() === titleNorm && 
+          s.artist.toLowerCase() === artistNorm
+        );
+
+        if (existing) {
+          // Merge existing
+          const newType = existing.type === 'cifra' && fileData ? 'both' : (fileData ? 'gp' : existing.type);
+          await db.songs.update(existing.id!, {
+            type: newType,
+            textContent: item.textContent || existing.textContent,
+            originalKey: item.originalKey || existing.originalKey,
+            tuning: item.tuning || existing.tuning,
+            strummingPattern: item.strummingPattern || existing.strummingPattern,
+            capo: item.capo || existing.capo,
+            data: fileData || existing.data,
+            updatedAt: Date.now()
+          });
+        } else {
+          await db.songs.add({
+            name: item.name,
+            artist: item.artist,
+            album: item.album,
+            type: item.type,
+            textContent: item.textContent,
+            originalKey: item.originalKey,
+            tuning: item.tuning,
+            strummingPattern: item.strummingPattern,
+            capo: item.capo,
+            data: fileData,
+            dateAdded: Date.now(),
+            isPublic: false
+          });
+        }
       } else {
         const targetId = await db.karaokes.add({
           name: item.name,
