@@ -12,8 +12,10 @@ RUN npm install
 # Copy source code
 COPY . .
 
-# Build the application
-RUN npm run build
+# Build the application and copy alphaTab dist to the final build folder
+RUN npm run build && \
+    mkdir -p /app/dist/alphatab && \
+    cp -r node_modules/@coderline/alphatab/dist/* /app/dist/alphatab/
 
 # Stage 2: Serve with NGINX
 FROM nginx:alpine

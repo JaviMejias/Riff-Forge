@@ -3,9 +3,6 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
-import { viteStaticCopy } from 'vite-plugin-static-copy'
-
-// Using static-copy plugin to copy alphaTab assets to dist/alphatab
 
 export default defineConfig({
   optimizeDeps: {
@@ -40,14 +37,6 @@ export default defineConfig({
   plugins: [
     tailwindcss(),
     react(),
-    viteStaticCopy({
-      targets: [
-        {
-          src: 'node_modules/@coderline/alphatab/dist/*',
-          dest: 'alphatab'
-        }
-      ]
-    }),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg', 'icon-192x192.png', 'icon-512x512.png'],
