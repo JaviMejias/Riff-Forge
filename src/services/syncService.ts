@@ -92,6 +92,8 @@ export const SyncService = {
           await db.karaokes.update(karaoke.id!, { cloudId: karaoke.cloudId } as any);
         }
 
+        const karaokeFile = await db.karaokeFiles.get(karaoke.id!);
+
         const createKaraokeFormData = () => {
           const fd = new FormData();
           Object.entries(karaoke).forEach(([key, value]) => {
