@@ -123,6 +123,7 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
           
           if (isMounted) {
             setAudioUrl(fullUrl);
+            setIsLoading(false);
           }
           return;
         }

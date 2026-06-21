@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, Fragment } from 'react';
 import { Save, MousePointerClick, Music, RotateCcw, Plus, Text, Wand2, Loader2 } from 'lucide-react';
 import { useAuthStore } from '../../../store/authStore';
+import { API_BASE_URL } from '../../../config';
 import { motion } from 'framer-motion';
 import { buildLrc, hasLrcTags, parseLrc } from '../../../utils/lrcParser';
 import type { LrcLine } from '../../../utils/lrcParser';
@@ -65,7 +66,7 @@ export const KaraokeLyricsEditor = ({
     try {
       const token = useAuthStore.getState().token;
       const params = new URLSearchParams({ title: karaoke.name, artist: karaoke.artist || '' });
-      const res = await fetch(`http://146.181.32.238:3001/api/karaokes/lyrics?${params}`, {
+      const res = await fetch(`${API_BASE_URL}/api/karaokes/lyrics?${params}`, {
         headers: {
           ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         }
