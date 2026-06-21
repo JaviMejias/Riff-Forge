@@ -3,6 +3,7 @@ import { Search, Play, Download, Loader2, Globe, Music } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 import { useAuthStore } from '../store/authStore';
 import { db } from '../db';
+import { useCoverArt } from '../hooks/useCoverArt';
 import Swal from 'sweetalert2';
 import { useNavigate } from 'react-router-dom';
 
@@ -19,6 +20,71 @@ interface SearchResponse {
   totalPages: number;
   tabs: CatalogTab[];
 }
+
+const formatName = (str: string) => {
+  return str.split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+};
+
+const CatalogItem = ({ tab, handlePlayDirectly, handleDownload }: { tab: CatalogTab, handlePlayDirectly: any, handleDownload: any }) => {
+  const [ref, setRef] = useState<HTMLDivElement | null>(null);
+  const [inView, setInView] = useState(false);
+  
+  useEffect(() => {
+    if (!ref) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setInView(true);
+        observer.disconnect();
+      }
+    }, { rootMargin: '100px' });
+    observer.observe(ref);
+    return () => observer.disconnect();
+  }, [ref]);
+
+  const artist = formatName(tab.artist);
+  const title = formatName(tab.title);
+
+  // Lazy load cover only when in view
+  const { coverUrl } = useCoverArt(inView ? artist : undefined, inView ? title : undefined);
+
+  return (
+    <div ref={setRef} className="bg-zinc-900/50 hover:bg-zinc-800/80 border border-white/5 p-3 sm:p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all group">
+      <div className="flex items-center gap-4 flex-1 min-w-0">
+        <div className="w-12 h-12 rounded-xl bg-zinc-800/80 shrink-0 overflow-hidden flex items-center justify-center border border-white/5 relative shadow-inner">
+          {coverUrl ? (
+            <img src={coverUrl} alt={title} className="w-full h-full object-cover" loading="lazy" />
+          ) : (
+            <Music size={20} className="text-zinc-600" />
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-white font-bold truncate text-lg leading-tight mb-1">{title}</h3>
+          <p className="text-zinc-400 truncate flex items-center gap-2 text-sm">
+            {artist} <span className="text-[9px] px-1.5 py-0.5 bg-zinc-800/80 rounded text-zinc-500 uppercase font-black tracking-wider">{tab.format}</span>
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <button 
+          onClick={() => handlePlayDirectly(tab)}
+          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold transition-all text-sm"
+        >
+          <Play size={16} fill="currentColor" />
+          <span className="hidden sm:inline">Tocar</span>
+        </button>
+        <button 
+          onClick={() => handleDownload(tab)}
+          className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white border border-white/10 rounded-lg font-bold transition-all"
+          title="Añadir a Mi Biblioteca"
+        >
+          <Download size={16} />
+        </button>
+      </div>
+    </div>
+  );
+};
 
 export const CatalogView: React.FC = () => {
   const [query, setQuery] = useState('');
@@ -197,30 +263,12 @@ export const CatalogView: React.FC = () => {
 
       <div className="flex-1 overflow-y-auto min-h-0 pr-2 custom-scrollbar space-y-3">
         {tabs.map((tab) => (
-          <div key={tab.id} className="bg-zinc-900/50 hover:bg-zinc-800/80 border border-white/5 p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all group">
-            <div className="flex-1 min-w-0">
-              <h3 className="text-white font-bold truncate text-lg">{tab.title}</h3>
-              <p className="text-zinc-400 truncate flex items-center gap-2">
-                {tab.artist} <span className="text-xs px-2 py-0.5 bg-zinc-800 rounded-full text-zinc-500 uppercase">{tab.format}</span>
-              </p>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <button 
-                onClick={() => handlePlayDirectly(tab)}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold transition-all"
-              >
-                <Play size={16} fill="currentColor" />
-                <span className="hidden sm:inline">Tocar</span>
-              </button>
-              <button 
-                onClick={() => handleDownload(tab)}
-                className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white border border-white/10 rounded-lg font-bold transition-all"
-                title="Añadir a Mi Biblioteca"
-              >
-                <Download size={16} />
-              </button>
-            </div>
-          </div>
+          <CatalogItem 
+            key={tab.id} 
+            tab={tab} 
+            handlePlayDirectly={handlePlayDirectly} 
+            handleDownload={handleDownload} 
+          />
         ))}
 
         {loading && (
