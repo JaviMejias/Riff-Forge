@@ -159,6 +159,7 @@ export const KaraokeLibraryView = ({ karaokes, activeKaraokeId, onPlayKaraoke, i
               artist: formValues.artist || 'Desconocido',
               hasLocalAudio: true,
               dateAdded: Date.now(),
+              updatedAt: Date.now(),
               ...(formValues.textContent ? { textContent: formValues.textContent } : {})
             }) as number;
             Toast.fire({
