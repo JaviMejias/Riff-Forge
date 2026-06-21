@@ -2,9 +2,9 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
-import alphaTabVite from '@coderline/alphatab-vite'
+import * as alphaTabVite from '@coderline/alphatab-vite'
 
-const alphaTab = alphaTabVite.alphaTab || alphaTabVite;
+const alphaTab = (alphaTabVite as any).alphaTab || (alphaTabVite as any).default?.alphaTab || alphaTabVite.default || alphaTabVite;
 
 export default defineConfig({
   optimizeDeps: {
