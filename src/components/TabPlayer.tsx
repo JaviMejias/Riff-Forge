@@ -65,6 +65,18 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
     return () => useAudioStore.getState().setGlobalIsPlaying(false);
   }, [isPlaying]);
 
+  useEffect(() => {
+    // If song only has text/chords, force 'cifra' mode
+    if (song.type === 'text' || (!song.data && song.textContent)) {
+      setMainViewMode('cifra');
+    }
+    // If song only has tab data, force 'pro' mode
+    else if (song.data && !song.textContent) {
+      setMainViewMode('pro');
+    }
+    // Otherwise, it has both, and we respect the user's previously saved mainViewMode
+  }, [song.id, song.type, song.data, song.textContent, setMainViewMode]);
+
   const handleDeleteSong = async () => {
     if (!song || !song.id) return;
     

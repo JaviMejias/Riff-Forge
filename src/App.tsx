@@ -40,10 +40,18 @@ const PlayerRoute = () => {
 
   if (!song) return <div className="p-8 text-zinc-400">Cargando canción...</div>;
 
+  const handleBack = () => {
+    if (window.history.state && window.history.state.idx > 0) {
+      navigate(-1);
+    } else {
+      navigate('/');
+    }
+  };
+
   return (
     <TabPlayer 
       song={song} 
-      onBack={() => navigate('/')} 
+      onBack={handleBack} 
       isSidebarOpen={isDesktopSidebarOpen}
       onToggleSidebar={toggleDesktopSidebar}
     />
@@ -100,10 +108,18 @@ const KaraokePlayerRoute = () => {
   );
   if (karaoke === null) return <div className="p-8 text-zinc-400">Karaoke no encontrado.</div>;
 
+  const handleBack = () => {
+    if (window.history.state && window.history.state.idx > 0) {
+      navigate(-1);
+    } else {
+      navigate('/karaokes');
+    }
+  };
+
   return (
     // key forces a fresh KaraokePlayer instance per karaoke, avoiding stale YouTube player state
     <Suspense fallback={
-      <div className="h-full flex items-center justify-center bg-zinc-950 text-primary-500">
+      <div className="flex-1 h-screen flex flex-col items-center justify-center bg-zinc-950 text-zinc-500">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="animate-spin w-12 h-12" />
           <p className="font-bold tracking-widest text-sm uppercase">Cargando Módulo...</p>
@@ -113,7 +129,7 @@ const KaraokePlayerRoute = () => {
       <KaraokePlayer
         key={karaoke.id}
         karaoke={karaoke} 
-        onBack={() => navigate('/karaokes')} 
+        onBack={handleBack} 
         isSidebarOpen={isDesktopSidebarOpen}
         onToggleSidebar={toggleDesktopSidebar}
       />
