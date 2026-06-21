@@ -1,4 +1,4 @@
-import { AlignLeft, MousePointerClick, Save } from 'lucide-react';
+import { AlignLeft, MousePointerClick, Save, FastForward, Rewind } from 'lucide-react';
 import type { EditorMode } from './KaraokeLyricsEditor';
 
 interface SyncProgress {
@@ -13,6 +13,7 @@ interface EditorToolbarProps {
   onCancel: () => void;
   handleSave: () => void;
   syncProgress?: SyncProgress;
+  onGlobalOffset?: (delta: number) => void;
 }
 
 export const EditorToolbar = ({
@@ -21,6 +22,7 @@ export const EditorToolbar = ({
   textContent,
   handleSave,
   syncProgress,
+  onGlobalOffset,
 }: EditorToolbarProps) => {
   const progressPercent =
     syncProgress && syncProgress.total > 0
@@ -81,8 +83,30 @@ export const EditorToolbar = ({
         </div>
       )}
 
-      {/* DERECHA: GUARDAR */}
+      {/* DERECHA: GUARDAR Y DESPLAZAR */}
       <div className="flex items-center gap-2 flex-shrink-0">
+        {mode === 'sync' && onGlobalOffset && (
+          <div className="hidden md:flex items-center gap-1 bg-zinc-800/80 rounded-xl p-1 border border-white/5 mr-2">
+            <button
+              onClick={() => onGlobalOffset(-0.5)}
+              className="p-1.5 text-zinc-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors flex items-center gap-1"
+              title="Adelantar toda la letra 0.5s"
+            >
+              <Rewind size={14} />
+              <span className="text-[10px] font-bold">-0.5s</span>
+            </button>
+            <div className="w-px h-4 bg-white/10 mx-1" />
+            <button
+              onClick={() => onGlobalOffset(0.5)}
+              className="p-1.5 text-zinc-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors flex items-center gap-1"
+              title="Atrasar toda la letra 0.5s"
+            >
+              <span className="text-[10px] font-bold">+0.5s</span>
+              <FastForward size={14} />
+            </button>
+          </div>
+        )}
+        
         <button
           onClick={handleSave}
           className="flex items-center gap-1.5 px-3 py-2 bg-primary-500 hover:bg-primary-400 text-zinc-950 rounded-xl transition-all font-black text-xs shadow-[0_0_15px_var(--theme-glow)] hover:shadow-[0_0_25px_var(--theme-glow-strong)] hover:-translate-y-0.5 active:scale-95"

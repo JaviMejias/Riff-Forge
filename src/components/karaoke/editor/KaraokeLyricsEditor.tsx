@@ -7,6 +7,7 @@ import { buildLrc, hasLrcTags, parseLrc, injectInstrumentals } from '../../../ut
 import type { LrcLine } from '../../../utils/lrcParser';
 import { EditorToolbar } from './EditorToolbar';
 import { SyncLineItem } from './SyncLineItem';
+import Swal from 'sweetalert2';
 
 import type { Karaoke } from '../../../db';
 
@@ -319,6 +320,29 @@ export const KaraokeLyricsEditor = ({
     });
   };
 
+  const handleGlobalOffset = (delta: number) => {
+    setSyncLines(prev => {
+      const newLines = prev.map(line => {
+        if (line.time >= 0) {
+          return { ...line, time: Math.max(0, line.time + delta) };
+        }
+        return line;
+      });
+      return newLines;
+    });
+
+    Swal.fire({
+      toast: true,
+      position: 'bottom-end',
+      icon: 'success',
+      title: `Toda la letra desplazada ${delta > 0 ? '+' : ''}${delta.toFixed(1)}s`,
+      showConfirmButton: false,
+      timer: 3000,
+      background: '#18181b',
+      color: '#fff'
+    });
+  };
+
   const handleModeChange = (newMode: EditorMode) => {
     if (newMode === 'text' && mode === 'sync') {
       // Al salir de sync, pasamos los tiempos visuales al texto plano
@@ -363,6 +387,7 @@ export const KaraokeLyricsEditor = ({
         onCancel={onCancel} 
         handleSave={handleSave}
         syncProgress={mode === 'sync' ? syncProgress : undefined}
+        onGlobalOffset={handleGlobalOffset}
       />
 
       {/* CONTENT AREA */}
