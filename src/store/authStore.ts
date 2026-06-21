@@ -139,6 +139,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     } catch (error) {
       localStorage.removeItem('riff_token');
       set({ user: null, token: null, loading: false });
+      window.dispatchEvent(new Event('auth-logout'));
     }
   }
 }));
