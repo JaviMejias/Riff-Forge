@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Play, Download, Loader2, Globe, Music } from 'lucide-react';
+import { Search, Play, Download, Loader2, Music, Globe, ChevronDown, ChevronUp } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 import { useAuthStore } from '../store/authStore';
 import { db } from '../db';
 import { useCoverArt } from '../hooks/useCoverArt';
 import Swal from 'sweetalert2';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 
-interface CatalogTab {
+export interface CatalogTab {
   id: string;
   artist: string;
   title: string;
@@ -82,6 +83,52 @@ const CatalogItem = ({ tab, handlePlayDirectly, handleDownload }: { tab: Catalog
           <Download size={16} />
         </button>
       </div>
+    </div>
+  );
+};
+
+const GroupedCatalogItem = ({ base, versions, handlePlayDirectly, handleDownload }: { base: CatalogTab, versions: CatalogTab[], handlePlayDirectly: any, handleDownload: any }) => {
+  const [expanded, setExpanded] = useState(false);
+  
+  return (
+    <div className="space-y-0.5 relative">
+      <CatalogItem tab={base} handlePlayDirectly={handlePlayDirectly} handleDownload={handleDownload} />
+      
+      {versions.length > 0 && (
+        <button 
+           onClick={() => setExpanded(!expanded)}
+           className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 px-3 py-1 bg-zinc-800 hover:bg-zinc-700 text-[10px] text-zinc-300 rounded-full font-bold border border-zinc-700 z-10 transition-all flex items-center gap-1 shadow-lg"
+        >
+           {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+           {versions.length} {versions.length === 1 ? 'versión más' : 'versiones más'}
+        </button>
+      )}
+
+      <AnimatePresence>
+        {expanded && (
+           <motion.div
+             initial={{ height: 0, opacity: 0 }}
+             animate={{ height: 'auto', opacity: 1 }}
+             exit={{ height: 0, opacity: 0 }}
+             className="overflow-hidden sm:pl-16 pr-2"
+           >
+             <div className="pt-3 pb-2 space-y-1.5">
+               {versions.map(v => (
+                 <div key={v.id} className="flex items-center justify-between bg-zinc-900/50 p-2.5 px-4 rounded-xl border border-white/5 hover:bg-zinc-800/80 transition-colors group">
+                    <span className="text-zinc-400 text-sm font-medium flex items-center gap-3">
+                      <span className="text-[9px] px-2 py-0.5 bg-zinc-800 text-zinc-300 rounded uppercase font-black tracking-wider">{v.format}</span>
+                      <span className="truncate">{formatName(v.title)}</span>
+                    </span>
+                    <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => handlePlayDirectly(v)} className="p-2 text-zinc-400 hover:text-primary-400 hover:bg-white/5 transition-all rounded-lg" title="Tocar"><Play size={16} fill="currentColor" /></button>
+                      <button onClick={() => handleDownload(v)} className="p-2 text-zinc-400 hover:text-white hover:bg-white/5 transition-all rounded-lg" title="Descargar"><Download size={16} /></button>
+                    </div>
+                  </div>
+               ))}
+             </div>
+           </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
@@ -261,7 +308,7 @@ export const CatalogView: React.FC = () => {
         </h2>
       </div>
 
-      <div className="flex-1 overflow-y-auto min-h-0 pr-2 custom-scrollbar space-y-3">
+      <div className="flex-1 overflow-y-auto min-h-0 pr-2 custom-scrollbar space-y-4 pb-12">
         {Object.values(tabs.reduce((acc, tab) => {
           // Extraemos el título base (removiendo números y "version" al final)
           const baseTitle = tab.title.replace(/[\s_]*(v\d+|version\s*\d+|\d+)$/i, '').trim();
@@ -270,29 +317,13 @@ export const CatalogView: React.FC = () => {
           else acc[key].versions.push(tab);
           return acc;
         }, {} as Record<string, { base: CatalogTab, versions: CatalogTab[] }>)).map(({ base, versions }) => (
-          <div key={base.id} className="space-y-2">
-            <CatalogItem 
-              tab={base} 
-              handlePlayDirectly={handlePlayDirectly} 
-              handleDownload={handleDownload} 
-            />
-            {versions.length > 0 && (
-              <div className="pl-14 sm:pl-20 space-y-2">
-                {versions.map(v => (
-                  <div key={v.id} className="flex items-center justify-between bg-zinc-900/30 p-2 px-4 rounded-lg border border-white/5">
-                    <span className="text-zinc-500 text-sm flex items-center gap-2">
-                      <span className="text-[9px] px-1.5 py-0.5 bg-zinc-800 rounded font-bold uppercase">{v.format}</span>
-                      {formatName(v.title)}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => handlePlayDirectly(v)} className="p-1.5 text-zinc-400 hover:text-primary-400 transition-colors bg-white/5 rounded-md"><Play size={14} fill="currentColor" /></button>
-                      <button onClick={() => handleDownload(v)} className="p-1.5 text-zinc-400 hover:text-white transition-colors bg-white/5 rounded-md"><Download size={14} /></button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <GroupedCatalogItem 
+            key={base.id} 
+            base={base} 
+            versions={versions}
+            handlePlayDirectly={handlePlayDirectly} 
+            handleDownload={handleDownload} 
+          />
         ))}
 
         {loading && (
