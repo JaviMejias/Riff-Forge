@@ -213,11 +213,10 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
           // createMediaElementSource can ONLY be called once per <audio> element instance
           sourceNodeRef.current = audioCtxRef.current.createMediaElementSource(audioRef.current as HTMLMediaElement);
         }
-        
+        if (!pitchShiftNodeRef.current) {
           pitchShiftNodeRef.current = new SoundTouchNode(audioCtxRef.current);
           pitchShiftNodeRef.current.setPitch(pitch);
         }
-        
         if (isMounted && sourceNodeRef.current && pitchShiftNodeRef.current && audioCtxRef.current) {
           // Connect nodes: source -> pitchShift -> destination
           try { sourceNodeRef.current.disconnect(); } catch (e) {}
