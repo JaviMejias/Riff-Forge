@@ -1,4 +1,5 @@
-import { db, Karaoke } from '../db';
+import { db } from '../db';
+import type { Karaoke } from '../db';
 import { API_BASE_URL } from '../config';
 
 export const downloadKaraokeMp3 = async (karaoke: Karaoke) => {
