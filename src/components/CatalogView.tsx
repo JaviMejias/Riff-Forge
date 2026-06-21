@@ -211,7 +211,8 @@ export const CatalogView: React.FC = () => {
         data: new Uint8Array(buffer),
         dateAdded: Date.now(),
         updatedAt: Date.now(),
-        isPublic: false
+        isPublic: false,
+        isTemporary: true
       };
 
       const id = await db.songs.add(newSong as any);

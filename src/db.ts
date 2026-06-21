@@ -48,6 +48,7 @@ export interface Song {
   strummingPattern?: string;
   capo?: string;
   isPublic?: boolean;
+  isTemporary?: boolean; // Used for catalog streaming without polluting the library
   dateAdded: number;
 }
 

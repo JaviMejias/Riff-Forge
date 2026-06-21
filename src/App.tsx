@@ -123,7 +123,7 @@ const KaraokePlayerRoute = () => {
 
 function App() {
   // L-11 fix: don't default to [] so that useLiveQuery can return undefined while loading, triggering skeletons
-  const songs = useLiveQuery(() => db.songs.orderBy('dateAdded').reverse().toArray());
+  const songs = useLiveQuery(() => db.songs.orderBy('dateAdded').reverse().filter(s => !s.isTemporary).toArray());
   const karaokes = useLiveQuery(() => db.karaokes.orderBy('dateAdded').reverse().toArray());
   const navigate = useNavigate();
   const location = useLocation();
