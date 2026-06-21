@@ -100,12 +100,12 @@ export const CommunityView = ({ isSidebarOpen, onToggleSidebar }: CommunityViewP
         const existingSongs = await db.songs.toArray();
         const existing = existingSongs.find(s => 
           s.name.toLowerCase() === titleNorm && 
-          s.artist.toLowerCase() === artistNorm
+          (s.artist || '').toLowerCase() === artistNorm
         );
 
         if (existing) {
           // Merge existing
-          const newType = existing.type === 'cifra' && fileData ? 'both' : (fileData ? 'gp' : existing.type);
+          const newType = fileData ? 'gp' : existing.type;
           await db.songs.update(existing.id!, {
             type: newType,
             textContent: item.textContent || existing.textContent,

@@ -208,7 +208,7 @@ export const CatalogView: React.FC = () => {
       const existingSongs = await db.songs.toArray();
       const existing = existingSongs.find(s => 
         s.name.toLowerCase() === titleNorm && 
-        s.artist.toLowerCase() === artistNorm
+        (s.artist || '').toLowerCase() === artistNorm
       );
 
       let id: number;
@@ -216,7 +216,7 @@ export const CatalogView: React.FC = () => {
       if (existing) {
         // Combinar con la canción existente
         await db.songs.update(existing.id!, {
-          type: existing.type === 'cifra' ? 'both' : 'gp',
+          type: 'gp',
           data: new Uint8Array(buffer),
           catalogSourceId: tab.id,
           updatedAt: Date.now()
