@@ -17,6 +17,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { GlobalAmbilight } from './components/GlobalAmbilight';
 import { LoginView } from './components/LoginView';
 import { useAuthStore } from './store/authStore';
+import { CatalogView } from './components/CatalogView';
 
 // Lazy loaded views
 const TabPlayer = React.lazy(() => import('./components/TabPlayer').then(m => ({ default: m.TabPlayer })));
@@ -396,6 +397,19 @@ function App() {
                         isSidebarOpen={isDesktopSidebarOpen}
                         onToggleSidebar={toggleDesktopSidebar}
                       />
+                    </motion.div>
+                  } />
+
+                  <Route path="/catalog" element={
+                    <motion.div
+                      key="catalog"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.98 }}
+                      transition={{ duration: 0.3, ease: "easeOut" }}
+                      className="absolute inset-0 h-full w-full"
+                    >
+                      <CatalogView />
                     </motion.div>
                   } />
 

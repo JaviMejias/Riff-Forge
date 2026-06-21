@@ -1,4 +1,4 @@
-import { Music2, Library, BookOpen, Settings, Mic2, Guitar, LogOut, Users } from 'lucide-react';
+import { Music2, Library, BookOpen, Settings, Mic2, Guitar, LogOut, Users, Globe } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link, useLocation } from 'react-router-dom';
 import { useUiStore } from '../store/uiStore';
@@ -16,6 +16,7 @@ export const Sidebar = () => {
     { path: '/karaokes', label: 'Karaokes', icon: Mic2 },
     { path: '/dictionary', label: 'Diccionario', icon: BookOpen },
     { path: '/community', label: 'Comunidad', icon: Users },
+    { path: '/catalog', label: 'Catálogo Mundial', icon: Globe },
     { path: '/settings', label: 'Ajustes', icon: Settings },
   ];
 
