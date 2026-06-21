@@ -54,6 +54,7 @@ export const PlayerControls = ({
   onCountInToggle
 }: PlayerControlsProps) => {
   const [isVolumeOpen, setIsVolumeOpen] = useState(false);
+  const isPitchSupported = window.isSecureContext;
 
   return (
     <div className="flex flex-col w-full bg-zinc-950/80 backdrop-blur-md border-t border-white/10 p-2 sm:p-4 mt-auto z-50">
@@ -98,16 +99,18 @@ export const PlayerControls = ({
             >
               {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
             </button>
-            <div className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-zinc-900 border border-white/10 rounded-xl p-3 shadow-2xl transition-all origin-bottom flex items-center justify-center ${
+            <div className={`absolute bottom-full left-1/2 -translate-x-1/2 pb-3 transition-all origin-bottom flex items-center justify-center ${
               isVolumeOpen ? 'opacity-100 visible scale-100' : 'opacity-0 invisible scale-95 pointer-events-none'
             }`}>
-              <input
+              <div className="bg-zinc-900 border border-white/10 rounded-xl p-3 shadow-2xl">
+                <input
                 type="range"
                 min="0" max="1" step="0.05"
                 value={isMuted ? 0 : volume}
                 onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
                 className="w-24 h-1.5 bg-zinc-800 rounded-full appearance-none cursor-pointer accent-primary-500"
               />
+              </div>
             </div>
           </div>
         </div>
