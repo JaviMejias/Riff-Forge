@@ -314,32 +314,42 @@ export const KaraokeLyricsEditor = ({
 
   const handleManualTimeChange = (idx: number, newTime: number) => {
     setSyncLines(prev => {
+      const oldTime = prev[idx].time;
       const newLines = [...prev];
+      
+      const firstSyncedIndex = prev.findIndex(l => l.time > 0);
+
+      // Si estamos modificando la PRIMERA línea sincronizada, aplicamos el delta a todo el resto
+      if (idx === firstSyncedIndex && oldTime > 0) {
+        const delta = newTime - oldTime;
+        if (delta !== 0) {
+          let linesShifted = 0;
+          for (let i = idx; i < newLines.length; i++) {
+            if (newLines[i].time > 0) {
+              newLines[i] = { ...newLines[i], time: Math.max(0.01, newLines[i].time + delta) };
+              linesShifted++;
+            }
+          }
+          
+          if (Math.abs(delta) >= 0.5 && linesShifted > 1) {
+            Swal.fire({
+              toast: true,
+              position: 'bottom-end',
+              icon: 'success',
+              title: `Desplazamiento global aplicado: ${delta > 0 ? '+' : ''}${delta.toFixed(1)}s`,
+              showConfirmButton: false,
+              timer: 3000,
+              background: '#18181b',
+              color: '#fff'
+            });
+          }
+          return newLines;
+        }
+      }
+      
+      // Si no es la primera línea, solo modificamos esa línea en específico
       newLines[idx] = { ...newLines[idx], time: newTime };
       return newLines;
-    });
-  };
-
-  const handleGlobalOffset = (delta: number) => {
-    setSyncLines(prev => {
-      const newLines = prev.map(line => {
-        if (line.time >= 0) {
-          return { ...line, time: Math.max(0, line.time + delta) };
-        }
-        return line;
-      });
-      return newLines;
-    });
-
-    Swal.fire({
-      toast: true,
-      position: 'bottom-end',
-      icon: 'success',
-      title: `Toda la letra desplazada ${delta > 0 ? '+' : ''}${delta.toFixed(1)}s`,
-      showConfirmButton: false,
-      timer: 3000,
-      background: '#18181b',
-      color: '#fff'
     });
   };
 
@@ -387,7 +397,6 @@ export const KaraokeLyricsEditor = ({
         onCancel={onCancel} 
         handleSave={handleSave}
         syncProgress={mode === 'sync' ? syncProgress : undefined}
-        onGlobalOffset={handleGlobalOffset}
       />
 
       {/* CONTENT AREA */}
