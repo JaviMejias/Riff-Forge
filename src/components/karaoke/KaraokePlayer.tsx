@@ -309,9 +309,13 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
     setIsMuted(vol === 0);
     try {
       if (ytPlayer && activeSource === 'youtube') {
-        ytPlayer.setVolume(vol * 100);
-        if (vol === 0) ytPlayer.mute();
-        else ytPlayer.unMute();
+        if (hasLocalAudio) {
+          ytPlayer.mute();
+        } else {
+          ytPlayer.setVolume(vol * 100);
+          if (vol === 0) ytPlayer.mute();
+          else ytPlayer.unMute();
+        }
       }
     } catch (e) { console.warn(e); }
     
@@ -554,9 +558,13 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
                       onReady={(e) => {
                         const player = e.target;
                         setYtPlayer(player);
-                        // Unmute and sync volume with the UI slider
-                        player.unMute();
-                        player.setVolume(volume * 100);
+                        // If we have local audio, keep YouTube muted
+                        if (hasLocalAudio) {
+                          player.mute();
+                        } else {
+                          player.unMute();
+                          player.setVolume(volume * 100);
+                        }
                       }}
                       onPlay={() => {
                         if (!hasStarted) setHasStarted(true);

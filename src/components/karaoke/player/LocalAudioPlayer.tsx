@@ -5,9 +5,7 @@ import type { Karaoke } from '../../../db';
 import { VinylAnimation } from './VinylAnimation';
 import { useAudioStore } from '../../../store/audioStore';
 import { API_BASE_URL } from '../../../config'; // FE-1: use config
-import { BungeePitchShift } from 'bungee-pitch-shift';
 import { SoundTouchNode } from '../../../utils/SoundTouchNode';
-
 export interface LocalAudioPlayerRef {
   play: () => void;
   pause: () => void;
@@ -216,18 +214,8 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
           sourceNodeRef.current = audioCtxRef.current.createMediaElementSource(audioRef.current as HTMLMediaElement);
         }
         
-        if (!pitchShiftNodeRef.current) {
-          if (window.isSecureContext) {
-            pitchShiftNodeRef.current = await BungeePitchShift.create(audioCtxRef.current, {
-              workletPath: '/bungee-processor-bundled.js',
-              wasmPath: '/bungee-wasm.wasm',
-              initialPitch: pitch
-            });
-          } else {
-            console.warn("Using SoundTouchJS PitchShift fallback (HTTP insecure context)");
-            pitchShiftNodeRef.current = new SoundTouchNode(audioCtxRef.current);
-            pitchShiftNodeRef.current.setPitch(pitch);
-          }
+          pitchShiftNodeRef.current = new SoundTouchNode(audioCtxRef.current);
+          pitchShiftNodeRef.current.setPitch(pitch);
         }
         
         if (isMounted && sourceNodeRef.current && pitchShiftNodeRef.current && audioCtxRef.current) {
@@ -235,13 +223,8 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
           try { sourceNodeRef.current.disconnect(); } catch (e) {}
           try { pitchShiftNodeRef.current.disconnect(); } catch (e) {}
           
-          if (pitchShiftNodeRef.current instanceof SoundTouchNode) {
-            sourceNodeRef.current.connect(pitchShiftNodeRef.current.node);
-            pitchShiftNodeRef.current.connect(audioCtxRef.current.destination);
-          } else {
-            sourceNodeRef.current.connect(pitchShiftNodeRef.current.node);
-            pitchShiftNodeRef.current.connect(audioCtxRef.current.destination);
-          }
+          sourceNodeRef.current.connect(pitchShiftNodeRef.current.node);
+          pitchShiftNodeRef.current.connect(audioCtxRef.current.destination);
         }
       } catch (e: any) {
         console.error("Failed to initialize pitch shift", e);
