@@ -85,7 +85,10 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
   // Handle AudioContext resume on play (browsers require user interaction to resume)
   useEffect(() => {
     if (isPlaying && audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
-      audioCtxRef.current.resume();
+      if (!window.isSecureContext) {
+        Tone.start().catch(console.error);
+      }
+      audioCtxRef.current.resume().catch(console.error);
     }
   }, [isPlaying]);
 
