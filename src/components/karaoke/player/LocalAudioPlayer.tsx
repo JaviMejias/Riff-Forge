@@ -215,6 +215,9 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
         }
         
         if (!pitchShiftNodeRef.current) {
+          if (!window.isSecureContext) {
+            throw new Error("InsecureContext");
+          }
           pitchShiftNodeRef.current = await BungeePitchShift.create(audioCtxRef.current, {
             workletPath: '/bungee-processor-bundled.js',
             initialPitch: pitch
@@ -229,8 +232,12 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
           sourceNodeRef.current.connect(pitchShiftNodeRef.current.node);
           pitchShiftNodeRef.current.connect(audioCtxRef.current.destination);
         }
-      } catch (e) {
-        console.error("Failed to initialize BungeePitchShift", e);
+      } catch (e: any) {
+        if (e.message === "InsecureContext" || !window.isSecureContext) {
+          console.warn("El cambio de tono está desactivado porque requiere conexión segura (HTTPS) para el AudioWorklet.");
+        } else {
+          console.error("Failed to initialize BungeePitchShift", e);
+        }
         // Fallback to normal playback if pitch shift fails
         if (sourceNodeRef.current && audioCtxRef.current) {
            sourceNodeRef.current.connect(audioCtxRef.current.destination);
