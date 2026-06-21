@@ -69,18 +69,17 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
         sourceNodeRef.current = null;
       }
       if (audioCtxRef.current) {
-        audioCtxRef.current.close();
+        // Only close the context if we created it ourselves (secure context)
+        // If we are using Tone.js fallback, it's the global Tone context, so DO NOT close it.
+        if (window.isSecureContext && audioCtxRef.current.state !== 'closed') {
+          audioCtxRef.current.close().catch(console.error);
+        }
         audioCtxRef.current = null;
       }
     };
   }, []);
 
-  // Update pitch in real-time when the pitch prop changes
-  useEffect(() => {
-    if (pitchShiftNodeRef.current) {
-      pitchShiftNodeRef.current.setPitch(pitch);
-    }
-  }, [pitch]);
+
 
   // Handle AudioContext resume on play (browsers require user interaction to resume)
   useEffect(() => {
