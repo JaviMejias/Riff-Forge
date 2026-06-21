@@ -206,8 +206,12 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
     const initAudio = async () => {
       try {
         if (!audioCtxRef.current) {
-          const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-          audioCtxRef.current = new AudioContextClass();
+          if (window.isSecureContext) {
+            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+            audioCtxRef.current = new AudioContextClass();
+          } else {
+            audioCtxRef.current = Tone.getContext().rawContext as AudioContext;
+          }
         }
         
         if (!sourceNodeRef.current) {
@@ -223,7 +227,6 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
             });
           } else {
             console.warn("Using Tone.js PitchShift fallback (HTTP insecure context)");
-            Tone.setContext(audioCtxRef.current);
             pitchShiftNodeRef.current = new Tone.PitchShift({ pitch: pitch });
           }
         }
