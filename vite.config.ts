@@ -5,21 +5,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 import fs from 'fs'
 import path from 'path'
 
-// Vite 8 Rolldown completely breaks the official alphatab-vite plugin.
-// So we just copy the alphaTab dist files to the public folder manually.
-function copyAlphaTabAssets() {
-  return {
-    name: 'copy-alphatab',
-    buildStart() {
-      const src = path.resolve(__dirname, 'node_modules/@coderline/alphatab/dist');
-      const dest = path.resolve(__dirname, 'public/alphatab');
-      if (!fs.existsSync(dest)) {
-        fs.mkdirSync(dest, { recursive: true });
-        fs.cpSync(src, dest, { recursive: true });
-      }
-    }
-  }
-}
+// Using postinstall script to copy alphaTab assets to public/alphatab
 
 export default defineConfig({
   optimizeDeps: {
@@ -54,7 +40,6 @@ export default defineConfig({
   plugins: [
     tailwindcss(),
     react(),
-    copyAlphaTabAssets(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg', 'icon-192x192.png', 'icon-512x512.png'],
