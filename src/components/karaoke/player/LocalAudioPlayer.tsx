@@ -6,6 +6,7 @@ import { VinylAnimation } from './VinylAnimation';
 import { useAudioStore } from '../../../store/audioStore';
 import { API_BASE_URL } from '../../../config'; // FE-1: use config
 import { BungeePitchShift } from 'bungee-pitch-shift';
+import * as Tone from 'tone';
 
 export interface LocalAudioPlayerRef {
   play: () => void;
@@ -215,29 +216,33 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
         }
         
         if (!pitchShiftNodeRef.current) {
-          if (!window.isSecureContext) {
-            throw new Error("InsecureContext");
+          if (window.isSecureContext) {
+            pitchShiftNodeRef.current = await BungeePitchShift.create(audioCtxRef.current, {
+              workletPath: '/bungee-processor-bundled.js',
+              initialPitch: pitch
+            });
+          } else {
+            console.warn("Using Tone.js PitchShift fallback (HTTP insecure context)");
+            Tone.setContext(audioCtxRef.current);
+            pitchShiftNodeRef.current = new Tone.PitchShift({ pitch: pitch });
           }
-          pitchShiftNodeRef.current = await BungeePitchShift.create(audioCtxRef.current, {
-            workletPath: '/bungee-processor-bundled.js',
-            initialPitch: pitch
-          });
         }
         
         if (isMounted && sourceNodeRef.current && pitchShiftNodeRef.current && audioCtxRef.current) {
           // Connect nodes: source -> pitchShift -> destination
-          sourceNodeRef.current.disconnect();
-          pitchShiftNodeRef.current.disconnect();
+          try { sourceNodeRef.current.disconnect(); } catch (e) {}
+          try { pitchShiftNodeRef.current.disconnect(); } catch (e) {}
           
-          sourceNodeRef.current.connect(pitchShiftNodeRef.current.node);
-          pitchShiftNodeRef.current.connect(audioCtxRef.current.destination);
+          if (pitchShiftNodeRef.current instanceof Tone.PitchShift) {
+            Tone.connect(sourceNodeRef.current as any, pitchShiftNodeRef.current);
+            Tone.connect(pitchShiftNodeRef.current, audioCtxRef.current.destination as any);
+          } else {
+            sourceNodeRef.current.connect(pitchShiftNodeRef.current.node);
+            pitchShiftNodeRef.current.connect(audioCtxRef.current.destination);
+          }
         }
       } catch (e: any) {
-        if (e.message === "InsecureContext" || !window.isSecureContext) {
-          console.warn("El cambio de tono está desactivado porque requiere conexión segura (HTTPS) para el AudioWorklet.");
-        } else {
-          console.error("Failed to initialize BungeePitchShift", e);
-        }
+        console.error("Failed to initialize pitch shift", e);
         // Fallback to normal playback if pitch shift fails
         if (sourceNodeRef.current && audioCtxRef.current) {
            sourceNodeRef.current.connect(audioCtxRef.current.destination);
@@ -251,6 +256,17 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
       isMounted = false;
     };
   }, [audioUrl]); // Run when audioUrl is loaded
+
+  // Handle dynamic pitch changes
+  useEffect(() => {
+    if (pitchShiftNodeRef.current) {
+      if (pitchShiftNodeRef.current instanceof Tone.PitchShift) {
+        pitchShiftNodeRef.current.pitch = pitch;
+      } else {
+        pitchShiftNodeRef.current.setPitch(pitch);
+      }
+    }
+  }, [pitch]);
 
   const togglePlay = () => {
     if (audioRef.current) {

@@ -54,7 +54,6 @@ export const PlayerControls = ({
   onCountInToggle
 }: PlayerControlsProps) => {
   const [isVolumeOpen, setIsVolumeOpen] = useState(false);
-  const isPitchSupported = window.isSecureContext;
 
   return (
     <div className="flex flex-col w-full bg-zinc-950/80 backdrop-blur-md border-t border-white/10 p-2 sm:p-4 mt-auto z-50">
@@ -153,15 +152,12 @@ export const PlayerControls = ({
           </div>
 
           {/* Pitch */}
-          <div 
-            className={`flex items-center border border-white/5 rounded-lg sm:rounded-xl px-1 sm:px-2 py-0.5 sm:py-1 gap-0.5 sm:gap-1 shrink-0 ${isPitchSupported ? 'bg-zinc-900/50' : 'bg-red-900/10 opacity-50'}`}
-            title={isPitchSupported ? "Tono" : "El cambio de tono requiere conexión HTTPS"}
-          >
+          <div className="flex items-center bg-zinc-900/50 border border-white/5 rounded-lg sm:rounded-xl px-1 sm:px-2 py-0.5 sm:py-1 gap-0.5 sm:gap-1 shrink-0">
             <span className="hidden sm:inline text-[10px] font-bold text-zinc-500 uppercase px-1">Tono</span>
             <div className="flex items-center gap-0.5">
               <button
                 onClick={() => onPitchChange(Math.max(-12, pitch - 1))}
-                disabled={!isPitchSupported || pitch <= -12}
+                disabled={pitch <= -12}
                 className="w-4 h-4 sm:w-6 sm:h-6 flex items-center justify-center rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-[10px] sm:text-xs font-bold"
                 title="Bajar Medio Tono"
               >
@@ -172,7 +168,7 @@ export const PlayerControls = ({
               </div>
               <button
                 onClick={() => onPitchChange(Math.min(12, pitch + 1))}
-                disabled={!isPitchSupported || pitch >= 12}
+                disabled={pitch >= 12}
                 className="w-4 h-4 sm:w-6 sm:h-6 flex items-center justify-center rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-[10px] sm:text-xs font-bold"
                 title="Subir Medio Tono"
               >
