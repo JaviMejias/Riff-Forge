@@ -179,7 +179,7 @@ export const CatalogView: React.FC = () => {
         cancelButtonText: 'Seguir Buscando'
       }).then((result) => {
         if (result.isConfirmed) {
-          navigate(`/player/${id}`);
+          navigate(`/song/${id}`);
         }
       });
 
@@ -221,7 +221,7 @@ export const CatalogView: React.FC = () => {
   
         const id = await db.songs.add(newSong as any);
         Swal.close();
-        navigate(`/player/${id}`);
+        navigate(`/song/${id}`);
   
       } catch (err) {
         console.error(err);
