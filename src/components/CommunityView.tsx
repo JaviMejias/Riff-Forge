@@ -37,8 +37,12 @@ export const CommunityView = ({ isSidebarOpen, onToggleSidebar }: CommunityViewP
     const run = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`${API_URL}/community/${activeTab}`, {
-          headers: { 'Authorization': `Bearer ${token}` },
+        const res = await fetch(`${API_URL}/community/${activeTab}?t=${Date.now()}`, {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Cache-Control': 'no-cache, no-store, must-revalidate'
+          },
+          cache: 'no-store',
           signal: controller.signal
         });
         if (!res.ok) throw new Error('Error fetching community items');
