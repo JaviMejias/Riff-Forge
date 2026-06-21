@@ -53,3 +53,19 @@ export const hasLrcTags = (text: string): boolean => {
   if (!text) return false;
   return LRC_REGEX.test(text);
 };
+
+export const injectInstrumentals = (lrcString: string, thresholdSeconds: number = 3.5): string => {
+  const parsed = parseLrc(lrcString);
+  for (let i = 0; i < parsed.length - 1; i++) {
+    if (parsed[i].text.trim() === '' && parsed[i].time >= 0) {
+      const nextSynced = parsed.slice(i + 1).find(l => l.time >= 0);
+      if (nextSynced) {
+        const gap = nextSynced.time - parsed[i].time;
+        if (gap >= thresholdSeconds) {
+          parsed[i].text = '[Instrumental]';
+        }
+      }
+    }
+  }
+  return buildLrc(parsed);
+};

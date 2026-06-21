@@ -3,7 +3,7 @@ import { Save, MousePointerClick, Music, RotateCcw, Plus, Text, Wand2, Loader2 }
 import { useAuthStore } from '../../../store/authStore';
 import { API_BASE_URL } from '../../../config';
 import { motion } from 'framer-motion';
-import { buildLrc, hasLrcTags, parseLrc } from '../../../utils/lrcParser';
+import { buildLrc, hasLrcTags, parseLrc, injectInstrumentals } from '../../../utils/lrcParser';
 import type { LrcLine } from '../../../utils/lrcParser';
 import { EditorToolbar } from './EditorToolbar';
 import { SyncLineItem } from './SyncLineItem';
@@ -75,7 +75,14 @@ export const KaraokeLyricsEditor = ({
       });
       if (!res.ok) throw new Error('Failed to fetch lyrics');
       const data = await res.json();
-      setTextContent(data.lyrics);
+      
+      // Procesar la letra para inyectar automáticamente [Instrumental] en pausas de >= 3.5s
+      let finalLyrics = data.lyrics;
+      if (hasLrcTags(finalLyrics)) {
+        finalLyrics = injectInstrumentals(finalLyrics, 3.5);
+      }
+      
+      setTextContent(finalLyrics);
     } catch (e) {
       console.error(e);
       // Fallback manual error msg
