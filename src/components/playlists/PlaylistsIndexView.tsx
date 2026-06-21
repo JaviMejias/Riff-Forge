@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Folder, Search, PlusCircle, Trash2, Guitar, Mic2 } from 'lucide-react';
+import { Folder, Search, PlusCircle, Trash2, Guitar, Mic2, Edit3 } from 'lucide-react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import Swal from 'sweetalert2';
@@ -90,6 +90,49 @@ export const PlaylistsIndexView = ({ type, isSidebarOpen, onToggleSidebar }: Pla
     }
   };
 
+  const handleRenamePlaylist = async (id: number, currentName: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const { value: newName } = await MySwal.fire({
+      title: 'Renombrar Lista',
+      input: 'text',
+      inputValue: currentName,
+      inputPlaceholder: 'Nuevo nombre de la lista',
+      showCancelButton: true,
+      confirmButtonText: 'Guardar',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: 'var(--primary-500)',
+      cancelButtonColor: '#3f3f46',
+      background: '#18181b',
+      color: '#f4f4f5',
+      inputValidator: (value) => {
+        if (!value || !value.trim()) {
+          return '¡El nombre no puede estar vacío!';
+        }
+        return null;
+      }
+    });
+
+    if (newName && newName.trim() !== currentName) {
+      if (type === 'tabs') {
+        await db.playlists.update(id, { name: newName.trim() });
+      } else {
+        await db.karaokePlaylists.update(id, { name: newName.trim() });
+      }
+      MySwal.fire({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 1500,
+        icon: 'success',
+        title: 'Lista renombrada',
+        background: '#18181b',
+        color: '#f4f4f5',
+      });
+    }
+  };
+
   return (
     <div className="flex flex-col h-full w-full p-8">
       <Navbar
@@ -164,13 +207,22 @@ export const PlaylistsIndexView = ({ type, isSidebarOpen, onToggleSidebar }: Pla
                     >
                       <div className="absolute inset-0 bg-gradient-to-b from-primary-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
                       
-                      <button
-                        onClick={(e) => handleDeletePlaylist(playlist.id!, e)}
-                        className="absolute top-3 right-3 p-2 rounded-lg bg-red-500/10 text-red-400 opacity-0 group-hover:opacity-100 hover:bg-red-500 hover:text-white transition-all"
-                        title="Eliminar lista"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                      <div className="absolute top-3 right-3 flex gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-20">
+                        <button
+                          onClick={(e) => handleRenamePlaylist(playlist.id!, playlist.name, e)}
+                          className="p-2 rounded-lg bg-zinc-800/80 text-zinc-300 hover:bg-primary-500 hover:text-zinc-950 transition-all backdrop-blur-md shadow-lg"
+                          title="Renombrar lista"
+                        >
+                          <Edit3 size={16} />
+                        </button>
+                        <button
+                          onClick={(e) => handleDeletePlaylist(playlist.id!, e)}
+                          className="p-2 rounded-lg bg-red-500/80 text-white hover:bg-red-500 hover:scale-110 transition-all backdrop-blur-md shadow-lg"
+                          title="Eliminar lista"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
 
                       <div className="w-20 h-20 bg-zinc-950 rounded-2xl flex items-center justify-center shadow-inner relative group-hover:scale-105 transition-transform">
                         <Icon size={32} className="text-primary-500 opacity-80" />
