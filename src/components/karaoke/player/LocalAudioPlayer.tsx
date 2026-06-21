@@ -220,6 +220,7 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
           if (window.isSecureContext) {
             pitchShiftNodeRef.current = await BungeePitchShift.create(audioCtxRef.current, {
               workletPath: '/bungee-processor-bundled.js',
+              wasmPath: '/bungee-wasm.wasm',
               initialPitch: pitch
             });
           } else {
