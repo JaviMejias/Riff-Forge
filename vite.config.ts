@@ -2,10 +2,10 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
-// @ts-expect-error - The types don't declare a default export but Vite/Rollup requires it for CommonJS interop
-import alphaTabVite from '@coderline/alphatab-vite'
-
-const alphaTab = (alphaTabVite as any).alphaTab || alphaTabVite;
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const alphaTabVite = require('@coderline/alphatab-vite');
+const alphaTab = alphaTabVite.alphaTab || alphaTabVite;
 
 export default defineConfig({
   optimizeDeps: {
