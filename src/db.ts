@@ -49,6 +49,7 @@ export interface Song {
   capo?: string;
   isPublic?: boolean;
   isTemporary?: boolean; // Used for catalog streaming without polluting the library
+  catalogSourceId?: string; // Original catalog ID for re-downloading permanently
   dateAdded: number;
 }
 
@@ -143,6 +144,11 @@ export class MiRiffPlayerDB extends Dexie {
       karaokes: '++id, name, artist, dateAdded, cloudId, isPublic',
       karaokePlaylists: '++id, name, createdAt, cloudId, isPublic',
       karaokeFiles: 'karaokeId'
+    });
+
+    // Version 9: Add isTemporary index for filtering temporary catalog songs
+    this.version(9).stores({
+      songs: '++id, name, artist, dateAdded, cloudId, isPublic, isTemporary',
     });
   }
 }

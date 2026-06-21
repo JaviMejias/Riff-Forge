@@ -202,7 +202,7 @@ export const CatalogView: React.FC = () => {
       const blob = await res.blob();
       const buffer = await blob.arrayBuffer();
 
-      // Añadir a nuestra DB
+      // Guardar permanentemente en la biblioteca (sin isTemporary)
       const newSong = {
         userId: useAuthStore.getState().user?.id || 'unknown',
         name: formatName(tab.title),
@@ -212,7 +212,7 @@ export const CatalogView: React.FC = () => {
         dateAdded: Date.now(),
         updatedAt: Date.now(),
         isPublic: false,
-        isTemporary: true
+        catalogSourceId: tab.id
       };
 
       const id = await db.songs.add(newSong as any);
@@ -220,7 +220,7 @@ export const CatalogView: React.FC = () => {
       
       Swal.fire({
         title: '¡Añadida a tu Biblioteca!',
-        text: `${tab.artist} - ${tab.title} ha sido descargada exitosamente.`,
+        text: `${formatName(tab.artist)} - ${formatName(tab.title)} ha sido guardada en tu biblioteca.`,
         icon: 'success',
         confirmButtonText: 'Ir al Reproductor',
         showCancelButton: true,
@@ -238,43 +238,45 @@ export const CatalogView: React.FC = () => {
   };
 
   const handlePlayDirectly = async (tab: CatalogTab) => {
-     // Descargar temporalmente y navegar
-     try {
-        Swal.fire({
-          title: 'Abriendo tablatura...',
-          allowOutsideClick: false,
-          didOpen: () => Swal.showLoading()
-        });
-  
-        const res = await fetch(`${API_BASE_URL}/api/catalog/${tab.id}/download`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-  
-        if (!res.ok) throw new Error('Error al descargar el archivo');
-        const blob = await res.blob();
-        const buffer = await blob.arrayBuffer();
-  
-        // Guardar temporalmente en indexedDB (con un flag o solo lo agregamos normal y se queda en su lib)
-        // Para que no se pierda, mejor lo agregamos a su library y lo abrimos.
-        const newSong = {
-          userId: useAuthStore.getState().user?.id || 'unknown',
-          name: formatName(tab.title),
-          artist: formatName(tab.artist),
-          type: 'gp' as const,
-          data: new Uint8Array(buffer),
-          dateAdded: Date.now(),
-          updatedAt: Date.now(),
-          isPublic: false
-        };
-  
-        const id = await db.songs.add(newSong as any);
-        Swal.close();
-        navigate(`/song/${id}`);
-  
-      } catch (err) {
-        console.error(err);
-        Swal.fire('Error', 'No se pudo abrir la tablatura.', 'error');
-      }
+    // Abrir en el reproductor SIN guardar en la biblioteca (isTemporary: true)
+    try {
+      Swal.fire({
+        title: 'Abriendo tablatura...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      });
+
+      const res = await fetch(`${API_BASE_URL}/api/catalog/${tab.id}/download`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (!res.ok) throw new Error('Error al abrir el archivo');
+      const blob = await res.blob();
+      const buffer = await blob.arrayBuffer();
+
+      // Guardar TEMPORALMENTE - isTemporary: true - no aparece en la biblioteca
+      // catalogSourceId para poder descargarlo permanentemente desde el reproductor
+      const newSong = {
+        userId: useAuthStore.getState().user?.id || 'unknown',
+        name: formatName(tab.title),
+        artist: formatName(tab.artist),
+        type: 'gp' as const,
+        data: new Uint8Array(buffer),
+        dateAdded: Date.now(),
+        updatedAt: Date.now(),
+        isPublic: false,
+        isTemporary: true,
+        catalogSourceId: tab.id
+      };
+
+      const id = await db.songs.add(newSong as any);
+      Swal.close();
+      navigate(`/song/${id}`);
+
+    } catch (err) {
+      console.error(err);
+      Swal.fire('Error', 'No se pudo abrir la tablatura.', 'error');
+    }
   };
 
   return (

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as alphaTab from '@coderline/alphatab';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Guitar, Loader2, Settings2, Play, Pause, Plus, Minus, Printer, Trash2, MoreVertical, Maximize } from 'lucide-react';
+import { Guitar, Loader2, Settings2, Play, Pause, Plus, Minus, Printer, Trash2, MoreVertical, Maximize, Download } from 'lucide-react';
 import { PlayerToolbar } from './PlayerToolbar';
 import { PracticeControls } from './PracticeControls';
 import { TrackMixer } from './TrackMixer';
@@ -89,6 +89,39 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
     if (result.isConfirmed) {
       await db.songs.delete(song.id);
       onBack(); // Volver a la biblioteca
+    }
+  };
+
+  const handleSaveToLibrary = async () => {
+    if (!song || !song.id) return;
+    const result = await MySwal.fire({
+      title: 'Guardar en mi Biblioteca',
+      text: `¿Quieres guardar "${song.name}" permanentemente en tu biblioteca?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: '#3f3f46',
+      confirmButtonText: 'Guardar',
+      cancelButtonText: 'Cancelar',
+      background: '#18181b',
+      color: '#f4f4f5',
+      customClass: {
+        popup: 'rounded-2xl border border-white/10 shadow-2xl',
+        confirmButton: 'rounded-xl font-bold px-6 text-white',
+        cancelButton: 'rounded-xl font-bold px-6 text-white'
+      }
+    });
+    if (result.isConfirmed) {
+      await db.songs.update(song.id, { isTemporary: false, catalogSourceId: undefined });
+      MySwal.fire({
+        title: '¡Guardada!',
+        text: `"${song.name}" ahora está en tu biblioteca.`,
+        icon: 'success',
+        timer: 2000,
+        showConfirmButton: false,
+        background: '#18181b',
+        color: '#f4f4f5',
+      });
     }
   };
 
@@ -486,6 +519,27 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
             </button>
           </div>
         </Navbar>
+      )}
+
+      {/* Banner para canciones temporales del catálogo */}
+      {song?.isTemporary && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="shrink-0 flex items-center justify-between gap-3 px-4 py-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl mb-2 mx-0"
+        >
+          <div className="flex items-center gap-2 text-amber-400 text-sm font-medium">
+            <span className="text-base">👁️</span>
+            <span>Estás viendo una <strong>vista previa temporal</strong>. No está guardada en tu biblioteca.</span>
+          </div>
+          <button
+            onClick={handleSaveToLibrary}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-zinc-900 font-bold text-xs rounded-lg transition-colors shrink-0"
+          >
+            <Download size={14} />
+            Guardar en mi Biblioteca
+          </button>
+        </motion.div>
       )}
 
       <AnimatePresence>
