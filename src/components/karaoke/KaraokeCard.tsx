@@ -1,7 +1,8 @@
-import { Mic2, Play, Trash2, MonitorPlay, Disc3, Globe, Edit3 } from 'lucide-react';
+import { Mic2, Play, Trash2, MonitorPlay, Disc3, Globe, Edit3, Download } from 'lucide-react';
 import { motion, useMotionValue, useMotionTemplate } from 'framer-motion';
 import type { Karaoke } from '../../db';
 import { useCoverArt } from '../../hooks/useCoverArt';
+import { downloadKaraokeMp3 } from '../../utils/download';
 
 interface KaraokeCardProps {
   karaoke: Karaoke;
@@ -112,6 +113,18 @@ export const KaraokeCard = ({ karaoke, index, isActive, onPlay, onDelete, onTogg
         >
           <Trash2 size={16} />
         </button>
+        {(karaoke.hasLocalAudio || karaoke.cloudUrl) && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              downloadKaraokeMp3(karaoke);
+            }}
+            className="p-2 bg-primary-500/90 text-zinc-900 rounded-xl shadow-lg hover:bg-primary-500 hover:scale-110 transition-all backdrop-blur-md"
+            title="Descargar Audio MP3"
+          >
+            <Download size={16} />
+          </button>
+        )}
       </div>
 
       <div className="flex flex-col h-full">

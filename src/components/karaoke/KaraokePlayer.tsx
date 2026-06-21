@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { AlertCircle, Edit3, AlignLeft, MonitorPlay, Music, MoreVertical } from 'lucide-react';
+import { AlertCircle, Edit3, AlignLeft, MonitorPlay, Music, MoreVertical, Download } from 'lucide-react';
 import { Navbar } from '../Navbar';
 import { LocalAudioPlayer } from './player/LocalAudioPlayer';
 import type { LocalAudioPlayerRef } from './player/LocalAudioPlayer';
@@ -11,6 +11,7 @@ import { KaraokeLyricsEditor } from './editor/KaraokeLyricsEditor';
 import { db } from '../../db';
 import type { Karaoke } from '../../db';
 import YouTube from 'react-youtube';
+import { downloadKaraokeMp3 } from '../../utils/download';
 import Swal from 'sweetalert2';
 import { useAudioStore } from '../../store/audioStore';
 import { parseLrc } from '../../utils/lrcParser';
@@ -440,6 +441,17 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
                   setAnimationMode={setAnimationMode} 
                 />
               </div>
+            )}
+
+            {!isEditing && (karaoke.hasLocalAudio || karaoke.cloudUrl) && (
+              <button
+                onClick={() => downloadKaraokeMp3(karaoke)}
+                className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-primary-500/20 text-zinc-300 hover:text-primary-400 rounded-xl transition-all sm:mr-2 text-sm sm:text-base font-bold whitespace-nowrap w-full sm:w-auto"
+                title="Descargar MP3"
+              >
+                <Download size={16} className="sm:w-5 sm:h-5" /> 
+                <span className="sm:hidden">Descargar MP3</span>
+              </button>
             )}
 
             {!isEditing && (
