@@ -6,6 +6,7 @@ import type { Karaoke } from '../../../db';
 import { VinylAnimation } from './VinylAnimation';
 import { useAudioStore } from '../../../store/audioStore';
 import { API_BASE_URL } from '../../../config'; // FE-1: use config
+import { BungeePitchShift } from 'bungee-pitch-shift';
 
 export interface LocalAudioPlayerRef {
   play: () => void;
@@ -44,6 +45,11 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
   const [countdownNumber, setCountdownNumber] = useState<number | null>(null);
   const countdownTimerRef = useRef<number | null>(null);
 
+  // Web Audio API and Pitch Shifting refs
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const pitchShiftNodeRef = useRef<any>(null);
+  const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
+
   useEffect(() => {
     useAudioStore.getState().setGlobalIsPlaying(isPlaying);
     return () => useAudioStore.getState().setGlobalIsPlaying(false);
@@ -55,8 +61,36 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
       if (audioRef.current) {
         audioRef.current.pause();
       }
+      
+      // Cleanup Web Audio API
+      if (pitchShiftNodeRef.current) {
+        pitchShiftNodeRef.current.dispose();
+        pitchShiftNodeRef.current = null;
+      }
+      if (sourceNodeRef.current) {
+        sourceNodeRef.current.disconnect();
+        sourceNodeRef.current = null;
+      }
+      if (audioCtxRef.current) {
+        audioCtxRef.current.close();
+        audioCtxRef.current = null;
+      }
     };
   }, []);
+
+  // Update pitch in real-time when the pitch prop changes
+  useEffect(() => {
+    if (pitchShiftNodeRef.current) {
+      pitchShiftNodeRef.current.setPitch(pitch);
+    }
+  }, [pitch]);
+
+  // Handle AudioContext resume on play (browsers require user interaction to resume)
+  useEffect(() => {
+    if (isPlaying && audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+      audioCtxRef.current.resume();
+    }
+  }, [isPlaying]);
 
   useImperativeHandle(ref, () => ({
     play: () => {
@@ -165,6 +199,55 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
       }
     };
   }, [karaoke.id]);
+
+  // Initialize Web Audio API and BungeePitchShift once the audioUrl is set and the audio element is ready
+  useEffect(() => {
+    if (!audioUrl || !audioRef.current) return;
+    
+    let isMounted = true;
+    
+    const initAudio = async () => {
+      try {
+        if (!audioCtxRef.current) {
+          const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+          audioCtxRef.current = new AudioContextClass();
+        }
+        
+        if (!sourceNodeRef.current) {
+          // createMediaElementSource can ONLY be called once per <audio> element instance
+          sourceNodeRef.current = audioCtxRef.current.createMediaElementSource(audioRef.current as HTMLMediaElement);
+        }
+        
+        if (!pitchShiftNodeRef.current) {
+          pitchShiftNodeRef.current = await BungeePitchShift.create(audioCtxRef.current, {
+            workletPath: '/bungee-processor-bundled.js',
+            initialPitch: pitch
+          });
+        }
+        
+        if (isMounted && sourceNodeRef.current && pitchShiftNodeRef.current && audioCtxRef.current) {
+          // Connect nodes: source -> pitchShift -> destination
+          sourceNodeRef.current.disconnect();
+          pitchShiftNodeRef.current.disconnect();
+          
+          sourceNodeRef.current.connect(pitchShiftNodeRef.current.node);
+          pitchShiftNodeRef.current.connect(audioCtxRef.current.destination);
+        }
+      } catch (e) {
+        console.error("Failed to initialize BungeePitchShift", e);
+        // Fallback to normal playback if pitch shift fails
+        if (sourceNodeRef.current && audioCtxRef.current) {
+           sourceNodeRef.current.connect(audioCtxRef.current.destination);
+        }
+      }
+    };
+    
+    initAudio();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [audioUrl]); // Run when audioUrl is loaded
 
   // Removed Tone.js references and Web Audio API logic
 

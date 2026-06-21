@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Maximize, Minimize, Play, Pause, Volume2, VolumeX, Loader2, Timer } from 'lucide-react';
+import { Maximize, Minimize, Play, Pause, Volume2, VolumeX, Timer } from 'lucide-react';
 import { CustomSelect } from '../../CustomSelect';
 
 interface PlayerControlsProps {
@@ -20,7 +20,6 @@ interface PlayerControlsProps {
   
   pitch: number;
   onPitchChange: (pitch: number) => void;
-  isProcessingPitch: boolean;
 
   isFullscreen: boolean;
   onFullscreenToggle: () => void;
@@ -49,7 +48,6 @@ export const PlayerControls = ({
   onSpeedChange,
   pitch,
   onPitchChange,
-  isProcessingPitch,
   isFullscreen,
   onFullscreenToggle,
   isCountInEnabled,
@@ -157,18 +155,20 @@ export const PlayerControls = ({
             <div className="flex items-center gap-0.5">
               <button
                 onClick={() => onPitchChange(Math.max(-12, pitch - 1))}
-                disabled={pitch <= -12 || isProcessingPitch}
-                className="w-5 h-5 sm:w-6 sm:h-6 rounded bg-zinc-800 hover:bg-primary-500/20 text-zinc-300 flex items-center justify-center disabled:opacity-30 transition-colors text-xs shrink-0"
+                disabled={pitch <= -12}
+                className="w-4 h-4 sm:w-6 sm:h-6 flex items-center justify-center rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-[10px] sm:text-xs font-bold"
+                title="Bajar Medio Tono"
               >
                 -
               </button>
-              <span className={`text-[10px] sm:text-xs font-black w-4 sm:w-8 text-center flex items-center justify-center shrink-0 ${pitch !== 0 ? 'text-primary-400' : 'text-white'}`}>
-                {isProcessingPitch ? <Loader2 size={10} className="animate-spin text-primary-500" /> : (pitch > 0 ? `+${pitch}` : pitch)}
-              </span>
+              <div className="w-4 sm:w-6 text-center font-mono text-[10px] sm:text-xs text-primary-400 font-bold select-none relative flex justify-center">
+                {pitch > 0 ? `+${pitch}` : pitch}
+              </div>
               <button
                 onClick={() => onPitchChange(Math.min(12, pitch + 1))}
-                disabled={pitch >= 12 || isProcessingPitch}
-                className="w-5 h-5 sm:w-6 sm:h-6 rounded bg-zinc-800 hover:bg-primary-500/20 text-zinc-300 flex items-center justify-center disabled:opacity-30 transition-colors text-xs shrink-0"
+                disabled={pitch >= 12}
+                className="w-4 h-4 sm:w-6 sm:h-6 flex items-center justify-center rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-[10px] sm:text-xs font-bold"
+                title="Subir Medio Tono"
               >
                 +
               </button>
