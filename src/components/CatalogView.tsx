@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Play, Download, Loader2, Globe, Music } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 import { useAuthStore } from '../store/authStore';
-import { db } from '../store/db';
+import { db } from '../db';
 import Swal from 'sweetalert2';
 import { useNavigate } from 'react-router-dom';
 
