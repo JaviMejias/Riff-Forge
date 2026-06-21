@@ -12,10 +12,14 @@ RUN npm install
 # Copy source code
 COPY . .
 
-# Build the application and copy alphaTab dist to the final build folder
+# Build the application and copy alphaTab assets needed by the Vite-generated worker files
 RUN npm run build && \
     mkdir -p /app/dist/alphatab && \
-    cp -r node_modules/@coderline/alphatab/dist/* /app/dist/alphatab/
+    cp -r node_modules/@coderline/alphatab/dist/* /app/dist/alphatab/ && \
+    cp node_modules/@coderline/alphatab/dist/alphaTab.core.mjs /app/dist/assets/ && \
+    cp node_modules/@coderline/alphatab/dist/alphaTab.core.min.mjs /app/dist/assets/ && \
+    cp node_modules/@coderline/alphatab/dist/alphaTab.worklet.mjs /app/dist/assets/ && \
+    cp node_modules/@coderline/alphatab/dist/alphaTab.worklet.min.mjs /app/dist/assets/
 
 # Stage 2: Serve with NGINX
 FROM nginx:alpine
