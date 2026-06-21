@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
-import { Play, Pause, Volume2, VolumeX, RotateCcw, Loader2, FastForward, Settings, Timer } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Play, Pause, Volume2, VolumeX, RotateCcw, Loader2, FastForward, Settings } from 'lucide-react';
 import { db } from '../../../db';
 import type { Karaoke } from '../../../db';
 import { VinylAnimation } from './VinylAnimation';
@@ -41,9 +40,6 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
-  const [countdownEnabled, setCountdownEnabled] = useState(false);
-  const [countdownNumber, setCountdownNumber] = useState<number | null>(null);
-  const countdownTimerRef = useRef<number | null>(null);
 
   // Web Audio API and Pitch Shifting refs
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -57,7 +53,6 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
 
   useEffect(() => {
     return () => {
-      if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
       if (audioRef.current) {
         audioRef.current.pause();
       }
@@ -249,21 +244,14 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
     };
   }, [audioUrl]); // Run when audioUrl is loaded
 
-  // Removed Tone.js references and Web Audio API logic
-
-  const startCountdownAndPlay = () => {
-    if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
-    
-    setCountdownNumber(3);
-    let count = 3;
-    countdownTimerRef.current = setInterval(() => {
-      count -= 1;
-      if (count > 0) {
-        setCountdownNumber(count);
+  const togglePlay = () => {
+    if (audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.pause();
+        setIsPlaying(false);
+        if (onPlayStateChange) onPlayStateChange(false);
       } else {
-        if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
-        countdownTimerRef.current = null;
-        setCountdownNumber(null);
+        // Play immediately
         // FE-10 fix: catch unhandled promise rejection
         audioRef.current?.play().catch(err => {
           console.warn('Autoplay prevented:', err);
@@ -272,38 +260,6 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
         });
         setIsPlaying(true);
         if (onPlayStateChange) onPlayStateChange(true);
-      }
-    }, 1000);
-  };
-
-  const cancelCountdown = () => {
-    if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
-    countdownTimerRef.current = null;
-    setCountdownNumber(null);
-  };
-
-  const togglePlay = () => {
-    if (audioRef.current) {
-      if (isPlaying) {
-        audioRef.current.pause();
-        setIsPlaying(false);
-        if (onPlayStateChange) onPlayStateChange(false);
-      } else if (countdownNumber !== null) {
-        cancelCountdown();
-      } else {
-        if (countdownEnabled) {
-          startCountdownAndPlay();
-        } else {
-          // Play immediately
-          // FE-10 fix: catch unhandled promise rejection
-          audioRef.current?.play().catch(err => {
-            console.warn('Autoplay prevented:', err);
-            setIsPlaying(false);
-            if (onPlayStateChange) onPlayStateChange(false);
-          });
-          setIsPlaying(true);
-          if (onPlayStateChange) onPlayStateChange(true);
-        }
       }
     }
   };
@@ -416,21 +372,6 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
               </div>
               
               <div className="flex flex-col gap-5">
-                {/* Countdown Control */}
-                <div className="flex flex-col gap-2">
-                  <div className="flex justify-between text-xs text-zinc-400 font-bold items-center">
-                    <span className="flex items-center gap-1"><Timer size={12}/> Cuenta Regresiva (3s) al Iniciar</span>
-                    <button
-                      onClick={() => setCountdownEnabled(!countdownEnabled)}
-                      className={`w-10 h-5 rounded-full transition-colors relative ${countdownEnabled ? 'bg-primary-500' : 'bg-zinc-700'}`}
-                    >
-                      <div className={`w-3.5 h-3.5 bg-white rounded-full absolute top-[3px] transition-all ${countdownEnabled ? 'left-[22px]' : 'left-[3px]'}`} />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="h-px bg-white/5 w-full"></div>
-
                 {/* Speed Control */}
                 <div className="flex flex-col gap-2">
                   <div className="flex justify-between text-xs text-zinc-400 font-bold">
@@ -489,11 +430,6 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
               className="text-white hover:text-primary-400 transition-colors relative"
             >
               {isPlaying ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" />}
-              {countdownNumber !== null && (
-                <div className="absolute inset-0 flex items-center justify-center bg-zinc-950/80 rounded-full">
-                  <span className="text-[10px] font-black text-primary-500">{countdownNumber}</span>
-                </div>
-              )}
             </button>
 
             {/* Volume Control */}
@@ -543,30 +479,6 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
 
         </div>
       </div>
-
-      {/* Countdown Overlay (Giant) */}
-      <AnimatePresence>
-        {countdownNumber !== null && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm pointer-events-none"
-          >
-            <motion.div
-              key={countdownNumber}
-              initial={{ scale: 0.5, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 1.5, opacity: 0 }}
-              transition={{ duration: 0.5 }}
-              className="text-8xl md:text-9xl font-black text-primary-500 drop-shadow-[0_0_40px_rgba(var(--color-primary-500),0.8)]"
-            >
-              {countdownNumber}
-            </motion.div>
-            <p className="text-white/80 font-bold mt-4 text-sm uppercase tracking-widest">Preparate...</p>
-          </motion.div>
-        )}
-      </AnimatePresence>
         </>
       )}
     </div>

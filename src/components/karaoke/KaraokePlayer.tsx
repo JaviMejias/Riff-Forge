@@ -26,7 +26,8 @@ interface KaraokePlayerProps {
 
 export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar }: KaraokePlayerProps) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [showLyrics, setShowLyrics] = useState(!!karaoke.textContent);
+  const [textContent, setTextContent] = useState(karaoke.textContent || '');
+  const [showLyrics, setShowLyrics] = useState(!!textContent);
   const [pitch, setPitchState] = useState(karaoke.pitchShift || 0);
   const fullscreenRef = useRef<HTMLDivElement>(null);
 
@@ -269,32 +270,39 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
   }, []);
 
   // === KEYBOARD SHORTCUTS ===
+  const keyboardHandlersRef = useRef({ togglePlayPause, handleAbstractSeek, localCurrentTime });
+  useEffect(() => {
+    keyboardHandlersRef.current = { togglePlayPause, handleAbstractSeek, localCurrentTime };
+  });
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      const { togglePlayPause: playPause, handleAbstractSeek: seek, localCurrentTime: time } = keyboardHandlersRef.current;
 
       switch (e.code) {
         case 'Space':
         case 'Enter':
           e.preventDefault();
-          togglePlayPause();
+          playPause();
           break;
 
         case 'ArrowLeft':
           e.preventDefault();
-          handleAbstractSeek(Math.max(0, localCurrentTime - 5)); // Retroceder 5 segundos
+          seek(Math.max(0, time - 5)); // Retroceder 5 segundos
           break;
 
         case 'ArrowRight':
           e.preventDefault();
-          handleAbstractSeek(localCurrentTime + 5); // Avanzar 5 segundos
+          seek(time + 5); // Avanzar 5 segundos
           break;
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [togglePlayPause, handleAbstractSeek, localCurrentTime]);
+  }, []);
 
   const handleVolumeChange = (vol: number) => {
     setVolume(vol);
@@ -361,7 +369,7 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
       await db.karaokes.update(karaoke.id!, {
         textContent: content
       });
-      karaoke.textContent = content; // mutate local copy
+      setTextContent(content);
       setShowLyrics(!!content.trim());
       
       if (!content.trim()) {
@@ -732,8 +740,8 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
             
             {isEditing ? (
               <KaraokeLyricsEditor 
-                karaoke={karaoke}
-                initialContent={karaoke.textContent || ''}
+                karaoke={{...karaoke, textContent}}
+                initialContent={textContent}
                 currentTime={localCurrentTime}
                 duration={globalDuration}
                 isPlaying={globalIsPlaying}
@@ -754,7 +762,7 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
               />
             ) : (
               <KaraokeLyricsView 
-                karaoke={karaoke}
+                karaoke={{...karaoke, textContent}}
                 currentTime={localCurrentTime}
                 animationMode={animationMode}
                 onEdit={() => {

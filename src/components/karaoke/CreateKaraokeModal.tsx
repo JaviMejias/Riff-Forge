@@ -10,6 +10,11 @@ interface CreateKaraokeModalProps {
   onSuccess: (data: { title: string; artist: string; url: string; cloudUrl?: string; textContent?: string }) => void;
 }
 
+const isValidYoutubeUrl = (url: string) => {
+  const ytRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.?be)\/.+$/;
+  return ytRegex.test(url);
+};
+
 export const CreateKaraokeModal = ({ isOpen, onClose, onSuccess }: CreateKaraokeModalProps) => {
   const [title, setTitle] = useState('');
   const [artist, setArtist] = useState('');
@@ -28,6 +33,10 @@ export const CreateKaraokeModal = ({ isOpen, onClose, onSuccess }: CreateKaraoke
     let fetchedLyrics = undefined;
 
     if (url.trim()) {
+      if (!isValidYoutubeUrl(url.trim())) {
+        setError('Por favor, introduce un enlace válido de YouTube.');
+        return;
+      }
       setIsDownloading(true);
       try {
         const token = useAuthStore.getState().token;
