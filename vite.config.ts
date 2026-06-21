@@ -2,10 +2,8 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-const alphaTabVite = require('@coderline/alphatab-vite');
-const alphaTab = alphaTabVite.alphaTab || alphaTabVite;
+// @ts-expect-error - Bypassing package.json exports resolution bug by importing the specific mjs file
+import { alphaTab } from '@coderline/alphatab-vite/dist/alphaTab.vite.mjs'
 
 export default defineConfig({
   optimizeDeps: {
