@@ -39,12 +39,13 @@ export class SoundTouchNode {
       }
       
       // Alimentar el motor
-      this.soundTouch.putSamples(inSamples);
+      this.soundTouch.inputBuffer.putSamples(inSamples);
+      this.soundTouch.process();
       
       // Extraer lo que el motor haya podido procesar
       // WSOLA no siempre devuelve numFrames exactos, por eso usamos un FIFO
       const chunk = new Float32Array(numFrames * 2);
-      const framesReceived = this.soundTouch.receiveSamples(chunk, numFrames);
+      const framesReceived = this.soundTouch.outputBuffer.receiveSamples(chunk, numFrames);
       
       // Guardar en el FIFO
       const samplesReceived = framesReceived * 2;
