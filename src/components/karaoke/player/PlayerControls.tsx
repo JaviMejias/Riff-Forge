@@ -98,15 +98,15 @@ export const PlayerControls = ({
             >
               {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
             </button>
-            <div className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-zinc-900 border border-white/10 rounded-xl p-3 shadow-2xl transition-all origin-bottom sm:static sm:mb-0 sm:p-0 sm:border-none sm:bg-transparent sm:flex-row sm:translate-x-0 overflow-hidden flex items-center justify-center ${
-              isVolumeOpen ? 'opacity-100 visible' : 'opacity-0 invisible sm:w-0 sm:opacity-0 sm:invisible sm:group-hover:opacity-100 sm:group-hover:visible sm:group-hover:w-20'
+            <div className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-zinc-900 border border-white/10 rounded-xl p-3 shadow-2xl transition-all origin-bottom flex items-center justify-center ${
+              isVolumeOpen ? 'opacity-100 visible scale-100' : 'opacity-0 invisible scale-95 pointer-events-none'
             }`}>
               <input
                 type="range"
                 min="0" max="1" step="0.05"
                 value={isMuted ? 0 : volume}
                 onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
-                className="w-24 sm:w-full h-1.5 bg-zinc-800 rounded-full appearance-none cursor-pointer accent-primary-500"
+                className="w-24 h-1.5 bg-zinc-800 rounded-full appearance-none cursor-pointer accent-primary-500"
               />
             </div>
           </div>

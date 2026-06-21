@@ -40,6 +40,7 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
+  const [isVolumeOpen, setIsVolumeOpen] = useState(false);
 
   // Web Audio API and Pitch Shifting refs
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -433,16 +434,27 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
             </button>
 
             {/* Volume Control */}
-            <div className="flex items-center gap-2 group/vol relative">
+            <div 
+              className="flex items-center gap-2 relative" 
+              onMouseEnter={() => setIsVolumeOpen(true)} 
+              onMouseLeave={() => setIsVolumeOpen(false)}
+            >
               <button onClick={() => {
-                const newMute = !isMuted;
-                setIsMuted(newMute);
-                if (audioRef.current) audioRef.current.muted = newMute;
-              }} className="text-white hover:text-primary-400 transition-colors">
+                if (window.innerWidth < 640) {
+                  setIsVolumeOpen(!isVolumeOpen);
+                } else {
+                  const newMute = !isMuted;
+                  setIsMuted(newMute);
+                  if (audioRef.current) audioRef.current.muted = newMute;
+                }
+              }} className="text-white hover:text-primary-400 transition-colors p-1">
                 {isMuted || volume === 0 ? <VolumeX size={20} /> : <Volume2 size={20} />}
               </button>
-              {/* Expandable volume slider on desktop, fixed small on mobile */}
-              <div className="w-0 overflow-hidden sm:group-hover/vol:w-20 w-16 sm:w-0 transition-all duration-300 flex items-center">
+              
+              {/* Vertical popup bubble for volume */}
+              <div className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-zinc-900 border border-white/10 rounded-xl p-3 shadow-2xl transition-all origin-bottom flex items-center justify-center ${
+                isVolumeOpen ? 'opacity-100 visible scale-100' : 'opacity-0 invisible scale-95 pointer-events-none'
+              }`}>
                 <input
                   type="range"
                   min="0"
@@ -455,7 +467,7 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
                     if (audioRef.current) audioRef.current.volume = vol;
                     if (vol > 0 && isMuted) setIsMuted(false);
                   }}
-                  className="w-full h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer accent-white"
+                  className="w-24 h-1.5 bg-zinc-800 rounded-full appearance-none cursor-pointer accent-white"
                 />
               </div>
             </div>
