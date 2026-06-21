@@ -11,7 +11,7 @@ export const downloadKaraokeMp3 = async (karaoke: Karaoke) => {
       if (fullUrl.startsWith('http')) {
         url = fullUrl;
       } else {
-        url = \\\;
+        url = `${API_BASE_URL}${fullUrl.startsWith('/') ? '' : '/'}${fullUrl}`;
       }
       const response = await fetch(url);
       blob = await response.blob();
@@ -27,7 +27,7 @@ export const downloadKaraokeMp3 = async (karaoke: Karaoke) => {
       const objUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = objUrl;
-      a.download = \ - \.mp3\;
+      a.download = `${karaoke.artist} - ${karaoke.name}.mp3`;
       a.style.display = 'none';
       document.body.appendChild(a);
       a.click();
