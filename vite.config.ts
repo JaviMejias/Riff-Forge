@@ -2,16 +2,10 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
-import path from 'path'
 
 export default defineConfig({
   optimizeDeps: {
     exclude: ['bungee-pitch-shift', '@coderline/alphatab']
-  },
-  resolve: {
-    alias: {
-      '@coderline/alphatab': path.resolve(__dirname, 'node_modules/@coderline/alphatab/dist/alphaTab.js')
-    }
   },
   server: {
     allowedHosts: true,

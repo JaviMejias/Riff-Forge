@@ -65,8 +65,9 @@ export function useAlphaTab(song: Song | null) {
     apiRef.current = new alphaTab.AlphaTabApi(containerRef.current, {
       core: {
         fontDirectory: 'https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/font/',
-        useWorkers: true,
-        scriptFile: '/alphatab/alphaTab.js'
+        // Workers disabled: the UMD bundle uses importScripts() which requires a special server setup.
+        // Running in the main thread is fully functional for our use case.
+        useWorkers: false,
       },
       player: {
         enablePlayer: true,
