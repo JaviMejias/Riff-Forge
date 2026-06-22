@@ -214,7 +214,7 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
           sourceNodeRef.current = audioCtxRef.current.createMediaElementSource(audioRef.current as HTMLMediaElement);
         }
         if (!pitchShiftNodeRef.current) {
-          pitchShiftNodeRef.current = new SoundTouchNode(audioCtxRef.current);
+          pitchShiftNodeRef.current = await SoundTouchNode.create(audioCtxRef.current);
           pitchShiftNodeRef.current.setPitch(pitch);
         }
         if (isMounted && sourceNodeRef.current && pitchShiftNodeRef.current && audioCtxRef.current) {

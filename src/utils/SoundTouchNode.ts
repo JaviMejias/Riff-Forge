@@ -27,7 +27,6 @@ class Float32Fifo {
       this.head = (this.head + 1) % this.buffer.length;
       this.count--;
     }
-    // Return the number of frames actually read
     return actualRead / 2;
   }
   
@@ -40,45 +39,69 @@ class Float32Fifo {
 
 class StreamSource {
   private inFifo: Float32Fifo;
-  
   constructor(inFifo: Float32Fifo) {
     this.inFifo = inFifo;
   }
-  
-  // Interfaz esperada por SimpleFilter
   extract(target: Float32Array, numFrames: number, _position: number) {
     return this.inFifo.pop(target, numFrames);
   }
 }
 
 export class SoundTouchNode {
-  public node: ScriptProcessorNode;
+  public node: AudioNode;
+  
+  // Worklet mode state
+  private isWorklet: boolean = false;
+  
+  // ScriptProcessor fallback state
   private soundTouch: any;
   private filter: any;
-  private inFifo: Float32Fifo;
+  private inFifo: Float32Fifo | null = null;
   
-  constructor(context: AudioContext, bufferSize: number = 8192) {
-    this.node = context.createScriptProcessor(bufferSize, 2, 2);
-    this.soundTouch = new SoundTouch();
+  private constructor(node: AudioNode, isWorklet: boolean) {
+    this.node = node;
+    this.isWorklet = isWorklet;
+  }
+
+  static async create(context: AudioContext): Promise<SoundTouchNode> {
+    // Intenta inicializar el AudioWorklet (rendimiento nativo)
+    if (context.audioWorklet) {
+      try {
+        await context.audioWorklet.addModule('/soundtouch-processor.js');
+        const workletNode = new AudioWorkletNode(context, 'soundtouch-processor', {
+          outputChannelCount: [2]
+        });
+        console.log("SoundTouch initialized using AudioWorkletNode");
+        return new SoundTouchNode(workletNode, true);
+      } catch (err) {
+        console.error("Failed to load AudioWorklet, falling back to ScriptProcessor", err);
+      }
+    }
     
-    // Configuración WSOLA (pitch/tempo independent)
+    // Fallback: ScriptProcessorNode (deprecated, pero compatible)
+    const bufferSize = 8192;
+    const scriptNode = context.createScriptProcessor(bufferSize, 2, 2);
+    const instance = new SoundTouchNode(scriptNode, false);
+    instance.initScriptProcessor(context, bufferSize);
+    console.log("SoundTouch initialized using ScriptProcessorNode fallback");
+    return instance;
+  }
+  
+  private initScriptProcessor(context: AudioContext, bufferSize: number) {
+    this.soundTouch = new SoundTouch();
     this.soundTouch.pitch = 1.0;
     this.soundTouch.rate = 1.0;
     this.soundTouch.tempo = 1.0;
     
-    // Configurar sample rate explícitamente si está disponible
     if (this.soundTouch.stretch && this.soundTouch.stretch.sampleRate) {
         this.soundTouch.stretch.sampleRate = context.sampleRate;
     }
     
-    // Capacidad para 10 chunks de 4096 (aprox 1 segundo de buffer de seguridad)
     this.inFifo = new Float32Fifo(bufferSize * 2 * 10);
     const source = new StreamSource(this.inFifo);
-    
-    // SimpleFilter se encarga de manejar el ruteo interno de los buffers (fillOutputBuffer, process, etc)
     this.filter = new SimpleFilter(source, this.soundTouch);
 
-    this.node.onaudioprocess = (e) => {
+    (this.node as ScriptProcessorNode).onaudioprocess = (e) => {
       try {
         const inputLeft = e.inputBuffer.getChannelData(0);
         const inputRight = e.inputBuffer.getChannelData(1);
@@ -86,43 +109,40 @@ export class SoundTouchNode {
         const outputRight = e.outputBuffer.getChannelData(1);
         const numFrames = inputLeft.length;
         
-        // Entrelazar la entrada
         const inSamples = new Float32Array(numFrames * 2);
         for (let i = 0; i < numFrames; i++) {
           inSamples[i * 2] = inputLeft[i];
           inSamples[i * 2 + 1] = inputRight[i];
         }
         
-        // Empujar las muestras recibidas desde Web Audio al FIFO de entrada
-        this.inFifo.push(inSamples);
+        if (this.inFifo) this.inFifo.push(inSamples);
         
-        // Pedirle al filtro que extraiga exactamente los frames que necesitamos
-        // SimpleFilter automáticamente tirará del StreamSource (y por tanto del inFifo),
-        // llamará a process() cuando tenga suficientes, y nos dará el resultado.
         const outSamples = new Float32Array(numFrames * 2);
         const framesExtracted = this.filter.extract(outSamples, numFrames);
         
-        // Desentrelazar a la salida
         for (let i = 0; i < framesExtracted; i++) {
           outputLeft[i] = outSamples[i * 2];
           outputRight[i] = outSamples[i * 2 + 1];
         }
         
-        // Si SimpleFilter devolvió menos frames de los necesarios (ej. llenando buffers iniciales)
-        // se rellenan con silencio para evitar clicks.
         for (let i = framesExtracted; i < numFrames; i++) {
           outputLeft[i] = 0;
           outputRight[i] = 0;
         }
-        
       } catch (err) {
-        console.error("Error in SoundTouch onaudioprocess:", err);
+        console.error("Error in SoundTouch ScriptProcessor:", err);
       }
     };
   }
   
   public setPitch(semitones: number) {
-    this.soundTouch.pitch = Math.pow(2, semitones / 12);
+    if (this.isWorklet) {
+      (this.node as AudioWorkletNode).port.postMessage({ type: 'SET_PITCH', pitch: semitones });
+    } else {
+      if (this.soundTouch) {
+        this.soundTouch.pitch = Math.pow(2, semitones / 12);
+      }
+    }
   }
   
   public connect(destination: AudioNode) {
@@ -135,8 +155,10 @@ export class SoundTouchNode {
   
   public dispose() {
     this.disconnect();
-    this.soundTouch.clear();
-    if (this.filter) this.filter.clear();
-    this.inFifo.clear();
+    if (!this.isWorklet) {
+      if (this.soundTouch) this.soundTouch.clear();
+      if (this.filter) this.filter.clear();
+      if (this.inFifo) this.inFifo.clear();
+    }
   }
 }
