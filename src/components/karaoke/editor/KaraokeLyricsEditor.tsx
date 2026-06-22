@@ -67,7 +67,8 @@ export const KaraokeLyricsEditor = ({
     setIsFetchingLyrics(true);
     try {
       const token = useAuthStore.getState().token;
-      const params = new URLSearchParams({ title: karaoke.name, artist: karaoke.artist || '' });
+      const cleanTitle = karaoke.name.replace(/\s*\(por\s+[^)]+\)$/i, '').trim();
+      const params = new URLSearchParams({ title: cleanTitle, artist: karaoke.artist || '' });
       const res = await fetch(`${API_BASE_URL}/api/karaokes/lyrics?${params}`, {
         headers: {
           ...(token ? { 'Authorization': `Bearer ${token}` } : {})
