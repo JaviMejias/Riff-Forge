@@ -65,7 +65,9 @@ export const SyncService = {
           const fd = new FormData();
           Object.entries(song).forEach(([key, value]) => {
             if (key === 'data' && value) {
-              fd.append('file', new Blob([value as any]), `${song.cloudId}.gp`);
+              if (!song.cloudUrl || song.localFileDirty) {
+                fd.append('file', new Blob([value as any]), `${song.cloudId}.gp`);
+              }
             } else if (value !== undefined && value !== null && key !== 'id') {
               fd.append(key, typeof value === 'object' ? JSON.stringify(value) : value.toString());
             }
@@ -80,6 +82,10 @@ export const SyncService = {
           await fetch(`${API_URL}/songs`, { method: 'POST', headers, body: createSongFormData() });
         } else if (!res.ok) {
           throw new Error(`Song update failed: ${res.status}`);
+        }
+
+        if (song.localFileDirty) {
+          await db.songs.update(song.id!, { localFileDirty: false });
         }
       }
 
@@ -104,7 +110,9 @@ export const SyncService = {
           fd.append('id', karaoke.cloudId!);
 
           if (karaokeFile && karaokeFile.data) {
-            fd.append('file', new Blob([karaokeFile.data as any]), `${karaoke.cloudId}.mp3`);
+            if (!karaoke.cloudUrl || karaoke.localFileDirty) {
+              fd.append('file', new Blob([karaokeFile.data as any]), `${karaoke.cloudId}.mp3`);
+            }
           }
           return fd;
         };
@@ -112,6 +120,12 @@ export const SyncService = {
         const res = await fetch(`${API_URL}/karaokes/${karaoke.cloudId}`, { method: 'PUT', headers, body: createKaraokeFormData() });
         if (!res.ok && res.status === 404) {
           await fetch(`${API_URL}/karaokes`, { method: 'POST', headers, body: createKaraokeFormData() });
+        } else if (!res.ok) {
+          throw new Error(`Karaoke update failed`);
+        }
+
+        if (karaoke.localFileDirty) {
+          await db.karaokes.update(karaoke.id!, { localFileDirty: false } as any);
         }
       }
 

@@ -242,7 +242,8 @@ function App() {
         await db.songs.update(existingSong.id, {
           data: uint8Array,
           album: finalAlbum || existingSong.album,
-          type: 'gp' 
+          type: 'gp',
+          localFileDirty: true
         });
         lastId = existingSong.id;
       } else {
@@ -252,6 +253,7 @@ function App() {
           album: finalAlbum,
           data: uint8Array,
           type: 'gp',
+          localFileDirty: true,
           dateAdded: Date.now()
         });
         lastId = newId as number;

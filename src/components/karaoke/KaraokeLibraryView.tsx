@@ -72,6 +72,7 @@ export const KaraokeLibraryView = ({ karaokes, activeKaraokeId, onPlayKaraoke, i
         youtubeUrl: formValues.url || undefined,
         cloudUrl: formValues.cloudUrl || undefined,
         hasLocalAudio: !!formValues.cloudUrl,
+        localFileDirty: !formValues.cloudUrl, // If no cloudUrl, it means they attached a local file
         dateAdded: Date.now(),
         ...(formValues.textContent ? { textContent: formValues.textContent } : {})
       }) as number;
@@ -146,6 +147,8 @@ export const KaraokeLibraryView = ({ karaokes, activeKaraokeId, onPlayKaraoke, i
           if (existing) {
             await db.karaokes.update(existing.id!, {
               hasLocalAudio: true,
+              localFileDirty: true,
+              updatedAt: Date.now(),
               ...(formValues.textContent ? { textContent: formValues.textContent } : {})
             });
             targetId = existing.id!;
@@ -158,6 +161,7 @@ export const KaraokeLibraryView = ({ karaokes, activeKaraokeId, onPlayKaraoke, i
               name: formValues.title,
               artist: formValues.artist || 'Desconocido',
               hasLocalAudio: true,
+              localFileDirty: true,
               dateAdded: Date.now(),
               updatedAt: Date.now(),
               ...(formValues.textContent ? { textContent: formValues.textContent } : {})

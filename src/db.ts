@@ -13,6 +13,7 @@ export interface Karaoke {
   pitchShift?: number; // In semitones
   textContent?: string;
   isPublic?: boolean;
+  localFileDirty?: boolean; // True if the user modified the local binary file
   dateAdded: number;
 }
 
@@ -50,6 +51,7 @@ export interface Song {
   isPublic?: boolean;
   isTemporary?: boolean; // Used for catalog streaming without polluting the library
   catalogSourceId?: string; // Original catalog ID for re-downloading permanently
+  localFileDirty?: boolean; // True if the user modified the local binary file
   dateAdded: number;
 }
 
