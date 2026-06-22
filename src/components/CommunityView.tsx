@@ -137,8 +137,29 @@ export const CommunityView = ({ isSidebarOpen, onToggleSidebar }: CommunityViewP
           });
         }
       } else {
+        const authorName = item.user?.name || 'Usuario';
+        const finalName = `${item.name} (por ${authorName})`;
+        
+        const existingKaraokes = await db.karaokes.toArray();
+        const existing = existingKaraokes.find(k => 
+          k.name.toLowerCase() === finalName.toLowerCase() && 
+          (k.artist || '').toLowerCase() === (item.artist || '').toLowerCase()
+        );
+
+        if (existing) {
+          const Swal = (await import('sweetalert2')).default;
+          Swal.fire({
+            icon: 'info',
+            title: 'Versión ya clonada',
+            text: 'Ya tienes esta versión exacta en tu biblioteca.',
+            background: '#18181b',
+            color: '#f4f4f5'
+          });
+          return;
+        }
+
         const targetId = await db.karaokes.add({
-          name: item.name,
+          name: finalName,
           artist: item.artist,
           youtubeUrl: item.youtubeUrl,
           cloudUrl: item.cloudUrl,
