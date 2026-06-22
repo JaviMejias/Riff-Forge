@@ -152,6 +152,17 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
         if (ytPlayer.getDuration && ytPlayer.getDuration() > 0) {
           setGlobalDuration(ytPlayer.getDuration());
         }
+
+        // M-2 fix: Continuous sync check to prevent YouTube and Local Audio drift
+        if (hasLocalAudio && playing && localPlayerRef.current) {
+          try {
+            const localTime = localPlayerRef.current.getCurrentTime();
+            // If drift is more than 0.25s, force local player to catch up
+            if (Math.abs(localTime - time) > 0.25) {
+              localPlayerRef.current.seek(time);
+            }
+          } catch (err) {}
+        }
       }, 100); // M-1 fix: 10fps is plenty for lyric sync and saves React re-renders
     }
     return () => clearInterval(interval);
