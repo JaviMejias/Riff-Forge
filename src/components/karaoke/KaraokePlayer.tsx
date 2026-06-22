@@ -578,12 +578,16 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
                           player.setVolume(volume * 100);
                         }
                       }}
-                      onPlay={() => {
+                      onPlay={(e) => {
                         if (!hasStarted) setHasStarted(true);
-                        if (ytPlayer) ytPlayer.mute(); // Forzar silencio siempre
+                        try {
+                          if (e.target && typeof e.target.mute === 'function') e.target.mute(); 
+                        } catch (err) {}
                         if (hasLocalAudio && activeSource === 'youtube') {
-                          localPlayerRef.current?.seek(ytPlayer.getCurrentTime());
-                          localPlayerRef.current?.play();
+                          try {
+                            localPlayerRef.current?.seek(e.target.getCurrentTime());
+                            localPlayerRef.current?.play();
+                          } catch (err) {}
                         }
                       }}
                       onPause={() => {

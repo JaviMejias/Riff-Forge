@@ -57,7 +57,7 @@ export class SoundTouchNode {
   private filter: any;
   private inFifo: Float32Fifo;
   
-  constructor(context: AudioContext, bufferSize: number = 4096) {
+  constructor(context: AudioContext, bufferSize: number = 8192) {
     this.node = context.createScriptProcessor(bufferSize, 2, 2);
     this.soundTouch = new SoundTouch();
     
