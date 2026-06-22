@@ -218,12 +218,16 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
           pitchShiftNodeRef.current.setPitch(pitch);
         }
         if (isMounted && sourceNodeRef.current && pitchShiftNodeRef.current && audioCtxRef.current) {
-          // Connect nodes: source -> pitchShift -> destination
+          // Connect nodes: source -> (pitchShift if active) -> destination
           try { sourceNodeRef.current.disconnect(); } catch (e) {}
           try { pitchShiftNodeRef.current.disconnect(); } catch (e) {}
           
-          sourceNodeRef.current.connect(pitchShiftNodeRef.current.node);
-          pitchShiftNodeRef.current.connect(audioCtxRef.current.destination);
+          if (pitch === 0) {
+            sourceNodeRef.current.connect(audioCtxRef.current.destination);
+          } else {
+            sourceNodeRef.current.connect(pitchShiftNodeRef.current.node);
+            pitchShiftNodeRef.current.connect(audioCtxRef.current.destination);
+          }
         }
       } catch (e: any) {
         console.error("Failed to initialize pitch shift", e);
@@ -241,10 +245,21 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
     };
   }, [audioUrl]); // Run when audioUrl is loaded
 
-  // Handle dynamic pitch changes
+  // Handle dynamic pitch changes and routing
   useEffect(() => {
-    if (pitchShiftNodeRef.current) {
+    if (pitchShiftNodeRef.current && sourceNodeRef.current && audioCtxRef.current) {
       pitchShiftNodeRef.current.setPitch(pitch);
+      
+      // Update routing based on pitch
+      try { sourceNodeRef.current.disconnect(); } catch (e) {}
+      try { pitchShiftNodeRef.current.disconnect(); } catch (e) {}
+      
+      if (pitch === 0) {
+        sourceNodeRef.current.connect(audioCtxRef.current.destination);
+      } else {
+        sourceNodeRef.current.connect(pitchShiftNodeRef.current.node);
+        pitchShiftNodeRef.current.connect(audioCtxRef.current.destination);
+      }
     }
   }, [pitch]);
 
