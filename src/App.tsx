@@ -18,6 +18,7 @@ import { GlobalAmbilight } from './components/GlobalAmbilight';
 import { LoginView } from './components/LoginView';
 import { useAuthStore } from './store/authStore';
 import { CatalogView } from './components/CatalogView';
+import { useRegisterSW } from 'virtual:pwa-register/react';
 
 // Lazy loaded views
 const TabPlayer = React.lazy(() => import('./components/TabPlayer').then(m => ({ default: m.TabPlayer })));
@@ -143,6 +144,41 @@ function App() {
   const karaokes = useLiveQuery(() => db.karaokes.orderBy('dateAdded').reverse().toArray());
   const navigate = useNavigate();
   const location = useLocation();
+
+  // PWA Auto Update Logic
+  const {
+    needRefresh: [needRefresh, setNeedRefresh],
+    updateServiceWorker,
+  } = useRegisterSW({
+    onRegistered(r) {
+      console.log('SW Registered');
+    },
+    onRegisterError(error) {
+      console.error('SW registration error', error);
+    },
+  });
+
+  React.useEffect(() => {
+    if (needRefresh) {
+      MySwal.fire({
+        title: '¡Nueva Actualización!',
+        text: 'Hay una nueva versión de Riff Forge disponible. Haz clic en actualizar para disfrutar de las nuevas funciones.',
+        icon: 'info',
+        showCancelButton: true,
+        confirmButtonText: 'Actualizar Ahora',
+        cancelButtonText: 'Más tarde',
+        background: '#18181b',
+        color: '#f4f4f5',
+      }).then((result) => {
+        if (result.isConfirmed) {
+          updateServiceWorker(true);
+        } else {
+          setNeedRefresh(false);
+        }
+      });
+    }
+  }, [needRefresh, setNeedRefresh, updateServiceWorker]);
+
   const { 
     isMobileMenuOpen, 
     setMobileMenuOpen, 

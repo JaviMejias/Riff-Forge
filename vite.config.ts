@@ -32,7 +32,7 @@ export default defineConfig({
     tailwindcss(),
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       includeAssets: ['icon.svg', 'icon-192x192.png', 'icon-512x512.png'],
       manifest: {
         name: 'Riff Forge',
