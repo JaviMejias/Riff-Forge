@@ -17,7 +17,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { GlobalAmbilight } from './components/GlobalAmbilight';
 import { LoginView } from './components/LoginView';
 import { useAuthStore } from './store/authStore';
-import { CatalogView } from './components/CatalogView';
+// @ts-ignore
 import { useRegisterSW } from 'virtual:pwa-register/react';
 
 // Lazy loaded views
@@ -150,10 +150,10 @@ function App() {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
   } = useRegisterSW({
-    onRegistered(r) {
+    onRegistered(_r: any) {
       console.log('SW Registered');
     },
-    onRegisterError(error) {
+    onRegisterError(error: any) {
       console.error('SW registration error', error);
     },
   });
