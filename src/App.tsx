@@ -17,6 +17,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { GlobalAmbilight } from './components/GlobalAmbilight';
 import { LoginView } from './components/LoginView';
 import { useAuthStore } from './store/authStore';
+import { CatalogView } from './components/CatalogView';
 // @ts-ignore
 import { useRegisterSW } from 'virtual:pwa-register/react';
 
