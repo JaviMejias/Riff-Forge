@@ -163,8 +163,15 @@ export const PlayerControls = ({
               >
                 -
               </button>
-              <div className="w-4 sm:w-6 text-center font-mono text-[10px] sm:text-xs text-primary-400 font-bold select-none relative flex justify-center">
-                {pitch > 0 ? `+${pitch}` : pitch}
+              <div className="w-8 sm:w-10 text-center font-mono text-[10px] sm:text-xs text-primary-400 font-bold select-none relative flex justify-center">
+                {(() => {
+                  if (pitch === 0) return '0';
+                  const sign = pitch > 0 ? '+' : '-';
+                  const abs = Math.abs(pitch);
+                  const whole = Math.floor(abs / 2);
+                  const half = abs % 2 !== 0 ? '½' : '';
+                  return whole === 0 ? `${sign}${half}` : `${sign}${whole}${half}`;
+                })()}
               </div>
               <button
                 onClick={() => onPitchChange(Math.min(12, pitch + 1))}
