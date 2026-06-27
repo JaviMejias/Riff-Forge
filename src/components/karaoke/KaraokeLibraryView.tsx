@@ -1,18 +1,21 @@
-import { Search, Mic2, Plus } from 'lucide-react';
+import { Search, Mic2, Plus, FileSpreadsheet } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { KaraokeCard } from './KaraokeCard';
 import { CreateKaraokeModal } from './CreateKaraokeModal';
 import { AddKaraokeOptionsModal } from './AddKaraokeOptionsModal';
+import { BulkImportKaraokeModal } from './BulkImportKaraokeModal';
 import { EditMetadataModal } from '../EditMetadataModal';
 import { SongSkeleton } from '../SongSkeleton';
 import { db } from '../../db';
 import type { Karaoke } from '../../db';
 import { useState } from 'react';
 import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
+import { usePullToRefresh } from '../../hooks/usePullToRefresh';
 import { Navbar } from '../Navbar';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 import { Toast } from '../../utils/toast';
+import { PullIndicator } from '../PullIndicator';
 
 const MySwal = withReactContent(Swal);
 
@@ -28,6 +31,7 @@ export const KaraokeLibraryView = ({ karaokes, activeKaraokeId, onPlayKaraoke, i
   const [searchQuery, setSearchQuery] = useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isAddOptionsModalOpen, setIsAddOptionsModalOpen] = useState(false);
+  const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
   const [editingKaraoke, setEditingKaraoke] = useState<Karaoke | null>(null);
 
   // Helper function to normalize strings for comparison
@@ -281,6 +285,18 @@ export const KaraokeLibraryView = ({ karaokes, activeKaraokeId, onPlayKaraoke, i
 
   const { visibleItems: displayedKaraokes, loadMoreRef, hasMore } = useInfiniteScroll({ items: filteredKaraokes, itemsPerPage: 20 });
 
+  const { containerRef: pullRef, pullProgress, isRefreshing } = usePullToRefresh({
+    onRefresh: async () => {
+      try {
+        const { SyncService } = await import('../../services/syncService');
+        await SyncService.performAutoSync();
+        Toast.fire({ icon: 'success', title: 'Karaokes actualizados' });
+      } catch (e) {
+        Toast.fire({ icon: 'error', title: 'Error al sincronizar' });
+      }
+    }
+  });
+
   return (
     <div className="flex flex-col h-full w-full p-8">
       <Navbar
@@ -290,6 +306,14 @@ export const KaraokeLibraryView = ({ karaokes, activeKaraokeId, onPlayKaraoke, i
         onToggleSidebar={onToggleSidebar}
       >
         <div className="flex gap-2 flex-wrap justify-end">
+          <button
+            onClick={() => setIsBulkImportOpen(true)}
+            className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-emerald-400 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl transition-all font-bold text-sm"
+            title="Importar desde Excel"
+          >
+            <FileSpreadsheet size={18} />
+            <span className="hidden sm:inline">Importar Excel</span>
+          </button>
           <button
             onClick={() => setIsAddOptionsModalOpen(true)}
             className="flex items-center gap-2 bg-primary-500 hover:bg-primary-400 text-zinc-950 px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl transition-all font-bold text-sm shadow-[0_0_20px_var(--theme-glow)]"
@@ -301,7 +325,9 @@ export const KaraokeLibraryView = ({ karaokes, activeKaraokeId, onPlayKaraoke, i
         </div>
       </Navbar>
 
-      <div className="flex-1 overflow-y-auto hide-scrollbar pb-10 mt-6">
+      <div ref={pullRef} className="flex-1 overflow-y-auto hide-scrollbar pb-10 mt-6">
+        <PullIndicator pullProgress={pullProgress} isRefreshing={isRefreshing} />
+
         <div className="bg-zinc-900/30 border border-white/5 rounded-3xl p-4 sm:p-6 min-h-[500px]">
 
           {/* HEADER DEL CONTENEDOR: Buscador */}
@@ -388,6 +414,10 @@ export const KaraokeLibraryView = ({ karaokes, activeKaraokeId, onPlayKaraoke, i
         initialTitle={editingKaraoke?.name || ''}
         initialArtist={editingKaraoke?.artist || ''}
         onSave={handleSaveMetadata}
+      />
+      <BulkImportKaraokeModal
+        isOpen={isBulkImportOpen}
+        onClose={() => setIsBulkImportOpen(false)}
       />
     </div>
   );

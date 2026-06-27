@@ -11,6 +11,8 @@ import { useState, useRef, useEffect } from 'react';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
+import { usePullToRefresh } from '../../hooks/usePullToRefresh';
+import { PullIndicator } from '../PullIndicator';
 
 const MySwal = withReactContent(Swal);
 
@@ -29,6 +31,13 @@ export const KaraokePlaylistView = ({ playlistId, activeKaraokeId, onPlayKaraoke
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
+
+  const { containerRef: pullRef, pullProgress, isRefreshing } = usePullToRefresh({
+    onRefresh: async () => {
+      const { SyncService } = await import('../../services/syncService');
+      await SyncService.performAutoSync();
+    },
+  });
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -197,7 +206,8 @@ export const KaraokePlaylistView = ({ playlistId, activeKaraokeId, onPlayKaraoke
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-8 pt-4 hide-scrollbar">
+      <div ref={pullRef} className="flex-1 overflow-y-auto p-8 pt-4 hide-scrollbar">
+        <PullIndicator pullProgress={pullProgress} isRefreshing={isRefreshing} />
         {filteredKaraokes?.length === 0 ? (
           <motion.div
             initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}

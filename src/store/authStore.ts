@@ -133,6 +133,14 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       if (res.ok) {
         const data = await res.json();
         set({ user: data.user, loading: false });
+        
+        // Auto sync incremental changes when opening the app
+        try {
+          const { SyncService } = await import('../services/syncService');
+          await SyncService.performAutoSync();
+        } catch (err) {
+          console.error("Error auto-syncing on app load", err);
+        }
       } else {
         throw new Error('Token inválido');
       }

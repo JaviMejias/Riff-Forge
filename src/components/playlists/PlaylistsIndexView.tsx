@@ -10,6 +10,8 @@ import { Navbar } from '../Navbar';
 import { CreatePlaylistModal } from '../CreatePlaylistModal';
 import { Toast } from '../../utils/toast';
 import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
+import { usePullToRefresh } from '../../hooks/usePullToRefresh';
+import { PullIndicator } from '../PullIndicator';
 
 const MySwal = withReactContent(Swal);
 
@@ -33,6 +35,13 @@ export const PlaylistsIndexView = ({ type, isSidebarOpen, onToggleSidebar }: Pla
   const title = type === 'tabs' ? 'Listas de Partituras' : 'Listas de Karaokes';
   const subtitle = type === 'tabs' ? 'Organiza tus partituras y acordes' : 'Organiza tus pistas de karaoke';
   const Icon = type === 'tabs' ? Guitar : Mic2;
+
+  const { containerRef: pullRef, pullProgress, isRefreshing } = usePullToRefresh({
+    onRefresh: async () => {
+      const { SyncService } = await import('../../services/syncService');
+      await SyncService.performAutoSync();
+    },
+  });
 
   const filteredPlaylists = playlists?.filter(p => 
     p.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -149,7 +158,8 @@ export const PlaylistsIndexView = ({ type, isSidebarOpen, onToggleSidebar }: Pla
         </button>
       </Navbar>
 
-      <div className="flex-1 overflow-y-auto hide-scrollbar pb-10 mt-6">
+      <div ref={pullRef} className="flex-1 overflow-y-auto hide-scrollbar pb-10 mt-6">
+        <PullIndicator pullProgress={pullProgress} isRefreshing={isRefreshing} />
         <div className="bg-zinc-900/30 border border-white/5 rounded-3xl p-4 sm:p-6 min-h-[500px]">
           
           {/* HEADER DEL CONTENEDOR: Buscador */}

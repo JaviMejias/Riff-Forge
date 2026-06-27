@@ -24,7 +24,6 @@ export const Navbar = ({ title, subtitle, onBack, children }: NavbarProps) => {
   };
   return (
     <div className="flex flex-row items-center justify-between gap-2 sm:gap-4 bg-zinc-900/80 backdrop-blur-xl p-2 sm:p-4 md:px-6 md:py-4 rounded-xl sm:rounded-2xl border border-white/5 shadow-lg shrink-0 w-full mb-2 sm:mb-2 relative z-50">
-      {/* Brillo sutil de fondo */}
       <div className="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none">
         <div className="absolute top-0 left-0 w-64 h-64 bg-primary-500/5 rounded-full blur-3xl pointer-events-none -translate-x-1/2 -translate-y-1/2" />
       </div>

@@ -11,19 +11,19 @@ export default defineConfig({
     allowedHosts: true,
     proxy: {
       '/api': {
-        target: 'http://146.181.32.238:3001',
+        target: 'http://localhost:3001',
         changeOrigin: true,
       },
       '/downloads': {
-        target: 'http://146.181.32.238:3001',
+        target: 'http://localhost:3001',
         changeOrigin: true,
       },
       '/uploads': {
-        target: 'http://146.181.32.238:3001',
+        target: 'http://localhost:3001',
         changeOrigin: true,
       },
       '/media': {
-        target: 'http://146.181.32.238:3001',
+        target: 'http://localhost:3001',
         changeOrigin: true,
       }
     }

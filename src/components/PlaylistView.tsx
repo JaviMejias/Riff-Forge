@@ -12,6 +12,8 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useState, useRef, useEffect } from 'react';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
+import { usePullToRefresh } from '../hooks/usePullToRefresh';
+import { PullIndicator } from './PullIndicator';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import type { DropResult } from '@hello-pangea/dnd';
 
@@ -32,6 +34,13 @@ export const PlaylistView = ({ playlistId, activeSongId, onPlaySong, onBackToLib
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
+
+  const { containerRef: pullRef, pullProgress, isRefreshing } = usePullToRefresh({
+    onRefresh: async () => {
+      const { SyncService } = await import('../services/syncService');
+      await SyncService.performAutoSync();
+    },
+  });
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -242,7 +251,8 @@ export const PlaylistView = ({ playlistId, activeSongId, onPlaySong, onBackToLib
       </Navbar>
 
       {/* LISTA DE CANCIONES */}
-      <div className="flex-1 overflow-y-auto hide-scrollbar pb-10 mt-6">
+      <div ref={pullRef} className="flex-1 overflow-y-auto hide-scrollbar pb-10 mt-6">
+        <PullIndicator pullProgress={pullProgress} isRefreshing={isRefreshing} />
         <div className="bg-zinc-900/30 border border-white/5 rounded-3xl p-4 sm:p-6 min-h-[500px]">
 
           {/* HEADER DEL CONTENEDOR: Buscador */}

@@ -16,45 +16,44 @@ export const Sidebar = () => {
     { path: '/karaokes', label: 'Karaokes', icon: Mic2 },
     { path: '/dictionary', label: 'Diccionario', icon: BookOpen },
     { path: '/community', label: 'Comunidad', icon: Users },
-    { path: '/catalog', label: 'Catálogo Mundial', icon: Globe },
+    { path: '/catalog', label: 'Catálogo', icon: Globe },
     { path: '/settings', label: 'Ajustes', icon: Settings },
   ];
 
   return (
-    <motion.aside 
+    <motion.aside
       initial={false}
-      animate={{ 
+      animate={{
         marginLeft: isDesktopSidebarOpen ? '0rem' : '-16rem',
         x: isMobileMenuOpen ? 0 : (window.innerWidth < 768 ? '-100%' : 0)
       }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className={`fixed md:relative flex-col bg-zinc-950/30 backdrop-blur-xl border-r border-white/5 h-full z-30 shadow-2xl shrink-0 w-64 ${
-        isMobileMenuOpen ? 'flex' : 'hidden md:flex'
-      }`}
+      className={`fixed md:relative flex-col bg-zinc-950/30 backdrop-blur-xl border-r border-white/5 h-full z-30 shadow-2xl shrink-0 w-64 ${isMobileMenuOpen ? 'flex' : 'hidden md:flex'
+        }`}
     >
       {/* HEADER SIDEBAR */}
       <div className="p-6 shrink-0 flex items-center justify-between">
-        <Link 
+        <Link
           to="/"
           className="flex items-center gap-3 cursor-pointer group"
           onClick={() => setMobileMenuOpen(false)}
         >
-          <motion.div 
+          <motion.div
             whileHover={{ rotate: 10, scale: 1.05 }}
-            animate={globalIsPlaying ? { 
-              rotate: [0, 15, -5, 0], 
-              y: [0, -4, 0] 
+            animate={globalIsPlaying ? {
+              rotate: [0, 15, -5, 0],
+              y: [0, -4, 0]
             } : { rotate: 0, y: 0 }}
-            transition={globalIsPlaying ? { 
-              duration: 2.5, 
-              repeat: Infinity, 
-              ease: "easeInOut" 
+            transition={globalIsPlaying ? {
+              duration: 2.5,
+              repeat: Infinity,
+              ease: "easeInOut"
             } : { duration: 0.3 }}
             className="bg-primary-500 p-2.5 rounded-xl shadow-[0_0_20px_rgba(245,158,11,0.3)] border border-primary-400/50"
           >
             <Music2 size={24} className="text-zinc-950" />
           </motion.div>
-          <motion.h1 
+          <motion.h1
             animate={globalIsPlaying ? { y: [0, -3, 0] } : { y: 0 }}
             transition={globalIsPlaying ? { duration: 2.5, repeat: Infinity, ease: "easeInOut", delay: 0.2 } : { duration: 0.3 }}
             className="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-primary-200 to-primary-500 bg-clip-text text-transparent truncate"
@@ -74,20 +73,19 @@ export const Sidebar = () => {
             {navItems.map((item) => {
               const Icon = item.icon;
               // Path '/' is active if location is '/' or if we are viewing a song (conceptually part of library)
-              const isActive = location.pathname === item.path || 
-                               (item.path === '/' && location.pathname.startsWith('/song/')) ||
-                               (item.path === '/karaokes' && location.pathname.startsWith('/karaoke/'));
-              
+              const isActive = location.pathname === item.path ||
+                (item.path === '/' && location.pathname.startsWith('/song/')) ||
+                (item.path === '/karaokes' && location.pathname.startsWith('/karaoke/'));
+
               return (
                 <Link
                   to={item.path}
                   key={item.path}
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors font-medium text-sm ${
-                    isActive 
-                      ? 'text-primary-400 font-bold' 
+                  className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors font-medium text-sm ${isActive
+                      ? 'text-primary-400 font-bold'
                       : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
-                  }`}
+                    }`}
                 >
                   {isActive && (
                     <motion.div
@@ -117,11 +115,10 @@ export const Sidebar = () => {
             <Link
               to="/playlists/tabs"
               onClick={() => setMobileMenuOpen(false)}
-              className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors font-medium text-sm w-full text-left ${
-                location.pathname.startsWith('/playlists/tabs') || location.pathname.startsWith('/playlist/')
-                  ? 'text-primary-400 font-bold' 
+              className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors font-medium text-sm w-full text-left ${location.pathname.startsWith('/playlists/tabs') || location.pathname.startsWith('/playlist/')
+                  ? 'text-primary-400 font-bold'
                   : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
-              }`}
+                }`}
             >
               {(location.pathname.startsWith('/playlists/tabs') || location.pathname.startsWith('/playlist/')) && (
                 <motion.div
@@ -136,15 +133,14 @@ export const Sidebar = () => {
                 <span className="truncate flex-1">Listas de Tabs</span>
               </div>
             </Link>
-            
+
             <Link
               to="/playlists/karaokes"
               onClick={() => setMobileMenuOpen(false)}
-              className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors font-medium text-sm w-full text-left ${
-                location.pathname.startsWith('/playlists/karaokes') || location.pathname.startsWith('/karaoke-playlist/')
-                  ? 'text-primary-400 font-bold' 
+              className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors font-medium text-sm w-full text-left ${location.pathname.startsWith('/playlists/karaokes') || location.pathname.startsWith('/karaoke-playlist/')
+                  ? 'text-primary-400 font-bold'
                   : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
-              }`}
+                }`}
             >
               {(location.pathname.startsWith('/playlists/karaokes') || location.pathname.startsWith('/karaoke-playlist/')) && (
                 <motion.div
@@ -162,7 +158,7 @@ export const Sidebar = () => {
           </div>
         </div>
       </div>
-      
+
       {/* USER PROFILE */}
       <div className="p-4 shrink-0 mt-auto border-t border-white/5 bg-zinc-950/40">
         <div className="flex items-center gap-3 w-full">

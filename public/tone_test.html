@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html><body>
+<button id='btn'>Play</button>
+<audio id='aud' src='/assets/click.mp3' controls></audio>
+<script type='module'>
+import * as Tone from 'https://cdn.skypack.dev/tone';
+document.getElementById('btn').onclick = async () => {
+  await Tone.start();
+  const aud = document.getElementById('aud');
+  const source = Tone.context.createMediaElementSource(aud);
+  const pitch = new Tone.PitchShift({ pitch: 5 });
+  Tone.connect(source, pitch);
+  pitch.toDestination();
+  aud.play();
+};
+</script>
+</body></html>
