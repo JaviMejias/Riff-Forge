@@ -18,6 +18,7 @@ import { GlobalAmbilight } from './components/GlobalAmbilight';
 import { LoginView } from './components/LoginView';
 import { useAuthStore } from './store/authStore';
 import { CatalogView } from './components/CatalogView';
+import { GlobalKaraokePlayer } from './components/karaoke/GlobalKaraokePlayer';
 // @ts-ignore
 import { useRegisterSW } from 'virtual:pwa-register/react';
 
@@ -86,7 +87,10 @@ const KaraokePlaylistRoute = () => {
     <KaraokePlaylistView
       playlistId={parseInt(id || '0')}
       activeKaraokeId={null}
-      onPlayKaraoke={(k) => navigate(`/karaoke/${k.id}`)}
+      onPlayKaraoke={(k) => {
+        usePlayerStore.getState().setActiveKaraokeId(k.id!);
+        usePlayerStore.getState().setIsKaraokeMiniPlayer(false);
+      }}
       onBackToLibrary={() => navigate('/playlists/karaokes')}
       isSidebarOpen={isDesktopSidebarOpen}
       onToggleSidebar={toggleDesktopSidebar}
@@ -94,50 +98,6 @@ const KaraokePlaylistRoute = () => {
   );
 };
 
-const KaraokePlayerRoute = () => {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const { isDesktopSidebarOpen, toggleDesktopSidebar } = useUiStore();
-  const karaoke = useLiveQuery(() => db.karaokes.get(parseInt(id || '0')), [id]);
-
-  if (karaoke === undefined) return (
-    <div className="h-full flex items-center justify-center bg-zinc-950 text-primary-500">
-      <div className="flex flex-col items-center gap-4">
-        <Loader2 className="animate-spin w-12 h-12" />
-        <p className="font-bold tracking-widest text-sm uppercase">Cargando Karaoke...</p>
-      </div>
-    </div>
-  );
-  if (karaoke === null) return <div className="p-8 text-zinc-400">Karaoke no encontrado.</div>;
-
-  const handleBack = () => {
-    if (window.history.state && window.history.state.idx > 0) {
-      navigate(-1);
-    } else {
-      navigate('/karaokes');
-    }
-  };
-
-  return (
-    // key forces a fresh KaraokePlayer instance per karaoke, avoiding stale YouTube player state
-    <Suspense fallback={
-      <div className="flex-1 h-screen flex flex-col items-center justify-center bg-zinc-950 text-zinc-500">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="animate-spin w-12 h-12" />
-          <p className="font-bold tracking-widest text-sm uppercase">Cargando Módulo...</p>
-        </div>
-      </div>
-    }>
-      <KaraokePlayer
-        key={karaoke.id}
-        karaoke={karaoke} 
-        onBack={handleBack} 
-        isSidebarOpen={isDesktopSidebarOpen}
-        onToggleSidebar={toggleDesktopSidebar}
-      />
-    </Suspense>
-  );
-};
 
 function App() {
   // L-11 fix: don't default to [] so that useLiveQuery can return undefined while loading, triggering skeletons
@@ -202,6 +162,10 @@ function App() {
   }, [theme, setTheme, navigate]);
 
   const handlePlaySong = (song: Song, autoEdit?: boolean) => {
+    // Detener y ocultar reproductor de karaoke si reproducimos una tablatura/acorde
+    usePlayerStore.getState().setActiveKaraokeId(null);
+    usePlayerStore.getState().setIsKaraokeMiniPlayer(false);
+
     if (song.type !== 'text' && song.textContent) {
       MySwal.fire({
         title: 'Canción Híbrida',
@@ -537,24 +501,16 @@ function App() {
                       <KaraokeLibraryView
                         karaokes={karaokes}
                         activeKaraokeId={null}
-                        onPlayKaraoke={(karaoke) => navigate(`/karaoke/${karaoke.id}`)}
+                        onPlayKaraoke={(karaoke) => {
+                          usePlayerStore.getState().setActiveKaraokeId(karaoke.id!);
+                          usePlayerStore.getState().setIsKaraokeMiniPlayer(false);
+                        }}
                         isSidebarOpen={isDesktopSidebarOpen}
                         onToggleSidebar={toggleDesktopSidebar}
                       />
                     </motion.div>
                   } />
 
-                  <Route path="/karaoke/:id" element={
-                    <motion.div
-                      initial={{ opacity: 0, y: 40 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -40 }}
-                      transition={{ duration: 0.3, ease: "easeOut" }}
-                      className="absolute inset-0 h-full"
-                    >
-                      <KaraokePlayerRoute />
-                    </motion.div>
-                  } />
 
                   <Route path="/song/:id" element={
                     <motion.div
@@ -571,6 +527,8 @@ function App() {
               </AnimatePresence>
             </Suspense>
           </ErrorBoundary>
+          
+          <GlobalKaraokePlayer />
         </main>
     </div>
       )}

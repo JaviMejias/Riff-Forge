@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { AlertCircle, Edit3, AlignLeft, MonitorPlay, Music, MoreVertical, Download } from 'lucide-react';
+import { AlertCircle, Edit3, AlignLeft, MonitorPlay, Music, MoreVertical, Download, X, Volume2, VolumeX, Play, Pause } from 'lucide-react';
 import { Navbar } from '../Navbar';
 import { LocalAudioPlayer } from './player/LocalAudioPlayer';
 import type { LocalAudioPlayerRef } from './player/LocalAudioPlayer';
@@ -17,6 +17,7 @@ import { useAudioStore } from '../../store/audioStore';
 import { parseLrc } from '../../utils/lrcParser';
 import { PlayerControls } from './player/PlayerControls';
 import { useCoverArt } from '../../hooks/useCoverArt';
+import { usePlayerStore } from '../../store/playerStore';
 
 interface KaraokePlayerProps {
   karaoke: Karaoke;
@@ -44,6 +45,8 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
 
   // Cover Art
   const { coverUrl } = useCoverArt(karaoke.artist, karaoke.name);
+  
+  const { isKaraokeMiniPlayer, setIsKaraokeMiniPlayer, setActiveKaraokeId } = usePlayerStore();
 
   const setPitch = async (newPitch: number) => {
     setPitchState(newPitch);
@@ -59,6 +62,7 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
   const [globalIsPlaying, setGlobalIsPlaying] = useState(false);
   const [animationMode, setAnimationMode] = useState<AnimationMode>('scroll');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const pendingSeekRef = useRef<number | null>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   const localPlayerRef = useRef<LocalAudioPlayerRef>(null);
 
@@ -118,6 +122,9 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
   const handleSourceChange = (newSource: 'youtube' | 'local') => {
     if (newSource === activeSource) return;
     
+    // Guardamos el tiempo actual para retomarlo
+    const timeToSeek = localCurrentTime;
+    
     // Detener reproducción y resetear contadores al cambiar
     if (globalIsPlaying) {
       try {
@@ -134,12 +141,29 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
       countdownTimerRef.current = null;
     }
     setCountdown(null);
+    pendingSeekRef.current = timeToSeek;
     setActiveSource(newSource);
   };
 
   const [ytPlayer, setYtPlayer] = useState<any>(null);
   const [hasStarted, setHasStarted] = useState(false);
   const [globalDuration, setGlobalDuration] = useState(0);
+
+  // Aplicar el seek pendiente cuando el reproductor esté listo (solo para YouTube)
+  useEffect(() => {
+    if (pendingSeekRef.current === null) return;
+    const time = pendingSeekRef.current;
+
+    if (activeSource === 'youtube' && ytPlayer) {
+      try {
+        ytPlayer.playVideo();
+        ytPlayer.seekTo(time, true);
+        setTimeout(() => ytPlayer.pauseVideo(), 150);
+        pendingSeekRef.current = null;
+        setGlobalIsPlaying(false);
+      } catch(e) { console.warn('Error pending seek YT', e); }
+    }
+  }, [activeSource, ytPlayer]);
 
   useEffect(() => {
     let interval: any;
@@ -420,7 +444,8 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
   }), []);
 
   return (
-    <div className="flex flex-col h-full w-full p-4 sm:p-8 relative z-0">
+    <>
+      <div className={isKaraokeMiniPlayer ? "opacity-0 w-0 h-0 overflow-hidden absolute pointer-events-none" : "flex flex-col absolute inset-0 z-[60] bg-zinc-950 p-4 sm:p-8"}>
       
       <Navbar
         title={karaoke.name}
@@ -720,7 +745,21 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
                   onTimeUpdate={(t) => {
                     if (activeSource === 'local') setLocalCurrentTime(t);
                   }}
-                  onDurationUpdate={(d) => setGlobalDuration(d)}
+                  onDurationUpdate={(d) => {
+                    setGlobalDuration(d);
+                    if (pendingSeekRef.current !== null && activeSource === 'local') {
+                      const time = pendingSeekRef.current;
+                      if (localPlayerRef.current) {
+                        try {
+                          localPlayerRef.current.play();
+                          localPlayerRef.current.seek(time);
+                          setTimeout(() => localPlayerRef.current?.pause(), 150);
+                          pendingSeekRef.current = null;
+                          setGlobalIsPlaying(false);
+                        } catch(e) {}
+                      }
+                    }
+                  }}
                   onPlayStateChange={setGlobalIsPlaying}
                 />
               </div>
@@ -812,5 +851,62 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
 
       </div>
     </div>
+
+      {isKaraokeMiniPlayer && (
+        <div className="absolute bottom-0 left-0 right-0 h-20 sm:h-24 bg-zinc-950/95 backdrop-blur-xl border-t border-white/10 z-[60] flex flex-col shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+          <input
+            type="range"
+            min={0}
+            max={globalDuration || 100}
+            value={localCurrentTime}
+            onChange={(e) => handleAbstractSeek(parseFloat(e.target.value))}
+            className="w-full h-1 bg-zinc-800 appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-0 [&::-webkit-slider-thumb]:h-0 hover:[&::-webkit-slider-thumb]:w-3 hover:[&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary-500 hover:h-2 transition-all absolute top-0 -translate-y-1/2 z-10"
+            style={{
+              background: `linear-gradient(to right, var(--primary-500) ${((localCurrentTime / (globalDuration || 1)) * 100) || 0}%, #27272a ${((localCurrentTime / (globalDuration || 1)) * 100) || 0}%)`
+            }}
+          />
+          <div className="flex items-center px-3 sm:px-6 gap-3 sm:gap-4 flex-1">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-zinc-800 overflow-hidden shrink-0 border border-white/10 shadow-inner">
+            {coverUrl ? <img src={coverUrl} alt="Cover" className="w-full h-full object-cover" /> : <Music className="w-full h-full p-2 text-zinc-500 opacity-50" />}
+          </div>
+          <div className="flex flex-col min-w-0 flex-1 cursor-pointer group" onClick={() => setIsKaraokeMiniPlayer(false)}>
+            <p className="font-bold text-white text-sm sm:text-base truncate group-hover:text-primary-400 transition-colors">{karaoke.name}</p>
+            <p className="text-xs text-zinc-400 truncate">{karaoke.artist}</p>
+          </div>
+          <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+            <div className="hidden sm:flex items-center gap-2 mr-2">
+              <button 
+                onClick={handleMuteToggle} 
+                className="text-zinc-400 hover:text-white transition-colors"
+              >
+                {isMuted || volume === 0 ? <VolumeX size={20} /> : <Volume2 size={20} />}
+              </button>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={isMuted ? 0 : volume}
+                onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+                className="w-20 md:w-24 h-1.5 bg-zinc-800 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary-500 hover:[&::-webkit-slider-thumb]:bg-primary-400"
+              />
+            </div>
+            <button onClick={togglePlayPause} className="w-10 h-10 sm:w-12 sm:h-12 bg-primary-500 hover:bg-primary-400 text-black rounded-full flex items-center justify-center transition-all shadow-[0_0_15px_rgba(245,158,11,0.3)]">
+              {globalIsPlaying ? <Pause size={18} className="fill-black" /> : <Play size={18} className="fill-black ml-1" />}
+            </button>
+            <button onClick={() => setActiveKaraokeId(null)} className="w-10 h-10 flex items-center justify-center text-zinc-400 hover:text-white transition-colors sm:hidden">
+               <X size={20} />
+            </button>
+          </div>
+          <button onClick={() => setIsKaraokeMiniPlayer(false)} className="hidden sm:flex px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-sm font-bold transition-all text-zinc-300 hover:text-white border border-white/5">
+            Expandir
+          </button>
+          <button onClick={() => setActiveKaraokeId(null)} className="hidden sm:flex w-10 h-10 items-center justify-center text-zinc-400 hover:text-white transition-colors">
+            <X size={20} />
+          </button>
+          </div>
+        </div>
+      )}
+    </>
   );
 };

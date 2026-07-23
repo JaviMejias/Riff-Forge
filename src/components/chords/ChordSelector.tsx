@@ -108,7 +108,7 @@ export const ChordSelector = ({ initialRoot, selectedChord, onSelectChord, mode 
         ))}
       </div>
 
-      <div className={`grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3 sm:gap-4 overflow-y-auto custom-scrollbar p-1 sm:p-2 ${mode === 'modal' ? 'max-h-[50vh]' : 'flex-1'}`}>
+      <div className={`grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3 sm:gap-4 overflow-y-auto custom-scrollbar p-1 sm:p-2 flex-1 min-h-0`}>
         <AnimatePresence mode="popLayout">
           {filteredChords.map((chordDef, index) => {
             const isSelected = selectedChord === chordDef.name;

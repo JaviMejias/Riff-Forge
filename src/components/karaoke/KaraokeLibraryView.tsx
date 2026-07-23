@@ -209,8 +209,28 @@ export const KaraokeLibraryView = ({ karaokes, activeKaraokeId, onPlayKaraoke, i
     });
 
     if (result.isConfirmed) {
+      const karaokeToDelete = await db.karaokes.get(id);
+      
       await db.karaokes.delete(id);
       await db.karaokeFiles.delete(id); // Delete associated file to free space
+      
+      // Si el karaoke tiene un archivo alojado en el servidor, pedirle al backend que lo borre físicamente
+      if (karaokeToDelete?.cloudUrl) {
+        try {
+          const token = useAuthStore.getState().token;
+          await fetch(`${API_BASE_URL}/api/karaokes/delete-audio`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            },
+            body: JSON.stringify({ cloudUrl: karaokeToDelete.cloudUrl })
+          });
+        } catch (err) {
+          console.warn('No se pudo eliminar el archivo del servidor:', err);
+        }
+      }
+
       if (activeKaraokeId === id) {
         // optionally handle stopping playback
       }

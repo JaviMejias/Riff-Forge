@@ -16,6 +16,7 @@ import { TonalidadTooltip } from './chords/TonalidadTooltip';
 import { AfinacionTooltip } from './chords/AfinacionTooltip';
 import { Button } from './ui/Button';
 import { Edit2, CheckCircle2, X } from 'lucide-react';
+import { usePlayerStore } from '../store/playerStore';
 
 const CSJS = (ChordSheetJS as any).default || ChordSheetJS;
 
@@ -27,6 +28,7 @@ interface ChordsViewProps {
 }
 
 export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewProps) => {
+  const { cifraFontSize, setCifraFontSize } = usePlayerStore();
   // Extraer letras y acordes del modelo de AlphaTab
   // Agruparemos por compases (bars) para mantener un flujo lógico.
 
@@ -445,7 +447,14 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
                 )}
                 
                 {song && !isEditing && (
-                  <div className="ml-auto flex items-center gap-3">
+                  <div className="ml-auto flex flex-wrap items-center justify-end gap-2 sm:gap-3">
+                    {/* CONTROLES DE ZOOM DE LETRA */}
+                    <div className="flex items-center gap-1 bg-zinc-900 border border-white/5 rounded-xl shadow-sm text-sm p-0.5">
+                      <button onClick={() => setCifraFontSize(Math.max(10, cifraFontSize - 2))} className="p-1.5 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-lg transition-colors font-bold" title="Reducir letra">A-</button>
+                      <span className="text-zinc-500 font-bold px-1 text-xs min-w-[32px] text-center">{cifraFontSize}</span>
+                      <button onClick={() => setCifraFontSize(Math.min(48, cifraFontSize + 2))} className="p-1.5 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-lg transition-colors font-bold" title="Aumentar letra">A+</button>
+                    </div>
+
                     {/* CONTROLES DE TRANSPOSICIÓN INTEGRADOs */}
                     <div className="relative flex items-center bg-zinc-900 border border-white/5 rounded-xl shadow-sm text-sm p-0.5" ref={menuRef}>
                       <button 
@@ -539,7 +548,7 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
               </div>
             )}
 
-          <div className="font-mono text-[13px] sm:text-sm md:text-base lg:text-lg leading-snug tracking-wide whitespace-pre-wrap overflow-x-auto custom-scrollbar pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 lg:px-12 xl:px-24 w-[calc(100%+2rem)] sm:w-full">
+          <div className="font-mono leading-snug tracking-wide whitespace-pre-wrap overflow-x-auto custom-scrollbar pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 lg:px-12 xl:px-24 w-[calc(100%+2rem)] sm:w-full" style={{ fontSize: `${cifraFontSize}px` }}>
             {(!song.textContent || song.textContent.trim() === '') && (
               <div className="flex flex-col items-center justify-center py-20 text-center opacity-70">
                 <div className="bg-zinc-800/50 p-6 rounded-full mb-6 border border-white/5">

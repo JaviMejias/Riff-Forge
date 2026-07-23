@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Video, Music, User, Link, Loader2 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { API_BASE_URL } from '../../config';
@@ -20,7 +20,65 @@ export const CreateKaraokeModal = ({ isOpen, onClose, onSuccess }: CreateKaraoke
   const [artist, setArtist] = useState('');
   const [url, setUrl] = useState('');
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isFetchingMetadata, setIsFetchingMetadata] = useState(false);
   const [error, setError] = useState('');
+  const lastFetchedUrl = useRef('');
+
+  useEffect(() => {
+    if (isValidYoutubeUrl(url) && url !== lastFetchedUrl.current) {
+      const fetchMetadata = async () => {
+        setIsFetchingMetadata(true);
+        lastFetchedUrl.current = url;
+        try {
+          const token = useAuthStore.getState().token;
+          const res = await fetch(`${API_BASE_URL}/api/karaokes/youtube-metadata?url=${encodeURIComponent(url)}`, {
+            headers: {
+              ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.title) {
+               let cleanTitle = data.title
+                  .replace(/\((official|video|audio|lyric|karaoke|instrumental|hd|hq|live|version|edit|extended)[^)]*\)/gi, '')
+                  .replace(/\[(official|video|audio|lyric|karaoke|instrumental|hd|hq|live|version|edit|extended)[^\]]*\]/gi, '')
+                  .replace(/official video/gi, '')
+                  .replace(/music video/gi, '')
+                  .replace(/lyrics/gi, '')
+                  .replace(/karaoke/gi, '')
+                  .replace(/instrumental/gi, '')
+                  .replace(/version/gi, '')
+                  .replace(/\|.*/g, '') // Elimina lo que haya después de un pipe |
+                  .trim();
+                  
+               // Limpiar guiones sueltos o caracteres sobrantes al final
+               cleanTitle = cleanTitle.replace(/[-_~]+$/, '').trim();
+
+               const parts = cleanTitle.split('-');
+               if (parts.length >= 2) {
+                 const newArtist = parts[0].trim();
+                 const newTitle = parts.slice(1).join('-').trim();
+                 setArtist(newArtist);
+                 setTitle(newTitle);
+               } else {
+                 setTitle(cleanTitle);
+               }
+            }
+          }
+        } catch(e) {
+          console.error(e);
+        } finally {
+          setIsFetchingMetadata(false);
+        }
+      };
+      
+      const timeoutId = setTimeout(() => {
+        fetchMetadata();
+      }, 500); // 500ms debounce
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [url]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -112,6 +170,26 @@ export const CreateKaraokeModal = ({ isOpen, onClose, onSuccess }: CreateKaraoke
         )}
         <div>
           <label className="block text-sm font-bold text-zinc-300 mb-2 flex items-center gap-2">
+            <Link size={16} className="text-primary-500" /> URL de YouTube (Requerido para autocompletar)
+          </label>
+          <input
+            type="url"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            disabled={isDownloading || isFetchingMetadata}
+            className="w-full bg-zinc-900/50 border border-white/5 rounded-xl px-4 py-3 text-zinc-200 focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/50 transition-all placeholder:text-zinc-600 shadow-inner disabled:opacity-50"
+            placeholder="Ej: https://www.youtube.com/watch?v=..."
+            autoFocus
+          />
+          {isFetchingMetadata ? (
+            <p className="text-xs text-primary-400 mt-2 flex items-center gap-1"><Loader2 size={12} className="animate-spin" /> Buscando datos del video...</p>
+          ) : (
+            <p className="text-xs text-zinc-500 mt-2">Si ingresas un enlace de YouTube, se descargará automáticamente el audio MP3 y se rellenarán los datos.</p>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-bold text-zinc-300 mb-2 flex items-center gap-2">
             <Music size={16} className="text-primary-500" /> Título de la canción *
           </label>
           <input
@@ -122,7 +200,6 @@ export const CreateKaraokeModal = ({ isOpen, onClose, onSuccess }: CreateKaraoke
             className="w-full bg-zinc-900/50 border border-white/5 rounded-xl px-4 py-3 text-zinc-200 focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/50 transition-all placeholder:text-zinc-600 shadow-inner disabled:opacity-50"
             placeholder="Ej: Bohemian Rhapsody"
             required
-            autoFocus
           />
         </div>
 
@@ -138,21 +215,6 @@ export const CreateKaraokeModal = ({ isOpen, onClose, onSuccess }: CreateKaraoke
             className="w-full bg-zinc-900/50 border border-white/5 rounded-xl px-4 py-3 text-zinc-200 focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/50 transition-all placeholder:text-zinc-600 shadow-inner disabled:opacity-50"
             placeholder="Ej: Queen"
           />
-        </div>
-
-        <div>
-          <label className="block text-sm font-bold text-zinc-300 mb-2 flex items-center gap-2">
-            <Link size={16} className="text-primary-500" /> URL de YouTube (Opcional)
-          </label>
-          <input
-            type="url"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            disabled={isDownloading}
-            className="w-full bg-zinc-900/50 border border-white/5 rounded-xl px-4 py-3 text-zinc-200 focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/50 transition-all placeholder:text-zinc-600 shadow-inner disabled:opacity-50"
-            placeholder="Ej: https://www.youtube.com/watch?v=..."
-          />
-          <p className="text-xs text-zinc-500 mt-2">Si ingresas un enlace de YouTube, se descargará automáticamente el audio MP3.</p>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 justify-end pt-2 border-t border-white/5 mt-2">

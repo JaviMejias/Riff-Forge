@@ -82,16 +82,28 @@ export const BulkImportKaraokeModal = ({ isOpen, onClose }: BulkImportKaraokeMod
     reader.readAsArrayBuffer(file);
   };
 
-  const handleImport = async () => {
+  const handleImport = async (indicesToRetry?: number[]) => {
+    let currentResults = [...results];
+
+    if (indicesToRetry) {
+      indicesToRetry.forEach((idx) => {
+        currentResults[idx] = { ...currentResults[idx], status: 'pending', reason: undefined };
+      });
+      setResults(currentResults);
+    }
+
     setStep('importing');
     setIsImporting(true);
     abortRef.current = false;
     const token = useAuthStore.getState().token;
 
-    for (let i = 0; i < results.length; i++) {
+    for (let i = 0; i < currentResults.length; i++) {
       if (abortRef.current) break;
 
-      const item = results[i];
+      const item = currentResults[i];
+
+      // Solo procesar los que estén pendientes (ya sea por ser nuevos o reintentos)
+      if (item.status !== 'pending') continue;
 
       // --- SKIP: no YouTube link ---
       if (!item.row.youtubeUrl || !isValidYoutubeUrl(item.row.youtubeUrl)) {
@@ -128,7 +140,7 @@ export const BulkImportKaraokeModal = ({ isOpen, onClose }: BulkImportKaraokeMod
         }
 
         // --- DOWNLOAD audio from YouTube ---
-        const res = await fetch(`${API_BASE_URL}/api/karaokes/download-audio`, {
+        let res = await fetch(`${API_BASE_URL}/api/karaokes/download-audio`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -137,7 +149,24 @@ export const BulkImportKaraokeModal = ({ isOpen, onClose }: BulkImportKaraokeMod
           body: JSON.stringify({ url: item.row.youtubeUrl }),
         });
 
-        if (!res.ok) throw new Error(`Error del servidor (${res.status})`);
+        // Si Cloudflare bloquea por rate limit, esperamos 5 segundos y reintentamos
+        if (res.status === 429 || res.status === 403) {
+          await new Promise((r) => setTimeout(r, 5000));
+          res = await fetch(`${API_BASE_URL}/api/karaokes/download-audio`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({ url: item.row.youtubeUrl }),
+          });
+        }
+
+        if (!res.ok) {
+          if (res.status === 429 || res.status === 403) throw new Error('Bloqueado por Cloudflare (demasiadas peticiones)');
+          throw new Error(`Error del servidor (${res.status})`);
+        }
+        
         const data = await res.json();
 
         // --- SAVE to local DB ---
@@ -168,8 +197,10 @@ export const BulkImportKaraokeModal = ({ isOpen, onClose }: BulkImportKaraokeMod
         });
       }
 
-      // Small delay between requests to avoid hammering the server
-      await new Promise((r) => setTimeout(r, 600));
+      // Delay para evitar bloqueos de Cloudflare (2 a 3 segundos aleatorio)
+      const baseDelay = 2000;
+      const jitter = Math.random() * 1000;
+      await new Promise((r) => setTimeout(r, baseDelay + jitter));
     }
 
     setIsImporting(false);
@@ -179,6 +210,15 @@ export const BulkImportKaraokeModal = ({ isOpen, onClose }: BulkImportKaraokeMod
     if (finalResults.some(r => r.status === 'error')) setDoneTab('error');
     else if (finalResults.some(r => r.status === 'skipped')) setDoneTab('skipped');
     else setDoneTab('success');
+  };
+
+  const handleRetryAllFailed = () => {
+    const failedIndices = results.map((r, i) => (r.status === 'error' ? i : -1)).filter((i) => i !== -1);
+    if (failedIndices.length > 0) handleImport(failedIndices);
+  };
+
+  const handleRetrySingle = (index: number) => {
+    handleImport([index]);
   };
 
   const handleClose = () => {
@@ -309,7 +349,7 @@ export const BulkImportKaraokeModal = ({ isOpen, onClose }: BulkImportKaraokeMod
                 <button onClick={() => setStep('upload')} className="flex-1 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-sm transition-all">
                   Cambiar archivo
                 </button>
-                <button onClick={handleImport} className="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-sm transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)]">
+                <button onClick={() => handleImport()} className="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-sm transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)]">
                   Importar {rows.length - noLinkCount} canciones
                 </button>
               </div>
@@ -405,10 +445,11 @@ export const BulkImportKaraokeModal = ({ isOpen, onClose }: BulkImportKaraokeMod
               {/* Tab content */}
               <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 min-h-0 max-h-[36vh]">
                 {results
-                  .filter((r) => r.status === doneTab)
-                  .map((r, i) => (
+                  .map((r, index) => ({ r, index }))
+                  .filter(({ r }) => r.status === doneTab)
+                  .map(({ r, index }) => (
                     <div
-                      key={i}
+                      key={index}
                       className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm ${
                         doneTab === 'success' ? 'bg-emerald-500/10' :
                         doneTab === 'skipped' ? 'bg-yellow-500/5 border border-yellow-500/10' :
@@ -422,6 +463,14 @@ export const BulkImportKaraokeModal = ({ isOpen, onClose }: BulkImportKaraokeMod
                           {r.reason && <span className="text-zinc-500"> · {r.reason}</span>}
                         </p>
                       </div>
+                      {doneTab === 'error' && (
+                        <button
+                          onClick={() => handleRetrySingle(index)}
+                          className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500 hover:text-white text-red-400 font-bold rounded-lg transition-colors text-xs shrink-0"
+                        >
+                          Reintentar
+                        </button>
+                      )}
                     </div>
                   ))}
                 {results.filter((r) => r.status === doneTab).length === 0 && (
@@ -431,7 +480,16 @@ export const BulkImportKaraokeModal = ({ isOpen, onClose }: BulkImportKaraokeMod
                 )}
               </div>
 
-              <button onClick={handleClose} className="mt-4 w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-sm transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)]">
+              {doneTab === 'error' && errorCount > 1 && (
+                <button
+                  onClick={handleRetryAllFailed}
+                  className="mt-3 w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-sm transition-all border border-red-500/30 hover:border-red-500/60"
+                >
+                  Reintentar todas las fallidas ({errorCount})
+                </button>
+              )}
+
+              <button onClick={handleClose} className="mt-3 w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-sm transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)]">
                 Listo — Ver mis Karaokes
               </button>
             </div>
