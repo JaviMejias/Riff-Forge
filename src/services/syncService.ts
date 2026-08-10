@@ -177,12 +177,22 @@ export const SyncService = {
         const val = localStorage.getItem(key);
         if (val !== null) settings[key] = val;
       });
-      const resSettings = await fetch(`${API_URL}/auth/settings`, {
-        method: 'POST',
-        headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uiStorage: settings })
-      });
-      if (!resSettings.ok) throw new Error(`Settings sync failed: ${resSettings.status}`);
+      const settingsSnapshot = JSON.stringify(settings);
+      if (localStorage.getItem('lastSyncedUiStorage') !== settingsSnapshot) {
+        const resSettings = await fetch(`${API_URL}/auth/settings`, {
+          method: 'POST',
+          headers: { ...headers, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ uiStorage: settings })
+        });
+        if (!resSettings.ok) throw new Error(`Settings sync failed: ${resSettings.status}`);
+        localStorage.setItem('lastSyncedUiStorage', settingsSnapshot);
+      }
+
+      // Always pull the complete remote state after uploading local changes.
+      // IndexedDB is device-local, so without this step another device's changes
+      // would only appear after logging out or clearing the browser data.
+      onProgress?.('Descargando cambios de otros dispositivos...');
+      await this.downloadAllFromCloud(onProgress);
 
       localStorage.setItem('lastSyncAt', newSyncTime.toString());
       onProgress?.('¡Respaldo en el servidor completado!');
@@ -220,7 +230,7 @@ export const SyncService = {
 
     // 1. Download Songs
     onProgress?.('Descargando canciones...');
-    let res = await fetch(`${API_URL}/songs`, { headers });
+    let res = await fetch(`${API_URL}/songs`, { headers, cache: 'no-store' });
     if (res.ok) {
       const serverSongs = await res.json();
       for (const item of serverSongs) {
@@ -230,7 +240,7 @@ export const SyncService = {
         let binaryData = null;
         if (data.cloudUrl && (!existing || !existing.data)) {
           try {
-            const resp = await fetch(`${API_BASE_URL}${data.cloudUrl}`); // FE-1: use config
+            const resp = await fetch(`${API_BASE_URL}${data.cloudUrl}`, { cache: 'no-store' }); // FE-1: use config
             if (resp.ok) {
               const arrayBuffer = await resp.arrayBuffer();
               binaryData = new Uint8Array(arrayBuffer);
@@ -251,7 +261,7 @@ export const SyncService = {
 
     // 2. Download Karaokes
     onProgress?.('Descargando karaokes...');
-    res = await fetch(`${API_URL}/karaokes`, { headers });
+    res = await fetch(`${API_URL}/karaokes`, { headers, cache: 'no-store' });
     if (res.ok) {
       const serverKaraokes = await res.json();
       for (const item of serverKaraokes) {
@@ -271,7 +281,7 @@ export const SyncService = {
           const existingFile = await db.karaokeFiles.get(localKaraokeId);
           if (!existingFile || !existingFile.data) {
             try {
-              const resp = await fetch(`${API_BASE_URL}${data.cloudUrl}`);
+              const resp = await fetch(`${API_BASE_URL}${data.cloudUrl}`, { cache: 'no-store' });
               if (resp.ok) {
                 const arrayBuffer = await resp.arrayBuffer();
                 const binaryData = new Uint8Array(arrayBuffer);
@@ -285,7 +295,7 @@ export const SyncService = {
 
     // 3. Download Playlists & Chords
     onProgress?.('Descargando listas de reproducción...');
-    res = await fetch(`${API_URL}/playlists`, { headers });
+    res = await fetch(`${API_URL}/playlists`, { headers, cache: 'no-store' });
     if (res.ok) {
       const serverPlaylists = await res.json();
       const songs = await db.songs.toArray();
@@ -303,7 +313,7 @@ export const SyncService = {
       }
     }
 
-    res = await fetch(`${API_URL}/karaoke-playlists`, { headers });
+    res = await fetch(`${API_URL}/karaoke-playlists`, { headers, cache: 'no-store' });
     if (res.ok) {
       const serverKaraokePlaylists = await res.json();
       const karaokes = await db.karaokes.toArray();
@@ -321,7 +331,7 @@ export const SyncService = {
       }
     }
 
-    res = await fetch(`${API_URL}/chords`, { headers });
+    res = await fetch(`${API_URL}/chords`, { headers, cache: 'no-store' });
     if (res.ok) {
       const serverChords = await res.json();
       for (const item of serverChords) {
@@ -360,6 +370,10 @@ export const SyncService = {
             } catch (e) {}
           }
         });
+        const syncedSettings: Record<string, string> = {};
+        const uiStorage = localStorage.getItem('ui-storage');
+        if (uiStorage !== null) syncedSettings['ui-storage'] = uiStorage;
+        localStorage.setItem('lastSyncedUiStorage', JSON.stringify(syncedSettings));
       } catch (e) {}
     }
 

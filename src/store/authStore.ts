@@ -33,6 +33,11 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       });
       
       const data = await res.json();
+      if (res.status === 429) {
+        const retryAfter = parseInt(res.headers.get('Retry-After') || '60', 10);
+        const minutes = Math.max(1, Math.ceil(retryAfter / 60));
+        throw new Error(`Demasiadas solicitudes. Intenta nuevamente en ${minutes} minuto${minutes === 1 ? '' : 's'}.`);
+      }
       if (!res.ok) throw new Error(data.error || 'Error de autenticación');
 
       localStorage.setItem('riff_token', data.token);
@@ -99,7 +104,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
       // FE-7 fix: only remove keys this app owns — localStorage.clear() also wipes
       // browser extension data and unrelated app data on the same origin.
-      const APP_KEYS = ['riff_token', 'lastSyncAt', 'deleted_cloud_ids', 'ui-storage'];
+      const APP_KEYS = ['riff_token', 'lastSyncAt', 'lastSyncedUiStorage', 'deleted_cloud_ids', 'ui-storage'];
       APP_KEYS.forEach(key => localStorage.removeItem(key));
 
       await Swal.fire({ 
@@ -141,13 +146,22 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         } catch (err) {
           console.error("Error auto-syncing on app load", err);
         }
-      } else {
+      } else if (res.status === 401 || res.status === 403) {
         throw new Error('Token inválido');
+      } else {
+        // Temporary server/rate-limit errors must not destroy a valid local session.
+        set({ loading: false });
+        return;
       }
     } catch (error) {
-      localStorage.removeItem('riff_token');
-      set({ user: null, token: null, loading: false });
-      window.dispatchEvent(new Event('auth-logout'));
+      if (error instanceof Error && error.message === 'Token inválido') {
+        localStorage.removeItem('riff_token');
+        set({ user: null, token: null, loading: false });
+        window.dispatchEvent(new Event('auth-logout'));
+      } else {
+        console.error('No se pudo verificar la sesión temporalmente', error);
+        set({ loading: false });
+      }
     }
   }
 }));

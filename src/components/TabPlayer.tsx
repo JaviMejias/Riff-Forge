@@ -12,6 +12,7 @@ import { usePlayerStore } from '../store/playerStore';
 import { useAudioStore } from '../store/audioStore';
 import { useAlphaTab } from '../hooks/useAlphaTab';
 import { useUiStore } from '../store/uiStore';
+import { useMetronome } from '../hooks/useMetronome';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 
@@ -46,6 +47,7 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
     songTitle,
     songArtist,
     songAlbum,
+    originalTempo,
     isLoading,
     setIsLoading,
     loadingMsg,
@@ -59,6 +61,19 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
     setTrackSolos,
     changeTrack
   } = useAlphaTab(song);
+
+  const targetBpm = Math.round(originalTempo * playbackSpeed);
+  useMetronome(targetBpm, isMetronomeActive && mainViewMode === 'cifra');
+
+  useEffect(() => {
+    if (apiRef.current) {
+      apiRef.current.metronomeVolume = isMetronomeActive && mainViewMode === 'pro' ? 1 : 0;
+    }
+  }, [apiRef, isMetronomeActive, mainViewMode, tracks]);
+
+  useEffect(() => {
+    return () => setIsMetronomeActive(false);
+  }, [setIsMetronomeActive]);
 
   useEffect(() => {
     useAudioStore.getState().setGlobalIsPlaying(isPlaying);
@@ -251,15 +266,14 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
     }
   };
 
-  const handleSpeedChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const speed = parseFloat(e.target.value);
+  const handleBpmChange = (bpm: number) => {
+    const targetBpm = Math.min(300, Math.max(20, Math.round(bpm)));
+    const speed = targetBpm / originalTempo;
     setPlaybackSpeed(speed);
     if (apiRef.current) apiRef.current.playbackSpeed = speed;
   };
   const toggleMetronome = () => {
-    const newState = !isMetronomeActive;
-    setIsMetronomeActive(newState);
-    if (apiRef.current) apiRef.current.metronomeVolume = newState ? 1 : 0;
+    setIsMetronomeActive(!isMetronomeActive);
   };
   const toggleCountIn = () => {
     const newState = !isCountInActive;
@@ -473,20 +487,18 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
                   transition={{ duration: 0.15 }}
                   className="absolute right-0 top-full mt-2 w-52 bg-zinc-900 border border-white/10 rounded-xl p-2 flex flex-col gap-1 shadow-2xl z-[100] origin-top-right"
                 >
-                  <button 
+                  <button
                     onClick={() => { toggleImmersiveMode(); setIsMobileMoreMenuOpen(false); }}
                     className="flex items-center gap-2 w-full text-left p-2.5 hover:bg-zinc-800 rounded-lg text-zinc-300 font-bold text-sm transition-colors"
                   >
                     <Maximize size={18} className="text-primary-500" /> Pantalla Completa
                   </button>
-                  {song.type !== 'text' && mainViewMode === 'pro' && (
-                    <button 
-                      onClick={() => { setShowPracticeControls(!showPracticeControls); setIsMobileMoreMenuOpen(false); }}
-                      className="flex items-center gap-2 w-full text-left p-2.5 hover:bg-zinc-800 rounded-lg text-zinc-300 font-bold text-sm transition-colors"
-                    >
-                      <Settings2 size={18} className="text-primary-500" /> Herr. Práctica
-                    </button>
-                  )}
+                  <button
+                    onClick={() => { setShowPracticeControls(!showPracticeControls); setIsMobileMoreMenuOpen(false); }}
+                    className="flex items-center gap-2 w-full text-left p-2.5 hover:bg-zinc-800 rounded-lg text-zinc-300 font-bold text-sm transition-colors"
+                  >
+                    <Settings2 size={18} className="text-primary-500" /> Herr. Práctica
+                  </button>
                   <div className="h-px w-full bg-white/10 my-1"></div>
                   <button 
                     onClick={() => { handleDeleteSong(); setIsMobileMoreMenuOpen(false); }}
@@ -509,18 +521,16 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
               <Maximize size={20} />
             </button>
 
-            {song.type !== 'text' && mainViewMode === 'pro' && (
-              <button
-                onClick={() => setShowPracticeControls(!showPracticeControls)}
-                className={`p-2 rounded-xl border transition-all ${showPracticeControls
-                  ? 'bg-primary-500 text-zinc-950 border-primary-500 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
-                  : 'bg-zinc-950/50 text-zinc-400 border-white/5 hover:text-zinc-200 hover:bg-zinc-800'
-                  }`}
-                title="Herramientas de Práctica"
-              >
-                <Settings2 size={20} />
-              </button>
-            )}
+            <button
+              onClick={() => setShowPracticeControls(!showPracticeControls)}
+              className={`p-2 rounded-xl border transition-all ${showPracticeControls
+                ? 'bg-primary-500 text-zinc-950 border-primary-500 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
+                : 'bg-zinc-950/50 text-zinc-400 border-white/5 hover:text-zinc-200 hover:bg-zinc-800'
+                }`}
+              title="Herramientas de Práctica"
+            >
+              <Settings2 size={20} />
+            </button>
             
             <button
               onClick={handleDeleteSong}
@@ -555,7 +565,7 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
       )}
 
       <AnimatePresence>
-        {tracks.length > 0 && !errorMsg && showPracticeControls && mainViewMode === 'pro' && (
+        {!errorMsg && showPracticeControls && (
           <motion.div
             initial={{ height: 0, opacity: 0, marginBottom: 0 }}
             animate={{ height: 'auto', opacity: 1, marginBottom: 16 }}
@@ -564,8 +574,10 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
           >
             <PracticeControls
               isLoading={isLoading}
-              playbackSpeed={playbackSpeed}
-              handleSpeedChange={handleSpeedChange}
+              originalBpm={originalTempo}
+              targetBpm={targetBpm}
+              handleBpmChange={handleBpmChange}
+              showTabControls={mainViewMode === 'pro' && tracks.length > 0}
               transposition={transposition}
               handleTranspositionChange={handleTranspositionChange}
               isMetronomeActive={isMetronomeActive}

@@ -1,6 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { usePullToRefresh } from '../hooks/usePullToRefresh';
-import { PullIndicator } from './PullIndicator';
 import { Search, Play, Download, Loader2, Music, Globe, ChevronDown, ChevronUp } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 import { useAuthStore } from '../store/authStore';
@@ -146,12 +144,6 @@ export const CatalogView: React.FC = () => {
 
   const token = useAuthStore(state => state.token);
 
-  const { containerRef: pullRef, pullProgress, isRefreshing } = usePullToRefresh({
-    onRefresh: async () => {
-      const { SyncService } = await import('../services/syncService');
-      await SyncService.performAutoSync();
-    },
-  });
   const navigate = useNavigate();
 
   // Debounce search
@@ -342,8 +334,7 @@ export const CatalogView: React.FC = () => {
         </h2>
       </div>
 
-      <div ref={pullRef} className="flex-1 overflow-y-auto min-h-0 pr-2 custom-scrollbar space-y-4 pb-12">
-        <PullIndicator pullProgress={pullProgress} isRefreshing={isRefreshing} />
+      <div className="flex-1 overflow-y-auto min-h-0 pr-2 custom-scrollbar space-y-4 pb-12">
         {Object.values(tabs.reduce((acc, tab) => {
           // Extraemos el título base (removiendo números y "version" al final)
           const baseTitle = tab.title.replace(/[\s_]*(v\d+|version\s*\d+|\d+)$/i, '').trim();

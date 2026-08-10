@@ -55,13 +55,7 @@ export const PlayerToolbar = ({
 
   return (
     <motion.div 
-      animate={{ boxShadow: ['0px 10px 40px var(--theme-glow)', '0px 10px 80px var(--theme-glow-strong)', '0px 10px 40px var(--theme-glow)'] }}
-      transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-      className={`bg-zinc-900/90 backdrop-blur-xl p-3 sm:p-4 md:p-5 rounded-2xl md:rounded-3xl border flex w-full flex-col md:flex-row gap-4 md:gap-6 items-center min-h-[60px] md:min-h-[80px] relative transition-colors border-white/10`}>
-      {/* Decorative gradient orb */}
-      <div className="absolute inset-0 overflow-hidden rounded-3xl pointer-events-none">
-        <div className="absolute -top-10 -left-10 w-40 h-40 bg-primary-500/10 rounded-full blur-3xl"></div>
-      </div>
+      className="bg-zinc-900/90 backdrop-blur-xl p-3 sm:p-4 md:p-5 rounded-2xl md:rounded-3xl border flex w-full flex-col md:flex-row gap-4 md:gap-6 items-center min-h-[60px] md:min-h-[80px] relative transition-colors border-white/10 shadow-2xl">
 
       {errorMsg ? (
         <div className="flex items-center gap-3 text-rose-400 w-full font-medium z-10 justify-center">

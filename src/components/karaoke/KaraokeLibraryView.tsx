@@ -10,12 +10,12 @@ import { db } from '../../db';
 import type { Karaoke } from '../../db';
 import { useState } from 'react';
 import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
-import { usePullToRefresh } from '../../hooks/usePullToRefresh';
 import { Navbar } from '../Navbar';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 import { Toast } from '../../utils/toast';
-import { PullIndicator } from '../PullIndicator';
+import { useAuthStore } from '../../store/authStore';
+import { API_BASE_URL } from '../../config';
 
 const MySwal = withReactContent(Swal);
 
@@ -305,18 +305,6 @@ export const KaraokeLibraryView = ({ karaokes, activeKaraokeId, onPlayKaraoke, i
 
   const { visibleItems: displayedKaraokes, loadMoreRef, hasMore } = useInfiniteScroll({ items: filteredKaraokes, itemsPerPage: 20 });
 
-  const { containerRef: pullRef, pullProgress, isRefreshing } = usePullToRefresh({
-    onRefresh: async () => {
-      try {
-        const { SyncService } = await import('../../services/syncService');
-        await SyncService.performAutoSync();
-        Toast.fire({ icon: 'success', title: 'Karaokes actualizados' });
-      } catch (e) {
-        Toast.fire({ icon: 'error', title: 'Error al sincronizar' });
-      }
-    }
-  });
-
   return (
     <div className="flex flex-col h-full w-full p-8">
       <Navbar
@@ -345,8 +333,7 @@ export const KaraokeLibraryView = ({ karaokes, activeKaraokeId, onPlayKaraoke, i
         </div>
       </Navbar>
 
-      <div ref={pullRef} className="flex-1 overflow-y-auto hide-scrollbar pb-10 mt-6">
-        <PullIndicator pullProgress={pullProgress} isRefreshing={isRefreshing} />
+      <div className="flex-1 overflow-y-auto hide-scrollbar pb-10 mt-6">
 
         <div className="bg-zinc-900/30 border border-white/5 rounded-3xl p-4 sm:p-6 min-h-[500px]">
 

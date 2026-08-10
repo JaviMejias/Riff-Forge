@@ -1,12 +1,13 @@
-import { Gauge, Bell, Repeat, LayoutTemplate, Music, Timer } from 'lucide-react';
+import { Gauge, Bell, Repeat, LayoutTemplate, Music, Timer, RotateCcw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState } from 'react';
-import { CustomSelect } from './CustomSelect';
+import { useEffect, useState } from 'react';
 
 interface PracticeControlsProps {
   isLoading: boolean;
-  playbackSpeed: number;
-  handleSpeedChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
+  originalBpm: number;
+  targetBpm: number;
+  handleBpmChange: (bpm: number) => void;
+  showTabControls: boolean;
   transposition: number;
   handleTranspositionChange: (delta: number) => void;
   isCountInActive: boolean;
@@ -47,8 +48,10 @@ const Tooltip = ({ text, children }: { text: string; children: React.ReactNode }
 
 export const PracticeControls = ({
   isLoading,
-  playbackSpeed,
-  handleSpeedChange,
+  originalBpm,
+  targetBpm,
+  handleBpmChange,
+  showTabControls,
   transposition,
   handleTranspositionChange,
   isCountInActive,
@@ -60,31 +63,83 @@ export const PracticeControls = ({
   isHorizontalMode,
   toggleLayoutMode,
 }: PracticeControlsProps) => {
+  const [bpmInput, setBpmInput] = useState(String(targetBpm));
+
+  useEffect(() => {
+    setBpmInput(String(targetBpm));
+  }, [targetBpm]);
+
+  const commitBpmInput = () => {
+    const bpm = Number(bpmInput);
+    if (bpmInput.trim() === '' || !Number.isFinite(bpm)) {
+      setBpmInput(String(targetBpm));
+      return;
+    }
+    handleBpmChange(bpm);
+  };
+
   return (
     <div className="bg-zinc-900/40 backdrop-blur-md p-4 rounded-2xl border border-white/5 flex flex-wrap gap-3 items-center justify-center lg:justify-start shadow-inner shadow-black/20">
       
-      <Tooltip text="Velocidad de reproducción">
+      <Tooltip text={`BPM objetivo · Original: ${originalBpm} BPM`}>
         <div className="flex items-center gap-2 bg-zinc-950/80 px-2 py-1 rounded-xl border border-white/5 shadow-sm transition-colors hover:border-sky-500/30 group">
           <Gauge size={18} className="text-sky-400 group-hover:text-sky-300 transition-colors ml-2" />
-          <div className="w-32">
-            <CustomSelect
+          <div className="flex items-center bg-zinc-900 rounded-lg p-0.5">
+            <motion.button
+              whileTap={{ scale: 0.9 }}
               disabled={isLoading}
-              value={playbackSpeed}
-              onChange={(val) => handleSpeedChange({ target: { value: String(val) } } as React.ChangeEvent<HTMLSelectElement>)}
-              options={[
-                { value: 0.5, label: "50%" },
-                { value: 0.75, label: "75%" },
-                { value: 1, label: "Normal" },
-                { value: 1.25, label: "125%" },
-              ]}
-              theme="sky"
-              className="!border-transparent !bg-transparent"
+              onClick={() => handleBpmChange(targetBpm - 1)}
+              className="w-7 h-7 flex items-center justify-center bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded shadow-sm font-bold disabled:opacity-50"
+              aria-label="Disminuir un BPM"
+            >
+              −
+            </motion.button>
+            <input
+              type="text"
+              inputMode="numeric"
+              disabled={isLoading}
+              value={bpmInput}
+              onChange={(event) => {
+                if (/^\d*$/.test(event.target.value)) {
+                  setBpmInput(event.target.value);
+                }
+              }}
+              onBlur={commitBpmInput}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') event.currentTarget.blur();
+                if (event.key === 'Escape') {
+                  setBpmInput(String(targetBpm));
+                  event.currentTarget.blur();
+                }
+              }}
+              className="w-12 bg-transparent text-center text-sm font-bold text-sky-300 outline-none disabled:opacity-50"
+              aria-label="BPM objetivo"
             />
+            <span className="text-[10px] font-bold text-zinc-500 mr-1">BPM</span>
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              disabled={isLoading}
+              onClick={() => handleBpmChange(targetBpm + 1)}
+              className="w-7 h-7 flex items-center justify-center bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded shadow-sm font-bold disabled:opacity-50"
+              aria-label="Aumentar un BPM"
+            >
+              +
+            </motion.button>
           </div>
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            disabled={isLoading || targetBpm === originalBpm}
+            onClick={() => handleBpmChange(originalBpm)}
+            className="w-7 h-7 flex items-center justify-center text-zinc-500 hover:text-sky-300 rounded-md transition-colors disabled:opacity-30 disabled:cursor-default"
+            aria-label="Restaurar BPM original"
+            title={`Restaurar ${originalBpm} BPM`}
+          >
+            <RotateCcw size={14} />
+          </motion.button>
         </div>
       </Tooltip>
 
-      <Tooltip text="Transposición de Tono">
+      {showTabControls && <Tooltip text="Transposición de Tono">
         <div className="flex items-center gap-2 bg-zinc-950/80 px-3 py-1.5 rounded-xl border border-white/5 shadow-sm group hover:border-pink-500/30 transition-colors">
           <Music size={16} className="text-pink-400 group-hover:text-pink-300" />
           <span className="text-xs text-zinc-400 font-bold hidden sm:inline">
@@ -112,10 +167,10 @@ export const PracticeControls = ({
             </motion.button>
           </div>
         </div>
-      </Tooltip>
+      </Tooltip>}
 
       <div className="flex gap-2 bg-zinc-950/50 p-1.5 rounded-xl border border-white/5">
-        <Tooltip text="Cuenta Regresiva (Count-in)">
+        {showTabControls && <Tooltip text="Cuenta Regresiva (Count-in)">
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -129,7 +184,7 @@ export const PracticeControls = ({
           >
             <Timer size={18} />
           </motion.button>
-        </Tooltip>
+        </Tooltip>}
 
         <Tooltip text="Metrónomo">
           <motion.button
@@ -147,7 +202,7 @@ export const PracticeControls = ({
           </motion.button>
         </Tooltip>
 
-        <Tooltip text="Repetir Canción en Bucle">
+        {showTabControls && <Tooltip text="Repetir Canción en Bucle">
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -161,12 +216,12 @@ export const PracticeControls = ({
           >
             <Repeat size={18} />
           </motion.button>
-        </Tooltip>
+        </Tooltip>}
       </div>
 
-      <div className="w-px h-8 bg-white/10 hidden lg:block mx-1"></div>
+      {showTabControls && <div className="w-px h-8 bg-white/10 hidden lg:block mx-1"></div>}
 
-      <Tooltip text="Cambiar vista a Cinta Horizontal">
+      {showTabControls && <Tooltip text="Cambiar vista a Cinta Horizontal">
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
@@ -181,7 +236,7 @@ export const PracticeControls = ({
           <LayoutTemplate size={18} />{' '}
           <span className="text-sm font-bold hidden xl:inline tracking-wide">Cinta</span>
         </motion.button>
-      </Tooltip>
+      </Tooltip>}
 
     </div>
   );

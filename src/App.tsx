@@ -29,7 +29,6 @@ const PlaylistView = React.lazy(() => import('./components/PlaylistView').then(m
 const ChordDictionaryView = React.lazy(() => import('./components/ChordDictionaryView').then(m => ({ default: m.ChordDictionaryView })));
 const SettingsView = React.lazy(() => import('./components/SettingsView').then(m => ({ default: m.SettingsView })));
 const KaraokeLibraryView = React.lazy(() => import('./components/karaoke/KaraokeLibraryView').then(m => ({ default: m.KaraokeLibraryView })));
-const KaraokePlayer = React.lazy(() => import('./components/karaoke/KaraokePlayer').then(m => ({ default: m.KaraokePlayer })));
 const PlaylistsIndexView = React.lazy(() => import('./components/playlists/PlaylistsIndexView').then(m => ({ default: m.PlaylistsIndexView })));
 const KaraokePlaylistView = React.lazy(() => import('./components/playlists/KaraokePlaylistView').then(m => ({ default: m.KaraokePlaylistView })));
 const CommunityView = React.lazy(() => import('./components/CommunityView').then(m => ({ default: m.CommunityView })));
@@ -105,13 +104,15 @@ function App() {
   const karaokes = useLiveQuery(() => db.karaokes.orderBy('dateAdded').reverse().toArray());
   const navigate = useNavigate();
   const location = useLocation();
+  const serviceWorkerRegistrationRef = React.useRef<ServiceWorkerRegistration | null>(null);
 
   // PWA Auto Update Logic
   const {
-    needRefresh: [needRefresh, setNeedRefresh],
+    needRefresh: [needRefresh],
     updateServiceWorker,
   } = useRegisterSW({
-    onRegistered(_r: any) {
+    onRegistered(registration: ServiceWorkerRegistration | undefined) {
+      serviceWorkerRegistrationRef.current = registration || null;
       console.log('SW Registered');
     },
     onRegisterError(error: any) {
@@ -121,24 +122,9 @@ function App() {
 
   React.useEffect(() => {
     if (needRefresh) {
-      MySwal.fire({
-        title: '¡Nueva Actualización!',
-        text: 'Hay una nueva versión de Riff Forge disponible. Haz clic en actualizar para disfrutar de las nuevas funciones.',
-        icon: 'info',
-        showCancelButton: true,
-        confirmButtonText: 'Actualizar Ahora',
-        cancelButtonText: 'Más tarde',
-        background: '#18181b',
-        color: '#f4f4f5',
-      }).then((result) => {
-        if (result.isConfirmed) {
-          updateServiceWorker(true);
-        } else {
-          setNeedRefresh(false);
-        }
-      });
+      updateServiceWorker(true);
     }
-  }, [needRefresh, setNeedRefresh, updateServiceWorker]);
+  }, [needRefresh, updateServiceWorker]);
 
   const { 
     isMobileMenuOpen, 
@@ -151,6 +137,36 @@ function App() {
   const setTheme = useUiStore(state => state.setTheme);
   const { setMainViewMode } = usePlayerStore();
   const { token, loading } = useAuthStore();
+
+  React.useEffect(() => {
+    if (!token) return;
+
+    let lastRefreshAt = 0;
+    const refreshRemoteState = () => {
+      const now = Date.now();
+      if (now - lastRefreshAt < 15000) return;
+      lastRefreshAt = now;
+
+      serviceWorkerRegistrationRef.current?.update().catch(() => {});
+      import('./services/syncService')
+        .then(({ SyncService }) => SyncService.performAutoSync())
+        .catch(error => console.error('Error refreshing remote state', error));
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refreshRemoteState();
+    };
+
+    window.addEventListener('focus', refreshRemoteState);
+    window.addEventListener('online', refreshRemoteState);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', refreshRemoteState);
+      window.removeEventListener('online', refreshRemoteState);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [token]);
 
   React.useEffect(() => {
     // Initial theme sync when the app loads

@@ -1,6 +1,4 @@
 import { useState } from 'react';
-import { usePullToRefresh } from '../hooks/usePullToRefresh';
-import { PullIndicator } from './PullIndicator';
 import { motion } from 'framer-motion';
 import { Download, Upload, Palette, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { db } from '../db';
@@ -18,12 +16,6 @@ interface SettingsViewProps {
 }
 
 export const SettingsView = (_props: SettingsViewProps) => {
-  const { containerRef: pullRef, pullProgress, isRefreshing } = usePullToRefresh({
-    onRefresh: async () => {
-      const { SyncService } = await import('../services/syncService');
-      await SyncService.performAutoSync();
-    },
-  });
   const { theme, setTheme } = useUiStore();
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -296,8 +288,7 @@ export const SettingsView = (_props: SettingsViewProps) => {
   };
 
   return (
-    <div ref={pullRef} className="flex flex-col h-full w-full bg-zinc-950 overflow-y-auto custom-scrollbar">
-      <PullIndicator pullProgress={pullProgress} isRefreshing={isRefreshing} />
+    <div className="flex flex-col h-full w-full bg-zinc-950 overflow-y-auto custom-scrollbar">
       {/* Navbar area */}
       <div className="p-8 pb-4 shrink-0">
         <Navbar title="Ajustes" subtitle="Configuración y personalización" />

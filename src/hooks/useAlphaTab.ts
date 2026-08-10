@@ -16,6 +16,7 @@ export function useAlphaTab(song: Song | null) {
   const [songTitle, setSongTitle] = useState<string>('');
   const [songArtist, setSongArtist] = useState<string>('');
   const [songAlbum, setSongAlbum] = useState<string>('');
+  const [originalTempo, setOriginalTempo] = useState<number>(120);
 
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState('Cargando...');
@@ -105,6 +106,7 @@ export function useAlphaTab(song: Song | null) {
       setSongTitle(score.title || 'Canción sin título');
       setSongArtist(score.artist || '');
       setSongAlbum(score.album || '');
+      setOriginalTempo(Math.round(score.tempo || 120));
       setTracks(score.tracks);
       
       if (score.tracks.length > 0) {
@@ -252,6 +254,7 @@ export function useAlphaTab(song: Song | null) {
     songTitle,
     songArtist,
     songAlbum,
+    originalTempo,
     isLoading,
     setIsLoading,
     loadingMsg,

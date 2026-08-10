@@ -1,6 +1,4 @@
 import { useState, useEffect } from 'react';
-import { usePullToRefresh } from '../hooks/usePullToRefresh';
-import { PullIndicator } from './PullIndicator';
 import { Navbar } from './Navbar';
 import { SongCard } from './SongCard';
 import { KaraokeCard } from './karaoke/KaraokeCard';
@@ -30,25 +28,6 @@ export const CommunityView = ({ isSidebarOpen, onToggleSidebar }: CommunityViewP
 
   const token = useAuthStore(state => state.token);
   const currentUser = useAuthStore(state => state.user);
-
-  const { containerRef: pullRef, pullProgress, isRefreshing } = usePullToRefresh({
-    onRefresh: async () => {
-      setLoading(true);
-      try {
-        const res = await fetch(`${API_URL}/community/${activeTab}?t=${Date.now()}`, {
-          headers: { 'Authorization': `Bearer ${token}`, 'Cache-Control': 'no-cache, no-store, must-revalidate' },
-          cache: 'no-store',
-        });
-        if (!res.ok) throw new Error();
-        const data = await res.json();
-        setItems(data);
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setLoading(false);
-      }
-    },
-  });
 
   // FE-5: AbortController prevents race conditions when switching tabs quickly
   useEffect(() => {
@@ -315,8 +294,7 @@ export const CommunityView = ({ isSidebarOpen, onToggleSidebar }: CommunityViewP
         </div>
       </Navbar>
 
-      <div ref={pullRef} className="flex-1 overflow-y-auto hide-scrollbar pb-10 mt-6">
-        <PullIndicator pullProgress={pullProgress} isRefreshing={isRefreshing} />
+      <div className="flex-1 overflow-y-auto hide-scrollbar pb-10 mt-6">
         <div className="bg-zinc-900/30 border border-white/5 rounded-3xl p-4 sm:p-6 min-h-[500px]">
           
           {/* HEADER DEL CONTENEDOR */}

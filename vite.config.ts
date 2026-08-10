@@ -32,7 +32,7 @@ export default defineConfig({
     tailwindcss(),
     react(),
     VitePWA({
-      registerType: 'prompt',
+      registerType: 'autoUpdate',
       includeAssets: ['icon.svg', 'icon-192x192.png', 'icon-512x512.png'],
       manifest: {
         name: 'Riff Forge',
@@ -63,7 +63,17 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,wasm}'],
-        maximumFileSizeToCacheInBytes: 5000000 // 5MB to handle alphaTab wasm
+        maximumFileSizeToCacheInBytes: 5000000, // 5MB to handle alphaTab wasm
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true,
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => ['/api/', '/downloads/', '/uploads/', '/media/']
+              .some(path => url.pathname.startsWith(path)),
+            handler: 'NetworkOnly'
+          }
+        ]
       }
     })
   ],

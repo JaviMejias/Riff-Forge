@@ -46,7 +46,7 @@ export const useUiStore = create<UiState>()(
         return { isImmersiveMode: nextState };
       }),
       theme: 'amber',
-      setTheme: (theme) => set(() => {
+      setTheme: (theme) => set((state) => {
         // Remove existing theme classes from html
         const html = document.documentElement;
         html.classList.forEach(className => {
@@ -60,7 +60,9 @@ export const useUiStore = create<UiState>()(
           html.classList.add(`theme-${theme}`);
         }
         
-        setTimeout(() => window.dispatchEvent(new Event('trigger-auto-sync')), 100);
+        if (state.theme !== theme && !(window as any).__isSyncing) {
+          setTimeout(() => window.dispatchEvent(new Event('trigger-auto-sync')), 100);
+        }
         return { theme };
       }),
     }),
