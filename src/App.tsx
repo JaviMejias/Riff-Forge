@@ -160,11 +160,15 @@ function App() {
     window.addEventListener('focus', refreshRemoteState);
     window.addEventListener('online', refreshRemoteState);
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    const refreshInterval = window.setInterval(() => {
+      if (document.visibilityState === 'visible' && navigator.onLine) refreshRemoteState();
+    }, 30000);
 
     return () => {
       window.removeEventListener('focus', refreshRemoteState);
       window.removeEventListener('online', refreshRemoteState);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.clearInterval(refreshInterval);
     };
   }, [token]);
 

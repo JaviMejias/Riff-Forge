@@ -2,6 +2,10 @@ export interface ChordDef {
   id?: number;
   cloudId?: string;
   updatedAt?: number;
+  createdAt?: number;
+  deletedAt?: number | null;
+  version?: number;
+  syncDirty?: boolean;
   name: string;
   frets: number[];
   fingers?: number[];

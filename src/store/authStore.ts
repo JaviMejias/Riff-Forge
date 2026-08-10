@@ -93,18 +93,19 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
       // Clear local database to protect privacy
       const { db } = await import('../db');
-      await db.transaction('rw', [db.songs, db.playlists, db.customChords, db.karaokes, db.karaokePlaylists, db.karaokeFiles], async () => {
+      await db.transaction('rw', [db.songs, db.playlists, db.customChords, db.karaokes, db.karaokePlaylists, db.karaokeFiles, db.syncOperations], async () => {
         await db.songs.clear();
         await db.playlists.clear();
         await db.customChords.clear();
         await db.karaokes.clear();
         await db.karaokePlaylists.clear();
         await db.karaokeFiles.clear();
+        await db.syncOperations.clear();
       });
 
       // FE-7 fix: only remove keys this app owns — localStorage.clear() also wipes
       // browser extension data and unrelated app data on the same origin.
-      const APP_KEYS = ['riff_token', 'lastSyncAt', 'lastSyncedUiStorage', 'deleted_cloud_ids', 'ui-storage'];
+      const APP_KEYS = ['riff_token', 'lastSyncAt', 'lastSyncedUiStorage', 'deleted_cloud_ids', 'sync_v2_cursor', 'sync_v2_pending_deletions', 'ui-storage'];
       APP_KEYS.forEach(key => localStorage.removeItem(key));
 
       await Swal.fire({ 

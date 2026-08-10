@@ -1,387 +1,434 @@
-import { db } from '../db';
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { v4 as uuidv4 } from 'uuid';
+import { db, recoverPendingSyncOperations, type SyncEntityType } from '../db';
 import { useAuthStore } from '../store/authStore';
 import { useUiStore } from '../store/uiStore';
-
-import { API_BASE_URL } from '../config'; // FE-1: use central config
+import { API_BASE_URL } from '../config';
 
 const API_URL = `${API_BASE_URL}/api`;
+const DEVICE_ID_KEY = 'sync_v2_device_id';
+const CURSOR_KEY = 'sync_v2_cursor';
 
-let syncTimeout: any = null;
-let syncInProgress: Promise<void> | null = null; // FE-6: lock to prevent concurrent syncs
+interface RemoteFile {
+  url: string;
+  version: number;
+  hash?: string;
+  size?: number;
+  mimeType?: string;
+}
+
+interface SyncChange {
+  entityType: SyncEntityType;
+  entityId: string;
+  version: number;
+  createdAt: number;
+  updatedAt: number;
+  deletedAt: number | null;
+  data: Record<string, any>;
+}
+
+interface RejectedOperation {
+  operationId: string;
+  reason: string;
+  serverEntity?: SyncChange;
+}
+
+interface SyncResponse {
+  acknowledgedOperationIds: string[];
+  rejectedOperations: RejectedOperation[];
+  changes: SyncChange[];
+  nextCursor: string | null;
+  hasMore: boolean;
+}
+
+let syncTimeout: ReturnType<typeof setTimeout> | null = null;
+let syncInProgress: Promise<void> | null = null;
+
+const getDeviceId = () => {
+  let deviceId = localStorage.getItem(DEVICE_ID_KEY);
+  if (!deviceId) {
+    deviceId = uuidv4();
+    localStorage.setItem(DEVICE_ID_KEY, deviceId);
+  }
+  return deviceId;
+};
+
+const fullFileUrl = (url: string) => /^https?:\/\//.test(url) ? url : `${API_BASE_URL}${url}`;
+
+const downloadBinary = async (file: RemoteFile) => {
+  const response = await fetch(fullFileUrl(file.url), { cache: 'no-store' });
+  if (!response.ok) throw new Error(`File download failed: ${response.status}`);
+  return new Uint8Array(await response.arrayBuffer());
+};
+
+const runRemoteWrite = async <T>(write: () => Promise<T>) => {
+  (window as any).__isSyncing = true;
+  try {
+    return await write();
+  } finally {
+    (window as any).__isSyncing = false;
+  }
+};
+
+const deleteByCloudId = async (entityType: SyncEntityType, cloudId: string) => {
+  const table = entityType === 'song' ? db.songs
+    : entityType === 'karaoke' ? db.karaokes
+    : entityType === 'custom_chord' ? db.customChords
+    : entityType === 'playlist' ? db.playlists
+    : db.karaokePlaylists;
+  const existing = await table.where('cloudId').equals(cloudId).first() as any;
+  if (!existing) return;
+
+  if (entityType === 'karaoke') await db.karaokeFiles.delete(existing.id);
+  await table.delete(existing.id);
+
+  if (entityType === 'song') {
+    const playlists = await db.playlists.toArray();
+    await Promise.all(playlists.filter(p => p.songIds.includes(existing.id)).map(p =>
+      db.playlists.update(p.id!, { songIds: p.songIds.filter(id => id !== existing.id) })
+    ));
+  } else if (entityType === 'karaoke') {
+    const playlists = await db.karaokePlaylists.toArray();
+    await Promise.all(playlists.filter(p => p.karaokeIds.includes(existing.id)).map(p =>
+      db.karaokePlaylists.update(p.id!, { karaokeIds: p.karaokeIds.filter(id => id !== existing.id) })
+    ));
+  }
+};
+
+const applySong = async (change: SyncChange) => {
+  const existing = await db.songs.where('cloudId').equals(change.entityId).first();
+  const file = change.data.file as RemoteFile | undefined;
+  let binaryData = existing?.data;
+  let fileApplied = !file || existing?.fileVersion === file.version;
+
+  if (file && !fileApplied) {
+    binaryData = await downloadBinary(file);
+    fileApplied = true;
+  }
+
+  const data = { ...change.data };
+  delete data.file;
+  const values = {
+    ...data,
+    cloudId: change.entityId,
+    version: change.version,
+    createdAt: change.createdAt,
+    updatedAt: change.updatedAt,
+    deletedAt: change.deletedAt,
+    cloudUrl: file?.url,
+    fileVersion: fileApplied ? file?.version : existing?.fileVersion,
+    fileHash: fileApplied ? file?.hash : existing?.fileHash,
+    fileSize: fileApplied ? file?.size : existing?.fileSize,
+    fileMimeType: fileApplied ? file?.mimeType : existing?.fileMimeType,
+    data: binaryData,
+    localFileDirty: existing?.localFileDirty || false,
+    syncDirty: false
+  };
+  await runRemoteWrite(async () => {
+    if (existing) await db.songs.update(existing.id!, values);
+    else await db.songs.add(values as any);
+  });
+};
+
+const applyKaraoke = async (change: SyncChange) => {
+  const existing = await db.karaokes.where('cloudId').equals(change.entityId).first();
+  const file = change.data.file as RemoteFile | undefined;
+  const data = { ...change.data };
+  delete data.file;
+  const values = {
+    ...data,
+    cloudId: change.entityId,
+    version: change.version,
+    createdAt: change.createdAt,
+    updatedAt: change.updatedAt,
+    deletedAt: change.deletedAt,
+    cloudUrl: file?.url,
+    fileVersion: file?.version,
+    fileHash: file?.hash,
+    fileSize: file?.size,
+    fileMimeType: file?.mimeType,
+    localFileDirty: existing?.localFileDirty || false,
+    syncDirty: false
+  };
+  const localFile = existing?.id ? await db.karaokeFiles.get(existing.id) : undefined;
+  let binaryData: Uint8Array | undefined;
+  if (file && (!localFile?.data || existing?.fileVersion !== file.version) && !existing?.localFileDirty) {
+    binaryData = await downloadBinary(file);
+  }
+  await runRemoteWrite(async () => {
+    const localId = existing?.id || await db.karaokes.add(values as any) as number;
+    if (existing) await db.karaokes.update(localId, values);
+    if (file && binaryData) await db.karaokeFiles.put({ karaokeId: localId, cloudUrl: file.url, data: binaryData });
+  });
+};
+
+const applySimpleEntity = async (change: SyncChange) => {
+  if (change.entityType === 'custom_chord') {
+    const existing = await db.customChords.where('cloudId').equals(change.entityId).first();
+    const values = { ...change.data, cloudId: change.entityId, version: change.version, createdAt: change.createdAt, updatedAt: change.updatedAt, syncDirty: false } as Record<string, any>;
+    for (const field of ['frets', 'fingers', 'barres']) {
+      if (typeof values[field] === 'string') values[field] = JSON.parse(values[field]);
+    }
+    if (existing) await db.customChords.update(existing.id!, values);
+    else await db.customChords.add(values as any);
+    return;
+  }
+
+  if (change.entityType === 'playlist') {
+    const songs = await db.songs.toArray();
+    const ids = new Map(songs.map(song => [song.cloudId, song.id]));
+    const songIds = (change.data.songCloudIds || []).map((id: string) => ids.get(id)).filter(Boolean) as number[];
+    const existing = await db.playlists.where('cloudId').equals(change.entityId).first();
+    const values = { ...change.data, songCloudIds: undefined, songIds, cloudId: change.entityId, version: change.version, createdAt: change.createdAt, updatedAt: change.updatedAt, syncDirty: false };
+    if (existing) await db.playlists.update(existing.id!, values);
+    else await db.playlists.add(values as any);
+    return;
+  }
+
+  const karaokes = await db.karaokes.toArray();
+  const ids = new Map(karaokes.map(karaoke => [karaoke.cloudId, karaoke.id]));
+  const karaokeIds = (change.data.karaokeCloudIds || []).map((id: string) => ids.get(id)).filter(Boolean) as number[];
+  const existing = await db.karaokePlaylists.where('cloudId').equals(change.entityId).first();
+  const values = { ...change.data, karaokeCloudIds: undefined, karaokeIds, cloudId: change.entityId, version: change.version, createdAt: change.createdAt, updatedAt: change.updatedAt, syncDirty: false };
+  if (existing) await db.karaokePlaylists.update(existing.id!, values);
+  else await db.karaokePlaylists.add(values as any);
+};
+
+const applyChanges = async (changes: SyncChange[]) => {
+  const latestByEntity = new Map<string, SyncChange>();
+  for (const change of changes) latestByEntity.set(`${change.entityType}:${change.entityId}`, change);
+  const latestChanges = Array.from(latestByEntity.values());
+  for (const change of latestChanges.filter(item => item.deletedAt)) {
+    await runRemoteWrite(() => deleteByCloudId(change.entityType, change.entityId));
+    await db.syncOperations.where('entityId').equals(change.entityId).delete();
+  }
+  const activeChanges = latestChanges.filter(item => !item.deletedAt);
+  for (const change of activeChanges.filter(item => item.entityType === 'song')) await applySong(change);
+  for (const change of activeChanges.filter(item => item.entityType === 'karaoke')) await applyKaraoke(change);
+  for (const change of activeChanges.filter(item => !['song', 'karaoke'].includes(item.entityType))) {
+    await runRemoteWrite(() => applySimpleEntity(change));
+  }
+};
+
+const applyConflict = async (rejection: RejectedOperation) => {
+  if (rejection.reason === 'conflict' && rejection.serverEntity) {
+    await applyChanges([rejection.serverEntity]);
+    await db.syncOperations.update(rejection.operationId, { lastError: 'conflict' });
+    return;
+  }
+  await db.syncOperations.update(rejection.operationId, { lastError: rejection.reason });
+};
+
+const uploadDirtyFiles = async (headers: Record<string, string>) => {
+  let uploaded = false;
+  const songs = await db.songs.filter(song => !!song.localFileDirty && !!song.data && !song.isTemporary).toArray();
+  for (const song of songs) {
+    const formData = new FormData();
+    Object.entries(song).forEach(([key, value]) => {
+      if (key === 'data' && value) formData.append('file', new Blob([value as BlobPart]), `${song.cloudId}.gp`);
+      else if (!['id', 'version', 'createdAt', 'updatedAt', 'deletedAt', 'fileVersion', 'fileHash', 'fileSize', 'fileMimeType'].includes(key) && value != null) {
+        formData.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+      }
+    });
+    formData.append('id', song.cloudId!);
+    const url = song.version ? `${API_URL}/songs/${song.cloudId}` : `${API_URL}/songs`;
+    const response = await fetch(url, { method: song.version ? 'PUT' : 'POST', headers, body: formData });
+    if (!response.ok) throw new Error(`Song file upload failed: ${response.status}`);
+    uploaded = true;
+    await db.syncOperations.where('entityId').equals(song.cloudId!).delete();
+    await runRemoteWrite(() => db.songs.update(song.id!, { localFileDirty: false }));
+  }
+
+  const karaokes = await db.karaokes.filter(karaoke => !!karaoke.localFileDirty).toArray();
+  for (const karaoke of karaokes) {
+    const file = await db.karaokeFiles.get(karaoke.id!);
+    if (!file?.data) continue;
+    const formData = new FormData();
+    Object.entries(karaoke).forEach(([key, value]) => {
+      if (!['id', 'version', 'createdAt', 'updatedAt', 'deletedAt', 'fileVersion', 'fileHash', 'fileSize', 'fileMimeType'].includes(key) && value != null) {
+        formData.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+      }
+    });
+    formData.append('id', karaoke.cloudId!);
+    formData.append('file', new Blob([file.data as BlobPart]), `${karaoke.cloudId}.mp3`);
+    const url = karaoke.version ? `${API_URL}/karaokes/${karaoke.cloudId}` : `${API_URL}/karaokes`;
+    const response = await fetch(url, { method: karaoke.version ? 'PUT' : 'POST', headers, body: formData });
+    if (!response.ok) throw new Error(`Karaoke file upload failed: ${response.status}`);
+    uploaded = true;
+    await db.syncOperations.where('entityId').equals(karaoke.cloudId!).delete();
+    await runRemoteWrite(() => db.karaokes.update(karaoke.id!, { localFileDirty: false }));
+  }
+  return uploaded;
+};
+
+const migrateUnsyncedRecords = async () => {
+  const collections = [db.songs, db.karaokes, db.customChords, db.playlists, db.karaokePlaylists] as any[];
+  for (const table of collections) {
+    const records = await table.toArray();
+    for (const record of records) {
+      if (!record.cloudId) await table.update(record.id, { cloudId: uuidv4(), version: 0, updatedAt: Date.now() });
+    }
+  }
+};
+
+const applyUiStorage = (value: string) => {
+  localStorage.setItem('ui-storage', value);
+  try {
+    const parsed = JSON.parse(value);
+    if (parsed?.state?.theme) useUiStore.getState().setTheme(parsed.state.theme);
+  } catch {
+    // Ignore malformed legacy settings and keep the local theme.
+  }
+};
+
+const syncSettings = async (headers: Record<string, string>) => {
+  const localValue = localStorage.getItem('ui-storage') || '';
+  const localSnapshot = JSON.stringify({ 'ui-storage': localValue });
+  const lastSnapshot = localStorage.getItem('lastSyncedUiStorage');
+  const verifyResponse = await fetch(`${API_URL}/auth/verify`, { headers });
+  if (!verifyResponse.ok) throw new Error(`Settings download failed: ${verifyResponse.status}`);
+  const authData = await verifyResponse.json();
+  useAuthStore.setState({ user: authData.user });
+
+  let remoteSettings: Record<string, string> = {};
+  if (authData.user?.uiStorage) {
+    try {
+      remoteSettings = typeof authData.user.uiStorage === 'string'
+        ? JSON.parse(authData.user.uiStorage)
+        : authData.user.uiStorage;
+    } catch {
+      remoteSettings = {};
+    }
+  }
+  const remoteValue = remoteSettings['ui-storage'];
+
+  if (lastSnapshot === null && remoteValue) {
+    applyUiStorage(remoteValue);
+    localStorage.setItem('lastSyncedUiStorage', JSON.stringify({ 'ui-storage': remoteValue }));
+    return;
+  }
+  if (lastSnapshot !== null && localSnapshot === lastSnapshot && remoteValue && remoteValue !== localValue) {
+    applyUiStorage(remoteValue);
+    localStorage.setItem('lastSyncedUiStorage', JSON.stringify({ 'ui-storage': remoteValue }));
+    return;
+  }
+  if (localSnapshot !== lastSnapshot) {
+    const response = await fetch(`${API_URL}/auth/settings`, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uiStorage: { 'ui-storage': localValue } })
+    });
+    if (!response.ok) throw new Error(`Settings upload failed: ${response.status}`);
+    localStorage.setItem('lastSyncedUiStorage', localSnapshot);
+  }
+};
 
 export const SyncService = {
   scheduleAutoSync() {
     if (syncTimeout) clearTimeout(syncTimeout);
     syncTimeout = setTimeout(() => {
-      SyncService.performAutoSync();
+      void this.performAutoSync().catch(() => {});
     }, 3000);
   },
 
-  performAutoSync(onProgress?: (msg: string) => void) {
+  performAutoSync(onProgress?: (message: string) => void) {
     if (syncInProgress) return syncInProgress;
-    syncInProgress = this._doSync(onProgress).finally(() => {
-      syncInProgress = null;
-    });
+    syncInProgress = this._doSync(onProgress).finally(() => { syncInProgress = null; });
     return syncInProgress;
   },
 
-  async _doSync(onProgress?: (msg: string) => void) {
+  async _doSync(onProgress?: (message: string) => void) {
     const token = useAuthStore.getState().token;
     if (!token) return;
-
-    const headers = { 'Authorization': `Bearer ${token}` };
-    const lastSyncAt = parseInt(localStorage.getItem('lastSyncAt') || '0');
-    const newSyncTime = Date.now();
-
-    (window as any).__isSyncing = true;
+    const headers = { Authorization: `Bearer ${token}` };
 
     try {
-      // 1. Process Deletions First
-      const deletedStr = localStorage.getItem('deleted_cloud_ids');
-      if (deletedStr) {
-        const deleted = JSON.parse(deletedStr);
-        for (const item of deleted) {
-          const endpoint = item.table === 'songs' ? 'songs' :
-                           item.table === 'karaokes' ? 'karaokes' : null;
-          // Playlists and chords are handled by bulk overwrite, so no need to delete individually
-          if (endpoint) {
-            await fetch(`${API_URL}/${endpoint}/${item.cloudId}`, { method: 'DELETE', headers });
-          }
-        }
-        localStorage.removeItem('deleted_cloud_ids');
-      }
-
-      // 2. Sync Songs incrementally
-      onProgress?.('Sincronizando canciones...');
-      const songs = await db.songs.filter(s => (s.updatedAt || 0) > lastSyncAt).toArray();
-      for (const song of songs) {
-        if (!song.cloudId) {
-          song.cloudId = uuidv4();
-          await db.songs.update(song.id!, { cloudId: song.cloudId });
-        }
-        
-        const createSongFormData = () => {
-          const fd = new FormData();
-          Object.entries(song).forEach(([key, value]) => {
-            if (key === 'data' && value) {
-              if (!song.cloudUrl || song.localFileDirty) {
-                fd.append('file', new Blob([value as any]), `${song.cloudId}.gp`);
-              }
-            } else if (value !== undefined && value !== null && key !== 'id') {
-              fd.append(key, typeof value === 'object' ? JSON.stringify(value) : value.toString());
-            }
-          });
-          fd.append('id', song.cloudId!);
-          return fd;
-        };
-
-        const method = 'PUT'; 
-        const res = await fetch(`${API_URL}/songs/${song.cloudId}`, { method, headers, body: createSongFormData() });
-        if (!res.ok && res.status === 404) {
-          await fetch(`${API_URL}/songs`, { method: 'POST', headers, body: createSongFormData() });
-        } else if (!res.ok) {
-          throw new Error(`Song update failed: ${res.status}`);
-        }
-
-        if (song.localFileDirty) {
-          await db.songs.update(song.id!, { localFileDirty: false });
-        }
-      }
-
-      // 3. Sync Karaokes incrementally
-      onProgress?.('Sincronizando karaokes...');
-      const karaokes = await db.karaokes.filter(k => (k.updatedAt || 0) > lastSyncAt).toArray();
-      for (const karaoke of karaokes) {
-        if (!karaoke.cloudId) {
-          karaoke.cloudId = uuidv4();
-          await db.karaokes.update(karaoke.id!, { cloudId: karaoke.cloudId } as any);
-        }
-
-        const karaokeFile = await db.karaokeFiles.get(karaoke.id!);
-
-        const createKaraokeFormData = () => {
-          const fd = new FormData();
-          Object.entries(karaoke).forEach(([key, value]) => {
-            if (value !== undefined && value !== null && key !== 'id') {
-              fd.append(key, typeof value === 'object' ? JSON.stringify(value) : value.toString());
-            }
-          });
-          fd.append('id', karaoke.cloudId!);
-
-          if (karaokeFile && karaokeFile.data) {
-            if (!karaoke.cloudUrl || karaoke.localFileDirty) {
-              fd.append('file', new Blob([karaokeFile.data as any]), `${karaoke.cloudId}.mp3`);
-            }
-          }
-          return fd;
-        };
-
-        const res = await fetch(`${API_URL}/karaokes/${karaoke.cloudId}`, { method: 'PUT', headers, body: createKaraokeFormData() });
-        if (!res.ok && res.status === 404) {
-          await fetch(`${API_URL}/karaokes`, { method: 'POST', headers, body: createKaraokeFormData() });
-        } else if (!res.ok) {
-          throw new Error(`Karaoke update failed`);
-        }
-
-        if (karaoke.localFileDirty) {
-          await db.karaokes.update(karaoke.id!, { localFileDirty: false } as any);
-        }
-      }
-
-      // 4. Bulk Sync Small Tables if modified
-      const playlistsChanged = await db.playlists.filter(p => (p.updatedAt || 0) > lastSyncAt).count();
-      if (playlistsChanged > 0) {
-        onProgress?.('Sincronizando listas...');
-        const playlists = await db.playlists.toArray();
-        const songIdToCloudId = new Map((await db.songs.toArray()).map(s => [s.id, s.cloudId]));
-        const playlistsPayload = playlists.map(p => ({
-          ...p,
-          id: p.cloudId || uuidv4(),
-          songCloudIds: p.songIds.map(id => songIdToCloudId.get(id)).filter(Boolean)
-        }));
-        const res = await fetch(`${API_URL}/playlists/sync`, { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify(playlistsPayload) });
-        if (!res.ok) throw new Error(`Playlist sync failed: ${res.status}`);
-      }
-
-      const kPlaylistsChanged = await db.karaokePlaylists.filter(p => (p.updatedAt || 0) > lastSyncAt).count();
-      if (kPlaylistsChanged > 0) {
-        const karaokePlaylists = await db.karaokePlaylists.toArray();
-        const karaokeIdToCloudId = new Map((await db.karaokes.toArray()).map(k => [k.id, k.cloudId]));
-        const kPlaylistsPayload = karaokePlaylists.map(p => ({
-          ...p,
-          id: p.cloudId || uuidv4(),
-          karaokeCloudIds: p.karaokeIds.map(id => karaokeIdToCloudId.get(id)).filter(Boolean)
-        }));
-        const res = await fetch(`${API_URL}/karaoke-playlists/sync`, { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify(kPlaylistsPayload) });
-        if (!res.ok) throw new Error(`Karaoke Playlist sync failed: ${res.status}`);
-      }
-
-      const chordsChanged = await db.customChords.filter(c => (c.updatedAt || 0) > lastSyncAt).count();
-      if (chordsChanged > 0) {
-        onProgress?.('Sincronizando acordes...');
-        const chords = await db.customChords.toArray();
-        const chordsPayload = chords.map(c => ({
-          ...c,
-          id: c.cloudId || uuidv4()
-        }));
-        const res = await fetch(`${API_URL}/chords/sync`, { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify(chordsPayload) });
-        if (!res.ok) throw new Error(`Chords sync failed: ${res.status}`);
-      }
-
-      // 5. Sync Settings
-      onProgress?.('Subiendo ajustes de usuario...');
-      const SYNC_KEYS = ['ui-storage']; // L-5 fix: allowlist instead of denylist
-      const settings: Record<string, string> = {};
-      SYNC_KEYS.forEach(key => {
-        const val = localStorage.getItem(key);
-        if (val !== null) settings[key] = val;
-      });
-      const settingsSnapshot = JSON.stringify(settings);
-      if (localStorage.getItem('lastSyncedUiStorage') !== settingsSnapshot) {
-        const resSettings = await fetch(`${API_URL}/auth/settings`, {
+      await migrateUnsyncedRecords();
+      await recoverPendingSyncOperations();
+      let hasMore = true;
+      let sendOperations = true;
+      while (hasMore) {
+        const operations = sendOperations
+          ? (await db.syncOperations.filter(operation => !operation.lastError).toArray())
+            .sort((left, right) => {
+              const leftPlaylist = ['playlist', 'karaoke_playlist'].includes(left.entityType);
+              const rightPlaylist = ['playlist', 'karaoke_playlist'].includes(right.entityType);
+              const leftPriority = left.action === 'delete' ? (leftPlaylist ? 0 : 1) : (leftPlaylist ? 1 : 0);
+              const rightPriority = right.action === 'delete' ? (rightPlaylist ? 0 : 1) : (rightPlaylist ? 1 : 0);
+              return leftPriority - rightPriority || left.clientUpdatedAt - right.clientUpdatedAt;
+            })
+            .slice(0, 100)
+          : [];
+        onProgress?.('Sincronizando cambios...');
+        const response = await fetch(`${API_URL}/sync/v2`, {
           method: 'POST',
           headers: { ...headers, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ uiStorage: settings })
+          body: JSON.stringify({
+            deviceId: getDeviceId(),
+            cursor: localStorage.getItem(CURSOR_KEY),
+            limit: 200,
+            operations: operations.map(operation => ({
+              operationId: operation.operationId,
+              entityType: operation.entityType,
+              entityId: operation.entityId,
+              action: operation.action,
+              baseVersion: operation.baseVersion,
+              clientUpdatedAt: operation.clientUpdatedAt,
+              data: operation.data
+            }))
+          })
         });
-        if (!resSettings.ok) throw new Error(`Settings sync failed: ${resSettings.status}`);
-        localStorage.setItem('lastSyncedUiStorage', settingsSnapshot);
+        if (!response.ok) throw new Error(`Sync v2 failed: ${response.status}`);
+        const result = await response.json() as SyncResponse;
+
+        await applyChanges(result.changes || []);
+        await db.syncOperations.bulkDelete(result.acknowledgedOperationIds || []);
+        for (const rejection of result.rejectedOperations || []) await applyConflict(rejection);
+        if (result.nextCursor) localStorage.setItem(CURSOR_KEY, result.nextCursor);
+        const pendingCount = await db.syncOperations.filter(operation => !operation.lastError).count();
+        sendOperations = !result.hasMore && pendingCount > 0;
+        hasMore = result.hasMore || sendOperations;
       }
 
-      // Always pull the complete remote state after uploading local changes.
-      // IndexedDB is device-local, so without this step another device's changes
-      // would only appear after logging out or clearing the browser data.
-      onProgress?.('Descargando cambios de otros dispositivos...');
-      await this.downloadAllFromCloud(onProgress);
-
-      localStorage.setItem('lastSyncAt', newSyncTime.toString());
-      onProgress?.('¡Respaldo en el servidor completado!');
+      onProgress?.('Subiendo archivos pendientes...');
+      const uploadedFiles = await uploadDirtyFiles(headers);
+      if (uploadedFiles) {
+        hasMore = true;
+        while (hasMore) {
+          const response = await fetch(`${API_URL}/sync/v2`, {
+            method: 'POST',
+            headers: { ...headers, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              deviceId: getDeviceId(),
+              cursor: localStorage.getItem(CURSOR_KEY),
+              limit: 200,
+              operations: []
+            })
+          });
+          if (!response.ok) throw new Error(`Sync v2 failed after file upload: ${response.status}`);
+          const result = await response.json() as SyncResponse;
+          await applyChanges(result.changes || []);
+          if (result.nextCursor) localStorage.setItem(CURSOR_KEY, result.nextCursor);
+          hasMore = result.hasMore;
+        }
+      }
+      await syncSettings(headers);
+      onProgress?.('¡Sincronización completada!');
     } catch (error) {
-      console.error("Auto-sync background failed", error);
-    } finally {
-      (window as any).__isSyncing = false;
+      console.error('Auto-sync v2 failed', error);
+      throw error;
     }
   },
 
-  async syncAllToCloud(onProgress?: (msg: string) => void) {
-    // We can just rely on the new performAutoSync for this as well, 
-    // but to force everything, we reset lastSyncAt to 0.
-    localStorage.setItem('lastSyncAt', '0');
+  async syncAllToCloud(onProgress?: (message: string) => void) {
     await this.performAutoSync(onProgress);
   },
 
-
-  async downloadAllFromCloud(onProgress?: (msg: string) => void) {
-    const token = useAuthStore.getState().token;
-    if (!token) throw new Error("No hay usuario autenticado");
-
-    const headers = { 'Authorization': `Bearer ${token}` };
-
-    onProgress?.('Descargando datos del servidor...');
-
-    // Fetch latest user data for settings
-    try {
-      const authRes = await fetch(`${API_URL}/auth/verify`, { headers });
-      if (authRes.ok) {
-        const authData = await authRes.json();
-        useAuthStore.setState({ user: authData.user });
-      }
-    } catch (e) {}
-
-    // 1. Download Songs
-    onProgress?.('Descargando canciones...');
-    let res = await fetch(`${API_URL}/songs`, { headers, cache: 'no-store' });
-    if (res.ok) {
-      const serverSongs = await res.json();
-      for (const item of serverSongs) {
-        const { id: cloudId, ...data } = item; // M-4: destructuring instead of delete
-        const existing = await db.songs.where('cloudId').equals(cloudId).first();
-        
-        let binaryData = null;
-        if (data.cloudUrl && (!existing || !existing.data)) {
-          try {
-            const resp = await fetch(`${API_BASE_URL}${data.cloudUrl}`, { cache: 'no-store' }); // FE-1: use config
-            if (resp.ok) {
-              const arrayBuffer = await resp.arrayBuffer();
-              binaryData = new Uint8Array(arrayBuffer);
-            }
-          } catch (e) {}
-        }
-
-        if (existing) {
-          if (data.updatedAt > (existing.updatedAt || 0)) {
-            // FE-7 fix updatedAt for db hooks bypassing
-            await db.songs.update(existing.id!, { ...data, updatedAt: data.updatedAt || Date.now(), data: binaryData || existing.data });
-          }
-        } else {
-          await db.songs.add({ ...data, cloudId, updatedAt: data.updatedAt || Date.now(), data: binaryData } as any);
-        }
-      }
-    }
-
-    // 2. Download Karaokes
-    onProgress?.('Descargando karaokes...');
-    res = await fetch(`${API_URL}/karaokes`, { headers, cache: 'no-store' });
-    if (res.ok) {
-      const serverKaraokes = await res.json();
-      for (const item of serverKaraokes) {
-        const { id: cloudId, ...data } = item;
-        const existing = await db.karaokes.where('cloudId').equals(cloudId).first();
-        let localKaraokeId = existing?.id;
-
-        if (existing) {
-          if (data.updatedAt > (existing.updatedAt || 0)) {
-            await db.karaokes.update(existing.id!, { ...data, updatedAt: data.updatedAt || Date.now() });
-          }
-        } else {
-          localKaraokeId = await db.karaokes.add({ ...data, cloudId, updatedAt: data.updatedAt || Date.now() } as any) as number;
-        }
-
-        if (data.cloudUrl && localKaraokeId) {
-          const existingFile = await db.karaokeFiles.get(localKaraokeId);
-          if (!existingFile || !existingFile.data) {
-            try {
-              const resp = await fetch(`${API_BASE_URL}${data.cloudUrl}`, { cache: 'no-store' });
-              if (resp.ok) {
-                const arrayBuffer = await resp.arrayBuffer();
-                const binaryData = new Uint8Array(arrayBuffer);
-                await db.karaokeFiles.put({ karaokeId: localKaraokeId, cloudUrl: data.cloudUrl, data: binaryData });
-              }
-            } catch (e) {}
-          }
-        }
-      }
-    }
-
-    // 3. Download Playlists & Chords
-    onProgress?.('Descargando listas de reproducción...');
-    res = await fetch(`${API_URL}/playlists`, { headers, cache: 'no-store' });
-    if (res.ok) {
-      const serverPlaylists = await res.json();
-      const songs = await db.songs.toArray();
-      const cloudIdToSongId = new Map(songs.map(s => [s.cloudId, s.id]));
-
-      for (const item of serverPlaylists) {
-        const { id: cloudId, ...data } = item;
-        const songIds = (data.songCloudIds || []).map((id: string) => cloudIdToSongId.get(id)).filter(Boolean);
-        const existing = await db.playlists.where('cloudId').equals(cloudId).first();
-        if (existing) {
-           await db.playlists.update(existing.id!, { ...data, cloudId, songIds });
-        } else {
-           await db.playlists.add({ ...data, cloudId, songIds } as any);
-        }
-      }
-    }
-
-    res = await fetch(`${API_URL}/karaoke-playlists`, { headers, cache: 'no-store' });
-    if (res.ok) {
-      const serverKaraokePlaylists = await res.json();
-      const karaokes = await db.karaokes.toArray();
-      const cloudIdToKaraokeId = new Map(karaokes.map(k => [k.cloudId, k.id]));
-
-      for (const item of serverKaraokePlaylists) {
-        const { id: cloudId, ...data } = item;
-        const karaokeIds = (data.karaokeCloudIds || []).map((id: string) => cloudIdToKaraokeId.get(id)).filter(Boolean);
-        const existing = await db.karaokePlaylists.where('cloudId').equals(cloudId).first();
-        if (existing) {
-           await db.karaokePlaylists.update(existing.id!, { ...data, cloudId, karaokeIds });
-        } else {
-           await db.karaokePlaylists.add({ ...data, cloudId, karaokeIds } as any);
-        }
-      }
-    }
-
-    res = await fetch(`${API_URL}/chords`, { headers, cache: 'no-store' });
-    if (res.ok) {
-      const serverChords = await res.json();
-      for (const item of serverChords) {
-        const { id: cloudId, ...data } = item;
-        const existing = await db.customChords.where('cloudId').equals(cloudId).first();
-        // Parse JSON strings from db
-        const frets = typeof data.frets === 'string' ? JSON.parse(data.frets) : data.frets;
-        const fingers = typeof data.fingers === 'string' ? JSON.parse(data.fingers) : data.fingers;
-        const barres = typeof data.barres === 'string' ? JSON.parse(data.barres) : data.barres;
-
-        const parsedData = { ...data, frets, fingers, barres };
-        
-        if (existing) {
-           await db.customChords.update(existing.id!, { ...parsedData, cloudId });
-        } else {
-           await db.customChords.add({ ...parsedData, cloudId } as any);
-        }
-      }
-    }
-
-    onProgress?.('Aplicando ajustes...');
-    const userState = useAuthStore.getState().user;
-    if (userState && (userState as any).uiStorage) {
-      try {
-        const settings = typeof (userState as any).uiStorage === 'string' ? JSON.parse((userState as any).uiStorage) : (userState as any).uiStorage;
-        Object.entries(settings).forEach(([key, value]) => {
-          localStorage.setItem(key, String(value));
-          
-          // Explicitly set theme if found in ui-storage
-          if (key === 'ui-storage') {
-            try {
-              const uiState = JSON.parse(String(value));
-              if (uiState?.state?.theme) {
-                useUiStore.getState().setTheme(uiState.state.theme);
-              }
-            } catch (e) {}
-          }
-        });
-        const syncedSettings: Record<string, string> = {};
-        const uiStorage = localStorage.getItem('ui-storage');
-        if (uiStorage !== null) syncedSettings['ui-storage'] = uiStorage;
-        localStorage.setItem('lastSyncedUiStorage', JSON.stringify(syncedSettings));
-      } catch (e) {}
-    }
-
-    onProgress?.('¡Sincronización completada con éxito!');
+  async downloadAllFromCloud(onProgress?: (message: string) => void) {
+    await this.performAutoSync(onProgress);
   }
 };
 
-// Event listener for auto sync
 if (typeof window !== 'undefined') {
   window.addEventListener('trigger-auto-sync', () => SyncService.scheduleAutoSync());
 }
