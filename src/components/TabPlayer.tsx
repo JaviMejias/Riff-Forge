@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as alphaTab from '@coderline/alphatab';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Guitar, Loader2, Settings2, Play, Pause, Plus, Minus, Printer, Trash2, MoreVertical, Maximize, Download, X, ChevronUp } from 'lucide-react';
+import { Guitar, Loader2, Settings2, Play, Pause, Plus, Minus, Printer, Trash2, MoreVertical, Maximize, Download, X, ChevronUp, Keyboard } from 'lucide-react';
 import { PlayerToolbar } from './PlayerToolbar';
 import { PracticeControls } from './PracticeControls';
+import { KeyboardShortcutsModal } from './KeyboardShortcutsModal';
 import { TrackMixer } from './TrackMixer';
 import { ChordsView } from './ChordsView';
 import { Navbar } from './Navbar';
@@ -231,7 +232,12 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
   }, [apiRef, handleMouseMove]);
 
   const [isHorizontalMode, setIsHorizontalMode] = useState<boolean>(false);
-  const [isCountInActive, setIsCountInActive] = useState<boolean>(false);
+  const [countInBars, setCountInBars] = useState(0);
+  const [countInBeat, setCountInBeat] = useState<number | null>(null);
+  const [countInBeatsPerBar, setCountInBeatsPerBar] = useState(4);
+  const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
+  const countInTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const countInAudioContextRef = useRef<AudioContext | null>(null);
 
   const handleTranspositionChange = (delta: number) => {
     const newTransposition = transposition + delta;
@@ -275,14 +281,77 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
     return () => cancelAnimationFrame(animationFrameId);
   }, [isAutoScrolling, autoScrollSpeed, mainViewMode]);
 
-  const togglePlay = () => {
+  const cancelCountIn = useCallback(() => {
+    if (countInTimerRef.current) clearTimeout(countInTimerRef.current);
+    countInTimerRef.current = null;
+    setCountInBeat(null);
+  }, []);
+
+  const playCountInClick = useCallback((isAccent: boolean) => {
+    const audioWindow = window as typeof window & { webkitAudioContext?: typeof AudioContext };
+    const AudioContextClass = window.AudioContext || audioWindow.webkitAudioContext;
+    if (!AudioContextClass) return;
+    if (!countInAudioContextRef.current || countInAudioContextRef.current.state === 'closed') {
+      countInAudioContextRef.current = new AudioContextClass();
+    }
+    const context = countInAudioContextRef.current;
+    context.resume().catch(console.error);
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.frequency.value = isAccent ? 1200 : 800;
+    gain.gain.setValueAtTime(0.2, context.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.05);
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start();
+    oscillator.stop(context.currentTime + 0.06);
+  }, []);
+
+  const startCountIn = useCallback(() => {
+    const api = apiRef.current;
+    if (!api || countInBars === 0) {
+      api?.play();
+      return;
+    }
+
+    cancelCountIn();
+    const masterBars = api.score?.masterBars ?? [];
+    const currentBar = [...masterBars].reverse().find((bar) => bar.start <= api.tickPosition) ?? masterBars[0];
+    const beatsPerBar = currentBar?.timeSignatureNumerator || 4;
+    const totalBeats = countInBars * beatsPerBar;
+    const beatDuration = 60000 / targetBpm;
+    let beat = 1;
+    setCountInBeatsPerBar(beatsPerBar);
+
+    const tick = () => {
+      setCountInBeat(beat);
+      playCountInClick((beat - 1) % beatsPerBar === 0);
+      if (beat >= totalBeats) {
+        countInTimerRef.current = setTimeout(() => {
+          setCountInBeat(null);
+          countInTimerRef.current = null;
+          api.play();
+        }, beatDuration);
+        return;
+      }
+      beat += 1;
+      countInTimerRef.current = setTimeout(tick, beatDuration);
+    };
+    tick();
+  }, [apiRef, cancelCountIn, countInBars, playCountInClick, targetBpm]);
+
+  const togglePlay = useCallback(() => {
     if (!apiRef.current) return;
+    if (countInBeat !== null) {
+      cancelCountIn();
+      return;
+    }
     if (apiRef.current.playerState === alphaTab.synth.PlayerState.Playing) {
       apiRef.current.pause();
     } else {
-      apiRef.current.play();
+      startCountIn();
     }
-  };
+  }, [apiRef, cancelCountIn, countInBeat, startCountIn]);
 
   const handleBpmChange = (bpm: number) => {
     const targetBpm = Math.min(300, Math.max(20, Math.round(bpm)));
@@ -293,16 +362,12 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
   const toggleMetronome = () => {
     setIsMetronomeActive(!isMetronomeActive);
   };
-  const toggleCountIn = () => {
-    const newState = !isCountInActive;
-    setIsCountInActive(newState);
-    if (apiRef.current) apiRef.current.countInVolume = newState ? 1 : 0;
-  };
-  const toggleLoop = () => {
+  const cycleCountIn = useCallback(() => setCountInBars(current => (current + 1) % 3), []);
+  const toggleLoop = useCallback(() => {
     const newState = !isLooping;
     setIsLooping(newState);
     if (apiRef.current) apiRef.current.isLooping = newState;
-  };
+  }, [apiRef, isLooping, setIsLooping]);
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const vol = parseFloat(e.target.value);
     setMasterVolume(vol);
@@ -342,23 +407,61 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
 
   // === KEYBOARD SHORTCUTS ===
   useEffect(() => {
+    return () => {
+      if (countInTimerRef.current) clearTimeout(countInTimerRef.current);
+      if (countInAudioContextRef.current && countInAudioContextRef.current.state !== 'closed') {
+        countInAudioContextRef.current.close().catch(console.error);
+      }
+    };
+  }, []);
+
+  const seekToAdjacentBar = useCallback((direction: -1 | 1) => {
+    const api = apiRef.current;
+    const masterBars = api?.score?.masterBars;
+    if (!api || !masterBars?.length) return;
+    const currentIndex = masterBars.findIndex((bar, index) => {
+      const nextStart = masterBars[index + 1]?.start ?? Number.POSITIVE_INFINITY;
+      return api.tickPosition >= bar.start && api.tickPosition < nextStart;
+    });
+    const targetIndex = Math.min(masterBars.length - 1, Math.max(0, currentIndex + direction));
+    api.tickPosition = masterBars[targetIndex].start;
+  }, [apiRef]);
+
+  const seekToSongEdge = useCallback((edge: 'start' | 'end') => {
+    const api = apiRef.current;
+    const masterBars = api?.score?.masterBars;
+    if (!api || !masterBars?.length) return;
+    api.tickPosition = edge === 'start' ? masterBars[0].start : masterBars[masterBars.length - 1].start;
+  }, [apiRef]);
+
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      const target = e.target as HTMLElement | null;
+      if (e.key === '?' && showKeyboardShortcuts) {
+        e.preventDefault();
+        setShowKeyboardShortcuts(false);
+        return;
+      }
+      if (target?.closest('input, textarea, select, [contenteditable="true"], [role="dialog"]')) return;
+
+      if (e.key === '?') {
+        e.preventDefault();
+        setShowKeyboardShortcuts(current => !current);
+        return;
+      }
+
+      if (mainViewMode === 'cifra') {
+        if (e.code === 'Space') {
+          e.preventDefault();
+          setIsAutoScrolling(current => !current);
+        }
+        return;
+      }
 
       switch (e.code) {
         case 'Space':
-        case 'Enter':
           e.preventDefault();
-          if (mainViewMode === 'cifra') {
-            setIsAutoScrolling(prev => !prev);
-          } else {
-            if (!apiRef.current) return;
-            if (apiRef.current.playerState === alphaTab.synth.PlayerState.Playing) {
-              apiRef.current.pause();
-            } else {
-              apiRef.current.play();
-            }
-          }
+          togglePlay();
           break;
 
         case 'KeyM':
@@ -379,25 +482,31 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
 
         case 'ArrowLeft':
           e.preventDefault();
-          if (apiRef.current && mainViewMode === 'pro') {
-            const currentTick = apiRef.current.tickPosition;
-            apiRef.current.tickPosition = Math.max(0, currentTick - 1920); // Retroceder ~2 tiempos
-          }
+          if (e.shiftKey) seekToSongEdge('start');
+          else seekToAdjacentBar(-1);
           break;
 
         case 'ArrowRight':
           e.preventDefault();
-          if (apiRef.current && mainViewMode === 'pro') {
-            const currentTick = apiRef.current.tickPosition;
-            apiRef.current.tickPosition = currentTick + 1920; // Avanzar ~2 tiempos
-          }
+          if (e.shiftKey) seekToSongEdge('end');
+          else seekToAdjacentBar(1);
+          break;
+
+        case 'KeyR':
+          e.preventDefault();
+          toggleLoop();
+          break;
+
+        case 'KeyC':
+          e.preventDefault();
+          cycleCountIn();
           break;
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [apiRef, mainViewMode, activeTrackIndex, trackMutes, trackSolos, tracks, handleTrackMuteToggle, setTrackSolos]);
+  }, [apiRef, mainViewMode, activeTrackIndex, trackMutes, trackSolos, tracks, handleTrackMuteToggle, setTrackSolos, togglePlay, seekToAdjacentBar, seekToSongEdge, toggleLoop, cycleCountIn, showKeyboardShortcuts]);
 
   const handleTrackSoloToggle = (index: number) => {
     const newSolo = !trackSolos[index];
@@ -522,6 +631,12 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
                   >
                     <Settings2 size={18} className="text-primary-500" /> Herr. Práctica
                   </button>
+                  <button
+                    onClick={() => { setShowKeyboardShortcuts(true); setIsMobileMoreMenuOpen(false); }}
+                    className="flex items-center gap-2 w-full text-left p-2.5 hover:bg-zinc-800 rounded-lg text-zinc-300 font-bold text-sm transition-colors"
+                  >
+                    <Keyboard size={18} className="text-primary-500" /> Atajos
+                  </button>
                   <div className="h-px w-full bg-white/10 my-1"></div>
                   <button 
                     onClick={() => { handleDeleteSong(); setIsMobileMoreMenuOpen(false); }}
@@ -536,6 +651,14 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
 
           {/* Botones para Desktop */}
           <div className="hidden sm:flex items-center gap-2">
+            <button
+              onClick={() => setShowKeyboardShortcuts(true)}
+              className="flex items-center gap-2 rounded-xl border border-white/5 bg-zinc-950/50 px-3 py-2 text-sm font-bold text-zinc-400 transition-all hover:bg-zinc-800 hover:text-zinc-200"
+              title="Atajos de teclado (?)"
+            >
+              <Keyboard size={19} />
+              <span className="hidden lg:inline">Atajos</span>
+            </button>
             <button
               onClick={toggleImmersiveMode}
               className="p-2 rounded-xl bg-zinc-950/50 text-zinc-400 border border-white/5 hover:text-zinc-200 hover:bg-zinc-800 transition-all"
@@ -628,8 +751,8 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
               handleTranspositionChange={handleTranspositionChange}
               isMetronomeActive={isMetronomeActive}
               toggleMetronome={toggleMetronome}
-              isCountInActive={isCountInActive}
-              toggleCountIn={toggleCountIn}
+              countInBars={countInBars}
+              cycleCountIn={cycleCountIn}
               isLooping={isLooping}
               toggleLoop={toggleLoop}
               isHorizontalMode={isHorizontalMode}
@@ -641,6 +764,31 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
       </AnimatePresence>
 
       <div className={`relative w-full flex-1 min-h-0 ${errorMsg ? 'hidden' : ''}`}>
+
+        <AnimatePresence>
+          {countInBeat !== null && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.85 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.1 }}
+              className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-zinc-950/45 backdrop-blur-[2px]"
+              aria-live="assertive"
+            >
+              <motion.div
+                key={countInBeat}
+                initial={{ scale: 1.25, opacity: 0.5 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="flex h-40 w-40 flex-col items-center justify-center rounded-full border-4 border-primary-400 bg-zinc-950/95 text-primary-300 shadow-[0_0_60px_var(--theme-glow-strong)]"
+              >
+                <span className="text-xs font-black uppercase tracking-[0.2em] text-zinc-400">
+                  Compás {Math.ceil(countInBeat / countInBeatsPerBar)} de {countInBars}
+                </span>
+                <span className="text-7xl font-black leading-none">{((countInBeat - 1) % countInBeatsPerBar) + 1}</span>
+                <span className="mt-1 text-xs font-bold uppercase tracking-widest text-zinc-400">Prepárate</span>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {song.type !== 'text' && (
           <div className={`transition-all duration-500 ease-in-out h-full flex flex-col ${mainViewMode === 'cifra' ? 'absolute inset-0 opacity-0 -translate-x-10 pointer-events-none' : 'relative opacity-100 translate-x-0'}`}>
@@ -791,6 +939,7 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
         onSoloToggle={handleTrackSoloToggle}
         onResetMixer={handleResetMixer}
       />
+      <KeyboardShortcutsModal isOpen={showKeyboardShortcuts} onClose={() => setShowKeyboardShortcuts(false)} />
     </div>
   );
 };

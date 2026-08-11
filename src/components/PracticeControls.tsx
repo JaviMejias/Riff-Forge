@@ -10,8 +10,8 @@ interface PracticeControlsProps {
   showTabControls: boolean;
   transposition: number;
   handleTranspositionChange: (delta: number) => void;
-  isCountInActive: boolean;
-  toggleCountIn: () => void;
+  countInBars: number;
+  cycleCountIn: () => void;
   isMetronomeActive: boolean;
   toggleMetronome: () => void;
   isLooping: boolean;
@@ -54,8 +54,8 @@ export const PracticeControls = ({
   showTabControls,
   transposition,
   handleTranspositionChange,
-  isCountInActive,
-  toggleCountIn,
+  countInBars,
+  cycleCountIn,
   isMetronomeActive,
   toggleMetronome,
   isLooping,
@@ -168,19 +168,21 @@ export const PracticeControls = ({
       </Tooltip>}
 
       <div className="flex gap-2 bg-zinc-950/50 p-1.5 rounded-xl border border-white/5">
-        {showTabControls && <Tooltip text="Cuenta Regresiva (Count-in)">
+        {showTabControls && <Tooltip text={`Cuenta de entrada: ${countInBars === 0 ? 'desactivada' : `${countInBars} compás${countInBars === 1 ? '' : 'es'}`}`}>
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             disabled={isLoading}
-            onClick={toggleCountIn}
+            onClick={cycleCountIn}
+            aria-label={`Cuenta de entrada: ${countInBars === 0 ? 'desactivada' : `${countInBars} compás${countInBars === 1 ? '' : 'es'}`}`}
             className={`flex items-center justify-center w-10 h-10 rounded-lg border transition-all disabled:opacity-50 ${
-              isCountInActive
+              countInBars > 0
                 ? 'bg-rose-500/20 border-rose-500/50 text-rose-400 shadow-[0_0_10px_rgba(244,63,94,0.2)]'
                 : 'bg-zinc-900 border-transparent text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'
             }`}
           >
             <Timer size={18} />
+            {countInBars > 0 && <span className="ml-0.5 text-xs font-black">{countInBars}</span>}
           </motion.button>
         </Tooltip>}
 
