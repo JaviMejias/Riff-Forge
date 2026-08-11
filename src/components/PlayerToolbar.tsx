@@ -1,9 +1,10 @@
-import { Play, Pause, Guitar, Loader2, AlertTriangle, SlidersHorizontal, Volume2 } from 'lucide-react';
+import { Play, Pause, Guitar, Loader2, AlertTriangle, RotateCcw, SlidersHorizontal, Volume2 } from 'lucide-react';
 import * as alphaTab from '@coderline/alphatab';
 import { motion } from 'framer-motion';
 import { CustomSelect } from './CustomSelect';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { AnimatePresence } from 'framer-motion';
+import type { TrainerStatus } from './AdvancedPracticePanel';
 
 interface PlayerToolbarProps {
   isLoading: boolean;
@@ -29,6 +30,8 @@ interface PlayerToolbarProps {
   loopMarkers: { id: string; name: string; startTick: number; endTick: number }[];
   onSeekTick: (tick: number) => void;
   onLoopSelect: (loop: { startTick: number; endTick: number }) => void;
+  trainerStatus: TrainerStatus;
+  onTrainerReplay: () => void;
 }
 
 const formatTime = (milliseconds: number) => {
@@ -72,6 +75,8 @@ export const PlayerToolbar = ({
   loopMarkers,
   onSeekTick,
   onLoopSelect,
+  trainerStatus,
+  onTrainerReplay,
 }: PlayerToolbarProps) => {
   const [isTuningOpen, setIsTuningOpen] = useState(false);
   const positionedLoopMarkers = useMemo(() => positionLoopMarkers(loopMarkers), [loopMarkers]);
@@ -271,6 +276,19 @@ export const PlayerToolbar = ({
 
 
         </div>
+        {trainerStatus.enabled && <div className="rounded-xl border border-sky-500/25 bg-sky-500/10 px-3 py-2">
+          <div className="flex items-center gap-3">
+            <div className="shrink-0 text-lg font-black leading-none text-sky-300">{trainerStatus.bpm} <span className="text-[9px] text-zinc-500">BPM</span></div>
+            <div className="min-w-0 flex-1">
+              <div className="mb-1 flex items-center justify-between gap-2 text-[10px] font-bold">
+                <span className="truncate text-zinc-200">{trainerStatus.completed ? `Completado · ${trainerStatus.repetitions} vueltas` : `Vuelta ${trainerStatus.repetition} de ${trainerStatus.repetitions}`}</span>
+                <span className="hidden shrink-0 uppercase tracking-wider text-sky-300 sm:block">{trainerStatus.scope === 'loop' ? 'Bucle seleccionado' : 'Canción completa'}</span>
+              </div>
+              <div className="h-1.5 overflow-hidden rounded-full bg-zinc-800" role="progressbar" aria-label="Progreso del entrenador" aria-valuenow={Math.round(trainerStatus.progress)} aria-valuemin={0} aria-valuemax={100}><div className="h-full rounded-full bg-gradient-to-r from-sky-500 to-cyan-300 transition-all" style={{ width: `${trainerStatus.progress}%` }} /></div>
+            </div>
+            {trainerStatus.completed && <button type="button" onClick={onTrainerReplay} className="flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg bg-sky-500 px-3 text-[10px] font-black text-zinc-950 hover:bg-sky-400"><RotateCcw size={13} /> Repetir</button>}
+          </div>
+        </div>}
         <div className="flex w-full items-center gap-2 px-1 text-[9px] font-bold text-zinc-500 sm:gap-3 sm:text-[10px]">
           <span className="hidden shrink-0 sm:block">Compás {currentBar}/{totalBars || 1}</span>
           <div className="relative flex min-w-0 flex-1 items-center">

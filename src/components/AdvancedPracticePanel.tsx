@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as alphaTab from '@coderline/alphatab';
-import { BookmarkPlus, ChevronDown, ChevronLeft, ChevronRight, Gauge, Headphones, Map, Save, Trash2 } from 'lucide-react';
+import { BookmarkPlus, ChevronDown, ChevronLeft, ChevronRight, Gauge, Headphones, Map, Minus, Plus, Save, Trash2 } from 'lucide-react';
 import { db, type PracticeLoop, type Song } from '../db';
 import { usePlayerStore } from '../store/playerStore';
 import { v4 as uuidv4 } from 'uuid';
@@ -11,38 +11,93 @@ interface AdvancedPracticePanelProps {
   song: Song;
   tracks: alphaTab.model.Track[];
   playbackRange: { startTick: number; endTick: number } | null;
+  originalBpm: number;
   targetBpm: number;
   handleBpmChange: (bpm: number) => void;
   isNotePreviewMode: boolean;
   setIsNotePreviewMode: (active: boolean) => void;
   onPracticeLoopsChange: (loops: PracticeLoop[]) => void;
   onSeekTick: (tick: number) => void;
+  onTrainerStatusChange: (status: TrainerStatus) => void;
+  trainerReplayRequest: number;
 }
+
+export interface TrainerStatus {
+  enabled: boolean;
+  completed: boolean;
+  bpm: number;
+  repetition: number;
+  repetitions: number;
+  progress: number;
+  scope: 'loop' | 'song';
+}
+
+interface TrainerNumberControlProps {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  suffix?: string;
+  onChange: (value: number) => void;
+}
+
+const TrainerNumberControl = ({ label, value, min, max, suffix, onChange }: TrainerNumberControlProps) => {
+  const [inputValue, setInputValue] = useState<string | null>(null);
+  const displayedValue = inputValue ?? String(value);
+
+  const commitValue = () => {
+    const parsedValue = Number(displayedValue);
+    const nextValue = Number.isFinite(parsedValue) ? Math.min(max, Math.max(min, Math.round(parsedValue))) : value;
+    onChange(nextValue);
+    setInputValue(null);
+  };
+
+  return (
+    <label className="flex flex-col gap-1 text-[10px] font-bold uppercase text-zinc-500">
+      {label}
+      <span className="flex items-center rounded-lg border border-white/10 bg-zinc-900 p-0.5 focus-within:border-sky-500/40">
+        <button type="button" onClick={() => { setInputValue(null); onChange(Math.max(min, value - 1)); }} disabled={value <= min} className="flex h-8 w-8 items-center justify-center rounded bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white disabled:opacity-30" aria-label={`Disminuir ${label.toLowerCase()}`}>
+          <Minus size={13} />
+        </button>
+        <input type="text" inputMode="numeric" value={displayedValue} onChange={event => /^\d*$/.test(event.target.value) && setInputValue(event.target.value)} onBlur={commitValue} onKeyDown={event => event.key === 'Enter' && event.currentTarget.blur()} className="w-11 bg-transparent text-center text-sm font-bold text-sky-300 outline-none" aria-label={label} />
+        {suffix && <span className="mr-1 text-[9px] text-zinc-600">{suffix}</span>}
+        <button type="button" onClick={() => { setInputValue(null); onChange(Math.min(max, value + 1)); }} disabled={value >= max} className="flex h-8 w-8 items-center justify-center rounded bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white disabled:opacity-30" aria-label={`Aumentar ${label.toLowerCase()}`}>
+          <Plus size={13} />
+        </button>
+      </span>
+    </label>
+  );
+};
 
 export const AdvancedPracticePanel = ({
   apiRef,
   song,
   tracks,
   playbackRange,
+  originalBpm,
   targetBpm,
   handleBpmChange,
   isNotePreviewMode,
   setIsNotePreviewMode,
   onPracticeLoopsChange,
   onSeekTick,
+  onTrainerStatusChange,
+  trainerReplayRequest,
 }: AdvancedPracticePanelProps) => {
   const [loopName, setLoopName] = useState('');
   const [savedLoops, setSavedLoops] = useState<PracticeLoop[]>(song.practiceLoops ?? []);
   const [trainerEnabled, setTrainerEnabled] = useState(false);
-  const [trainerStart, setTrainerStart] = useState(Math.max(20, Math.round(targetBpm * 0.6)));
-  const [trainerEnd, setTrainerEnd] = useState(targetBpm);
-  const [trainerStep, setTrainerStep] = useState(5);
   const [trainerRepetitions, setTrainerRepetitions] = useState(3);
   const [completedRepetitions, setCompletedRepetitions] = useState(0);
+  const [trainerCompleted, setTrainerCompleted] = useState(false);
   const [isTrainerOpen, setIsTrainerOpen] = useState(false);
   const [isSectionsOpen, setIsSectionsOpen] = useState(false);
   const [isLoopsOpen, setIsLoopsOpen] = useState(false);
-  const previousTickRef = useRef(0);
+  const trainerUsesWholeSongRef = useRef(false);
+  const completedRepetitionsRef = useRef(0);
+  const trainerEnabledRef = useRef(false);
+  const trainerCompletedRef = useRef(false);
+  const lastReplayRequestRef = useRef(trainerReplayRequest);
   const setIsLooping = usePlayerStore(state => state.setIsLooping);
 
   const masterBars = useMemo(() => tracks[0]?.score.masterBars ?? [], [tracks]);
@@ -53,27 +108,26 @@ export const AdvancedPracticePanel = ({
   useEffect(() => {
     const api = apiRef.current;
     if (!api) return;
-    const handlePosition = (position: alphaTab.synth.PositionChangedEventArgs) => {
-      if (!trainerEnabled || !api.playbackRange || api.playerState !== alphaTab.synth.PlayerState.Playing) {
-        previousTickRef.current = position.currentTick;
+    const handleFinished = () => {
+      if (!trainerEnabledRef.current || trainerCompletedRef.current) return;
+      const nextCount = completedRepetitionsRef.current + 1;
+      completedRepetitionsRef.current = nextCount;
+      setCompletedRepetitions(nextCount);
+      if (nextCount >= trainerRepetitions) {
+        trainerCompletedRef.current = true;
+        setTrainerCompleted(true);
+        handleBpmChange(originalBpm);
+        api.isLooping = false;
+        api.stop();
         return;
       }
-      const wrapped = !position.isSeek && previousTickRef.current > position.currentTick && position.currentTick <= api.playbackRange.startTick + 200;
-      previousTickRef.current = position.currentTick;
-      if (!wrapped) return;
-
-      setCompletedRepetitions(current => {
-        const nextCount = current + 1;
-        if (nextCount < trainerRepetitions) return nextCount;
-        const nextBpm = Math.min(trainerEnd, targetBpm + trainerStep);
-        if (nextBpm > targetBpm) handleBpmChange(nextBpm);
-        if (nextBpm >= trainerEnd) setTrainerEnabled(false);
-        return 0;
-      });
+      const startBpm = trainerRepetitions === 1 ? originalBpm : Math.max(20, Math.round(originalBpm * 0.6));
+      const nextBpm = Math.round(startBpm + ((originalBpm - startBpm) * nextCount) / (trainerRepetitions - 1));
+      handleBpmChange(nextBpm);
     };
-    api.playerPositionChanged.on(handlePosition);
-    return () => api.playerPositionChanged.off(handlePosition);
-  }, [apiRef, handleBpmChange, targetBpm, trainerEnabled, trainerEnd, trainerRepetitions, trainerStep]);
+    api.playerFinished.on(handleFinished);
+    return () => api.playerFinished.off(handleFinished);
+  }, [apiRef, handleBpmChange, originalBpm, trainerRepetitions]);
 
   const handleSectionChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     onSeekTick(Number(event.target.value));
@@ -126,14 +180,65 @@ export const AdvancedPracticePanel = ({
     await db.songs.update(song.id, { practiceLoops: nextLoops });
   };
 
-  const toggleTrainer = () => {
-    if (!playbackRange) return;
-    const nextEnabled = !trainerEnabled;
-    setTrainerEnabled(nextEnabled);
+  const prepareTrainer = useCallback(() => {
+    const api = apiRef.current;
+    if (!api) return;
+    // Fully reset AlphaTab before arming a new session. pause() can leave a
+    // scheduled loop restart alive and cause overlapping audio on replay.
+    trainerEnabledRef.current = false;
+    trainerCompletedRef.current = true;
+    api.isLooping = false;
+    api.stop();
+
+    const startBpm = trainerRepetitions === 1 ? originalBpm : Math.max(20, Math.round(originalBpm * 0.6));
+    trainerUsesWholeSongRef.current = !playbackRange;
+    handleBpmChange(startBpm);
+    api.tickPosition = playbackRange?.startTick ?? 0;
+    api.isLooping = true;
+
+    trainerEnabledRef.current = true;
+    trainerCompletedRef.current = false;
+    completedRepetitionsRef.current = 0;
+    setTrainerEnabled(true);
+    setTrainerCompleted(false);
     setCompletedRepetitions(0);
-    previousTickRef.current = playbackRange.startTick;
-    if (nextEnabled) handleBpmChange(trainerStart);
+    setIsTrainerOpen(false);
+  }, [apiRef, handleBpmChange, originalBpm, playbackRange, trainerRepetitions]);
+
+  const toggleTrainer = () => {
+    const api = apiRef.current;
+    if (!api) return;
+    if (!trainerEnabled || trainerCompleted) {
+      prepareTrainer();
+      return;
+    }
+    trainerEnabledRef.current = false;
+    setTrainerEnabled(false);
+    api.isLooping = false;
+    api.stop();
   };
+
+  useEffect(() => {
+    if (trainerReplayRequest === lastReplayRequestRef.current) return;
+    lastReplayRequestRef.current = trainerReplayRequest;
+    queueMicrotask(prepareTrainer);
+  }, [prepareTrainer, trainerReplayRequest]);
+
+  const trainerStartBpm = trainerRepetitions === 1 ? originalBpm : Math.max(20, Math.round(originalBpm * 0.6));
+  const averageIncrease = trainerRepetitions > 1 ? (originalBpm - trainerStartBpm) / (trainerRepetitions - 1) : 0;
+  const trainerProgress = Math.min(100, (completedRepetitions / trainerRepetitions) * 100);
+
+  useEffect(() => {
+    onTrainerStatusChange({
+      enabled: trainerEnabled,
+      completed: trainerCompleted,
+      bpm: targetBpm,
+      repetition: Math.min(trainerRepetitions, completedRepetitions + 1),
+      repetitions: trainerRepetitions,
+      progress: trainerProgress,
+      scope: playbackRange ? 'loop' : 'song',
+    });
+  }, [completedRepetitions, onTrainerStatusChange, playbackRange, targetBpm, trainerCompleted, trainerEnabled, trainerProgress, trainerRepetitions]);
 
   const toggleNotePreview = () => {
     setIsNotePreviewMode(!isNotePreviewMode);
@@ -196,16 +301,15 @@ export const AdvancedPracticePanel = ({
       </div>}
 
       {isTrainerOpen && <div className="w-full rounded-xl border border-sky-500/15 bg-sky-500/5 p-3">
-          <div className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-wider text-sky-300"><Gauge size={15} /> Entrenador progresivo {trainerEnabled && <span className="ml-auto normal-case text-zinc-400">{targetBpm} BPM · {completedRepetitions}/{trainerRepetitions}</span>}</div>
+          <div className="mb-3 flex items-center gap-2 text-xs font-black uppercase tracking-wider text-sky-300"><Gauge size={15} /> Entrenador progresivo</div>
           <div className="flex flex-wrap items-end gap-2">
-          {[['Inicio', trainerStart, setTrainerStart], ['Meta', trainerEnd, setTrainerEnd], ['Paso', trainerStep, setTrainerStep], ['Vueltas', trainerRepetitions, setTrainerRepetitions]].map(([label, value, setter]) => (
-            <label key={String(label)} className="flex flex-col gap-1 text-[10px] font-bold uppercase text-zinc-500">{String(label)}
-              <input type="number" value={Number(value)} min="1" onChange={event => (setter as React.Dispatch<React.SetStateAction<number>>)(Number(event.target.value))} className="w-20 rounded-lg border border-white/10 bg-zinc-900 px-2 py-2 text-sm text-zinc-200 outline-none" />
-            </label>
-          ))}
-          <button type="button" disabled={!playbackRange} onClick={toggleTrainer} className={`min-h-10 rounded-lg px-4 text-xs font-black disabled:cursor-not-allowed disabled:opacity-40 ${trainerEnabled ? 'bg-rose-500 text-white' : 'bg-sky-500 text-zinc-950'}`}>{trainerEnabled ? 'Detener' : 'Comenzar'}</button>
+          <TrainerNumberControl label="Vueltas" value={trainerRepetitions} min={1} max={99} onChange={setTrainerRepetitions} />
+          <button type="button" onClick={toggleTrainer} className={`min-h-10 rounded-lg px-4 text-xs font-black ${trainerEnabled && !trainerCompleted ? 'bg-rose-500 text-white' : 'bg-sky-500 text-zinc-950'}`}>{trainerEnabled && !trainerCompleted ? 'Detener' : trainerCompleted ? 'Preparar de nuevo' : 'Preparar'}</button>
           </div>
-          {!playbackRange && <p className="mt-2 text-xs text-zinc-500">Selecciona primero una sección con el modo bucle.</p>}
+          {(!trainerEnabled || trainerCompleted) && <div className="mt-3 rounded-lg border border-white/5 bg-zinc-950/50 p-2.5 text-xs text-zinc-400">
+            <span className="font-bold text-zinc-200">Plan automático:</span> {trainerStartBpm} → {originalBpm} BPM en {trainerRepetitions} {trainerRepetitions === 1 ? 'vuelta' : 'vueltas'}{trainerRepetitions > 1 && ` · aproximadamente +${averageIncrease.toFixed(1)} BPM por vuelta`}.
+            <div className="mt-1 text-zinc-500">{playbackRange ? 'Se practicará el bucle seleccionado.' : 'Sin un bucle seleccionado, se practicará la canción completa.'}</div>
+          </div>}
       </div>}
     </>
   );

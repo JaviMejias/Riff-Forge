@@ -12,15 +12,20 @@ if (!AudioContextClass) {
   throw new Error('Web Audio API is not supported in this browser.');
 }
 
-const audioCtx = new AudioContextClass();
+let audioCtx: AudioContext | null = null;
 
-function playTone(frequency: number, startTime: number, duration: number) {
-  if (audioCtx.state === 'suspended') {
-    audioCtx.resume();
+const getAudioContext = () => {
+  if (!audioCtx || audioCtx.state === 'closed') audioCtx = new AudioContextClass();
+  return audioCtx;
+};
+
+function playTone(context: AudioContext, frequency: number, startTime: number, duration: number) {
+  if (context.state === 'suspended') {
+    context.resume();
   }
 
-  const oscillator = audioCtx.createOscillator();
-  const gainNode = audioCtx.createGain();
+  const oscillator = context.createOscillator();
+  const gainNode = context.createGain();
 
   oscillator.type = 'sine';
   oscillator.frequency.setValueAtTime(frequency, startTime);
@@ -31,7 +36,7 @@ function playTone(frequency: number, startTime: number, duration: number) {
   gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration); // Decay/Release
 
   oscillator.connect(gainNode);
-  gainNode.connect(audioCtx.destination);
+  gainNode.connect(context.destination);
 
   oscillator.start(startTime);
   oscillator.stop(startTime + duration);
@@ -44,12 +49,13 @@ const midiToFreq = (midi: number): number => {
 
 export const playChordAudio = async (frets: number[]) => {
   if (!frets || frets.length === 0) return;
+  const context = getAudioContext();
   
-  if (audioCtx.state === 'suspended') {
-    await audioCtx.resume();
+  if (context.state === 'suspended') {
+    await context.resume();
   }
 
-  const now = audioCtx.currentTime;
+  const now = context.currentTime;
   
   // Standard tuning MIDI numbers: E2, A2, D3, G3, B3, E4
   const baseMidi = [40, 45, 50, 55, 59, 64];
@@ -60,7 +66,7 @@ export const playChordAudio = async (frets: number[]) => {
       const startTime = now + (stringIndex * 0.04); 
       const midi = baseMidi[stringIndex] + fret;
       const freq = midiToFreq(midi);
-      playTone(freq, startTime, 1.5);
+      playTone(context, freq, startTime, 1.5);
     }
     stringIndex++;
   });

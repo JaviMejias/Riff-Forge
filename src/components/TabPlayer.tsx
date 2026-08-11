@@ -5,7 +5,7 @@ import { Guitar, Loader2, Settings2, Play, Pause, Plus, Minus, Printer, Trash2, 
 import { PlayerToolbar } from './PlayerToolbar';
 import { PracticeControls } from './PracticeControls';
 import { KeyboardShortcutsModal } from './KeyboardShortcutsModal';
-import { AdvancedPracticePanel } from './AdvancedPracticePanel';
+import { AdvancedPracticePanel, type TrainerStatus } from './AdvancedPracticePanel';
 import { TrackMixer } from './TrackMixer';
 import { ChordsView } from './ChordsView';
 import { Navbar } from './Navbar';
@@ -81,6 +81,8 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
   const [metronomeSound, setMetronomeSound] = useState<MetronomeSound>('classic');
   const [metronomeVolume, setMetronomeVolume] = useState(0.6);
   const [practiceLoops, setPracticeLoops] = useState<PracticeLoop[]>(song.practiceLoops ?? []);
+  const [trainerStatus, setTrainerStatus] = useState<TrainerStatus>({ enabled: false, completed: false, bpm: 0, repetition: 1, repetitions: 1, progress: 0, scope: 'song' });
+  const [trainerReplayRequest, setTrainerReplayRequest] = useState(0);
   const targetBpm = Math.round(originalTempo * playbackSpeed);
   const masterBars = useMemo(() => tracks[0]?.score.masterBars ?? [], [tracks]);
   const currentBarIndex = Math.max(0, masterBars.findIndex((bar, index) => {
@@ -228,17 +230,17 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
     setShowToolbar(true);
     if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
     hideTimeoutRef.current = setTimeout(() => {
-      if (apiRef.current && apiRef.current.playerState === alphaTab.synth.PlayerState.Playing) {
+      if (!trainerStatus.enabled && apiRef.current && apiRef.current.playerState === alphaTab.synth.PlayerState.Playing) {
         setShowToolbar(false);
       }
     }, 2500);
-  }, [apiRef]);
+  }, [apiRef, trainerStatus.enabled]);
 
   useEffect(() => {
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('touchstart', handleMouseMove);
     hideTimeoutRef.current = setTimeout(() => {
-      if (apiRef.current && apiRef.current.playerState === alphaTab.synth.PlayerState.Playing) {
+      if (!trainerStatus.enabled && apiRef.current && apiRef.current.playerState === alphaTab.synth.PlayerState.Playing) {
         setShowToolbar(false);
       }
     }, 2500);
@@ -248,7 +250,7 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
       window.removeEventListener('touchstart', handleMouseMove);
       if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
     };
-  }, [apiRef, handleMouseMove]);
+  }, [apiRef, handleMouseMove, trainerStatus.enabled]);
 
   const [isHorizontalMode, setIsHorizontalMode] = useState<boolean>(false);
   const [countInBars, setCountInBars] = useState(0);
@@ -840,12 +842,15 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
                   song={song}
                   tracks={tracks}
                   playbackRange={playbackRange}
+                  originalBpm={originalTempo}
                   targetBpm={targetBpm}
                   handleBpmChange={handleBpmChange}
                   isNotePreviewMode={isNotePreviewMode}
                   setIsNotePreviewMode={setIsNotePreviewMode}
                   onPracticeLoopsChange={setPracticeLoops}
                   onSeekTick={handleSeekTick}
+                  onTrainerStatusChange={setTrainerStatus}
+                  trainerReplayRequest={trainerReplayRequest}
                 />
               )}
               </PracticeControls>
@@ -973,7 +978,7 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
       </AnimatePresence>
 
       <AnimatePresence>
-        {song.type !== 'text' && mainViewMode === 'pro' && showToolbar && (
+        {song.type !== 'text' && mainViewMode === 'pro' && (showToolbar || trainerStatus.enabled) && (
           <motion.div
             initial={{ y: 100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -1005,6 +1010,8 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
                 loopMarkers={practiceLoops}
                 onSeekTick={handleSeekTick}
                 onLoopSelect={handleLoopSelect}
+                trainerStatus={trainerStatus}
+                onTrainerReplay={() => setTrainerReplayRequest(current => current + 1)}
               />
             </div>
           </motion.div>
@@ -1012,7 +1019,7 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
       </AnimatePresence>
 
       <AnimatePresence>
-        {song.type !== 'text' && mainViewMode === 'pro' && !showToolbar && (
+        {song.type !== 'text' && mainViewMode === 'pro' && !showToolbar && !trainerStatus.enabled && (
           <motion.button
             type="button"
             initial={{ y: 20, opacity: 0 }}
