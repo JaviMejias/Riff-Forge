@@ -1,4 +1,4 @@
-import { Settings, AlertCircle, Music, ChevronDown, ChevronUp, RotateCcw } from 'lucide-react';
+import { Settings, AlertCircle, Music, ChevronDown, ChevronUp, RotateCcw, X } from 'lucide-react';
 
 interface AudioEngineSettingsProps {
   showYtSettings: boolean;
@@ -28,20 +28,32 @@ export const AudioEngineSettings = ({
     <>
       {/* Fondo transparente para cerrar al hacer clic fuera */}
       <div
-        className="fixed inset-0 z-10"
+        className="fixed inset-0 z-10 bg-black/20 sm:bg-transparent"
         onClick={() => setShowYtSettings(false)}
-        title="Cerrar ajustes"
+        aria-hidden="true"
       />
-      <div className="absolute bottom-36 right-4 sm:right-8 bg-zinc-900/95 backdrop-blur-xl border border-white/10 rounded-2xl p-5 w-72 sm:w-80 shadow-2xl z-20">
-        <div className="flex justify-between items-center mb-5">
-          <h3 className="font-bold text-white text-sm flex items-center gap-2">
-            <Settings size={16} className="text-primary-500" /> Motor de Audio
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="audio-engine-title"
+        className="fixed inset-x-0 bottom-0 z-20 max-h-[85dvh] overflow-y-auto rounded-t-3xl border border-white/10 bg-zinc-900/98 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl backdrop-blur-xl sm:absolute sm:inset-x-auto sm:bottom-36 sm:right-8 sm:w-80 sm:rounded-2xl sm:p-5"
+      >
+        <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-zinc-700 sm:hidden" />
+        <div className="mb-5 flex items-center justify-between">
+          <h3 id="audio-engine-title" className="flex items-center gap-2 text-sm font-bold text-white">
+            <Settings size={16} className="text-primary-500" /> Motor de audio
           </h3>
-          <button onClick={() => setShowYtSettings(false)} className="text-zinc-400 hover:text-white transition-colors">✕</button>
+          <button
+            onClick={() => setShowYtSettings(false)}
+            className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white sm:min-h-9 sm:min-w-9"
+            aria-label="Cerrar ajustes de audio"
+          >
+            <X size={18} />
+          </button>
         </div>
 
         {!ytAudioUrl ? (
-          <div className="text-center py-4">
+          <div className="py-4 text-center">
             <AlertCircle size={24} className="text-rose-500 mx-auto mb-2" />
             <p className="text-xs text-zinc-300 font-bold mb-2">Motor de Tono Inactivo</p>
             <p className="text-[10px] text-zinc-400 leading-relaxed mb-4">
@@ -79,7 +91,8 @@ export const AudioEngineSettings = ({
                 <button
                   onClick={() => setPitch(pitch - 1)}
                   disabled={pitch <= -12}
-                  className="w-10 h-10 rounded-xl bg-zinc-800 hover:bg-primary-500/20 hover:text-primary-400 text-zinc-400 disabled:opacity-30 transition-all active:scale-95 flex items-center justify-center"
+                  className="flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-800 text-zinc-400 transition-all hover:bg-primary-500/20 hover:text-primary-400 active:scale-95 disabled:opacity-30 sm:h-10 sm:w-10"
+                  aria-label="Bajar un semitono"
                 >
                   <ChevronDown size={20} />
                 </button>
@@ -94,19 +107,20 @@ export const AudioEngineSettings = ({
                 <button
                   onClick={() => setPitch(pitch + 1)}
                   disabled={pitch >= 12}
-                  className="w-10 h-10 rounded-xl bg-zinc-800 hover:bg-primary-500/20 hover:text-primary-400 text-zinc-400 disabled:opacity-30 transition-all active:scale-95 flex items-center justify-center"
+                  className="flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-800 text-zinc-400 transition-all hover:bg-primary-500/20 hover:text-primary-400 active:scale-95 disabled:opacity-30 sm:h-10 sm:w-10"
+                  aria-label="Subir un semitono"
                 >
                   <ChevronUp size={20} />
                 </button>
               </div>
 
               {/* Presets rápidos */}
-              <div className="grid grid-cols-9 gap-1">
+              <div className="grid grid-cols-5 gap-1.5 sm:grid-cols-9 sm:gap-1">
                 {SEMITONE_PRESETS.map((st) => (
                   <button
                     key={st}
                     onClick={() => setPitch(st)}
-                    className={`h-7 rounded-lg text-[10px] font-black transition-all active:scale-95 ${
+                    className={`min-h-10 rounded-xl text-xs font-black transition-all active:scale-95 sm:min-h-7 sm:rounded-lg sm:text-[10px] ${
                       pitch === st
                         ? 'bg-primary-500 text-zinc-950 shadow-[0_0_10px_var(--theme-glow)]'
                         : 'bg-zinc-800 text-zinc-500 hover:bg-zinc-700 hover:text-zinc-300'
@@ -118,7 +132,7 @@ export const AudioEngineSettings = ({
               </div>
 
               {/* Slider fino para ajuste preciso */}
-              <div className="mt-3 flex items-center gap-2">
+              <div className="mt-4 flex items-center gap-2 sm:mt-3">
                 <span className="text-[10px] text-zinc-600 w-6 text-right">-12</span>
                 <input
                   type="range"
@@ -127,7 +141,8 @@ export const AudioEngineSettings = ({
                   step="1"
                   value={pitch}
                   onChange={handlePitchChange}
-                  className="flex-1 h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-primary-500"
+                  className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-zinc-800 accent-primary-500"
+                  aria-label="Cambio de tono en semitonos"
                 />
                 <span className="text-[10px] text-zinc-600 w-6">+12</span>
               </div>

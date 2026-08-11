@@ -1,7 +1,18 @@
 // Native Web Audio API implementation for playing chords
 // Replaces the old Tone.js implementation to save bundle size
 
-const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+type AudioContextConstructor = typeof AudioContext;
+
+const audioWindow = window as typeof window & {
+  webkitAudioContext?: AudioContextConstructor;
+};
+const AudioContextClass = window.AudioContext || audioWindow.webkitAudioContext;
+
+if (!AudioContextClass) {
+  throw new Error('Web Audio API is not supported in this browser.');
+}
+
+const audioCtx = new AudioContextClass();
 
 function playTone(frequency: number, startTime: number, duration: number) {
   if (audioCtx.state === 'suspended') {

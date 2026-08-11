@@ -42,6 +42,7 @@ export interface KaraokePlaylist {
   syncDirty?: boolean;
   name: string;
   karaokeIds: number[]; // LOCAL ids
+  remoteCloudIds?: string[]; // Temporary ordered references while sync downloads missing karaokes
   isPublic?: boolean;
   createdAt: number;
 }
@@ -85,6 +86,7 @@ export interface Playlist {
   syncDirty?: boolean;
   name: string;
   songIds: number[]; // LOCAL ids
+  remoteCloudIds?: string[]; // Temporary ordered references while sync downloads missing songs
   isPublic?: boolean;
   createdAt: number;
 }
@@ -314,7 +316,8 @@ tables.forEach(tableName => {
     if ((window as any).__isSyncing) return;
     if (tableName !== 'karaokeFiles') {
       if (obj.cloudId) setTimeout(() => enqueueUpsert(tableName, obj.cloudId), 0);
-      return { updatedAt: Date.now(), syncDirty: true };
+      const clearsRemoteOrder = ['playlists', 'karaokePlaylists'].includes(tableName) && ('songIds' in _mods || 'karaokeIds' in _mods);
+      return { updatedAt: Date.now(), syncDirty: true, ...(clearsRemoteOrder ? { remoteCloudIds: undefined } : {}) };
     }
   });
 

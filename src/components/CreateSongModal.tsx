@@ -58,7 +58,7 @@ export const CreateSongModal = ({ isOpen, onClose, onSuccess }: CreateSongModalP
       subtitle="Escribe el título y artista para empezar tu composición."
       icon={<PenLine size={24} />}
     >
-      <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-6">
+      <form onSubmit={handleSubmit} className="p-4 sm:p-6 flex flex-col gap-5 sm:gap-6 overflow-y-auto min-h-0">
         <div>
           <label className="block text-sm font-bold text-zinc-300 mb-2 flex items-center gap-2">
             <Music size={16} className="text-primary-500" /> Título *
@@ -87,17 +87,17 @@ export const CreateSongModal = ({ isOpen, onClose, onSuccess }: CreateSongModalP
           />
         </div>
 
-        <div className="flex gap-3 justify-end pt-2 border-t border-white/5 mt-2">
+        <div className="sticky bottom-0 -mx-4 -mb-4 sm:-mx-6 sm:-mb-6 px-4 sm:px-6 py-3 sm:py-4 flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end border-t border-white/10 mt-2 bg-zinc-900/95 backdrop-blur-xl">
           <button
             type="button"
             onClick={onClose}
-            className="px-6 py-2.5 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl font-bold transition-all"
+            className="w-full sm:w-auto min-h-11 px-6 py-2.5 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl font-bold transition-all"
           >
             Cancelar
           </button>
           <button
             type="submit"
-            className="px-6 py-2.5 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-400 hover:to-primary-500 text-zinc-950 font-black rounded-xl transition-all shadow-[0_0_15px_rgba(245,158,11,0.3)] hover:shadow-[0_0_25px_rgba(245,158,11,0.5)] transform hover:-translate-y-0.5"
+            className="w-full sm:w-auto min-h-11 px-6 py-2.5 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-400 hover:to-primary-500 text-zinc-950 font-black rounded-xl transition-all shadow-[0_0_15px_rgba(245,158,11,0.3)] hover:shadow-[0_0_25px_rgba(245,158,11,0.5)] transform hover:-translate-y-0.5"
           >
             Crear y Editar
           </button>

@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 
 export const SongSkeleton = () => {
   return (
-    <div className="flex items-center p-3 rounded-2xl border border-white/5 bg-zinc-900/40 backdrop-blur-sm relative overflow-hidden">
+    <div className="flex items-center p-2.5 sm:p-3 rounded-2xl border border-white/5 bg-zinc-900/40 backdrop-blur-sm relative overflow-hidden" aria-hidden="true">
       {/* Shimmer Effect */}
       <motion.div
         animate={{ x: ["-100%", "200%"] }}
@@ -11,8 +11,8 @@ export const SongSkeleton = () => {
       />
       
       {/* Left: Cover */}
-      <div className="relative w-20 h-20 shrink-0 mr-4 rounded-xl bg-zinc-800/50 flex items-center justify-center border border-white/5">
-        <div className="w-16 h-16 rounded-full bg-zinc-900/80" />
+      <div className="relative w-14 h-14 sm:w-20 sm:h-20 shrink-0 mr-3 sm:mr-4 rounded-xl bg-zinc-800/50 flex items-center justify-center border border-white/5">
+        <div className="w-10 h-10 sm:w-16 sm:h-16 rounded-full bg-zinc-900/80" />
       </div>
 
       {/* Right: Info Lines */}

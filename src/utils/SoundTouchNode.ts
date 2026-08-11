@@ -1,5 +1,4 @@
-// @ts-ignore
-import { SoundTouch, SimpleFilter } from 'soundtouchjs';
+import { SoundTouch, SimpleFilter, type SoundTouchInstance } from 'soundtouchjs';
 
 class Float32Fifo {
   private buffer: Float32Array;
@@ -42,7 +41,8 @@ class StreamSource {
   constructor(inFifo: Float32Fifo) {
     this.inFifo = inFifo;
   }
-  extract(target: Float32Array, numFrames: number, _position: number) {
+  extract(target: Float32Array, numFrames: number, position?: number) {
+    void position;
     return this.inFifo.pop(target, numFrames);
   }
 }
@@ -54,8 +54,8 @@ export class SoundTouchNode {
   private isWorklet: boolean = false;
   
   // ScriptProcessor fallback state
-  private soundTouch: any;
-  private filter: any;
+  private soundTouch: SoundTouchInstance | null = null;
+  private filter: SimpleFilter | null = null;
   private inFifo: Float32Fifo | null = null;
   
   private constructor(node: AudioNode, isWorklet: boolean) {
@@ -99,7 +99,8 @@ export class SoundTouchNode {
     
     this.inFifo = new Float32Fifo(bufferSize * 2 * 10);
     const source = new StreamSource(this.inFifo);
-    this.filter = new SimpleFilter(source, this.soundTouch);
+    const filter = new SimpleFilter(source, this.soundTouch);
+    this.filter = filter;
 
     (this.node as ScriptProcessorNode).onaudioprocess = (e) => {
       try {
@@ -118,7 +119,7 @@ export class SoundTouchNode {
         if (this.inFifo) this.inFifo.push(inSamples);
         
         const outSamples = new Float32Array(numFrames * 2);
-        const framesExtracted = this.filter.extract(outSamples, numFrames);
+        const framesExtracted = filter.extract(outSamples, numFrames);
         
         for (let i = 0; i < framesExtracted; i++) {
           outputLeft[i] = outSamples[i * 2];

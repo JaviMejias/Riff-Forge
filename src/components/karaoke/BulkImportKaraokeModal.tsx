@@ -1,7 +1,6 @@
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, FileSpreadsheet, CheckCircle, XCircle, Loader2, Upload, AlertTriangle, SkipForward } from 'lucide-react';
-import * as XLSX from 'xlsx';
 import { db } from '../../db';
 import { useAuthStore } from '../../store/authStore';
 import { API_BASE_URL } from '../../config';
@@ -29,6 +28,9 @@ const isValidYoutubeUrl = (url: string) => {
   return /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.?be)\/.+$/.test(url.trim());
 };
 
+const getCurrentTimestamp = () => Date.now();
+const getImportDelay = () => 2000 + Math.random() * 1000;
+
 type Step = 'upload' | 'preview' | 'importing' | 'done';
 
 export const BulkImportKaraokeModal = ({ isOpen, onClose }: BulkImportKaraokeModalProps) => {
@@ -47,12 +49,13 @@ export const BulkImportKaraokeModal = ({ isOpen, onClose }: BulkImportKaraokeMod
     setParseError('');
 
     const reader = new FileReader();
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       try {
+        const XLSX = await import('xlsx');
         const data = new Uint8Array(evt.target!.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: 'array' });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const rawRows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+        const rawRows: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
 
         // Skip header row if the third column doesn't look like a YouTube URL
         const startIndex = isValidYoutubeUrl(String(rawRows[0]?.[2] || '')) ? 0 : 1;
@@ -83,7 +86,8 @@ export const BulkImportKaraokeModal = ({ isOpen, onClose }: BulkImportKaraokeMod
   };
 
   const handleImport = async (indicesToRetry?: number[]) => {
-    let currentResults = [...results];
+    const currentResults = [...results];
+    const completedResults = new Map<number, ImportResult>();
 
     if (indicesToRetry) {
       indicesToRetry.forEach((idx) => {
@@ -107,17 +111,20 @@ export const BulkImportKaraokeModal = ({ isOpen, onClose }: BulkImportKaraokeMod
 
       // --- SKIP: no YouTube link ---
       if (!item.row.youtubeUrl || !isValidYoutubeUrl(item.row.youtubeUrl)) {
+        const nextResult: ImportResult = { ...item, status: 'skipped', reason: 'Sin link de YouTube' };
+        completedResults.set(i, nextResult);
         setResults((prev) => {
           const next = [...prev];
-          next[i] = { ...item, status: 'skipped', reason: 'Sin link de YouTube' };
+          next[i] = nextResult;
           return next;
         });
         continue;
       }
 
+      const downloadingResult: ImportResult = { ...item, status: 'downloading' };
       setResults((prev) => {
         const next = [...prev];
-        next[i] = { ...item, status: 'downloading' };
+        next[i] = downloadingResult;
         return next;
       });
 
@@ -131,9 +138,11 @@ export const BulkImportKaraokeModal = ({ isOpen, onClose }: BulkImportKaraokeMod
           .first();
 
         if (existing) {
+          const nextResult: ImportResult = { ...item, status: 'skipped', reason: 'Ya existe con ese nombre y artista' };
+          completedResults.set(i, nextResult);
           setResults((prev) => {
             const next = [...prev];
-            next[i] = { ...item, status: 'skipped', reason: 'Ya existe con ese nombre y artista' };
+            next[i] = nextResult;
             return next;
           });
           continue;
@@ -177,36 +186,38 @@ export const BulkImportKaraokeModal = ({ isOpen, onClose }: BulkImportKaraokeMod
           cloudUrl: data.cloudUrl,
           hasLocalAudio: !!data.cloudUrl,
           localFileDirty: false,
-          dateAdded: Date.now(),
+          dateAdded: getCurrentTimestamp(),
         }) as number;
 
+        const nextResult: ImportResult = { ...item, status: 'success' };
+        completedResults.set(i, nextResult);
         setResults((prev) => {
           const next = [...prev];
-          next[i] = { ...item, status: 'success' };
+          next[i] = nextResult;
           return next;
         });
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const nextResult: ImportResult = {
+          ...item,
+          status: 'error',
+          reason: err instanceof Error ? err.message : 'Error desconocido',
+        };
+        completedResults.set(i, nextResult);
         setResults((prev) => {
           const next = [...prev];
-          next[i] = {
-            ...item,
-            status: 'error',
-            reason: err?.message || 'Error desconocido',
-          };
+          next[i] = nextResult;
           return next;
         });
       }
 
       // Delay para evitar bloqueos de Cloudflare (2 a 3 segundos aleatorio)
-      const baseDelay = 2000;
-      const jitter = Math.random() * 1000;
-      await new Promise((r) => setTimeout(r, baseDelay + jitter));
+      await new Promise((resolve) => setTimeout(resolve, getImportDelay()));
     }
 
     setIsImporting(false);
     setStep('done');
     // Default to the tab with content
-    const finalResults = results;
+    const finalResults = currentResults.map((result, index) => completedResults.get(index) || result);
     if (finalResults.some(r => r.status === 'error')) setDoneTab('error');
     else if (finalResults.some(r => r.status === 'skipped')) setDoneTab('skipped');
     else setDoneTab('success');
@@ -246,28 +257,31 @@ export const BulkImportKaraokeModal = ({ isOpen, onClose }: BulkImportKaraokeMod
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+        className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4"
         onClick={(e) => { if (e.target === e.currentTarget && !isImporting) handleClose(); }}
       >
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95 }}
-          className="bg-zinc-900 border border-white/10 rounded-3xl p-6 w-full max-w-2xl max-h-[88vh] flex flex-col shadow-2xl"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="bulk-import-title"
+          className="bg-zinc-900 border border-white/10 rounded-t-3xl sm:rounded-3xl px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-6 w-full max-w-2xl h-[calc(100dvh-0.75rem)] sm:h-auto sm:max-h-[88vh] flex flex-col shadow-2xl"
         >
           {/* Header */}
-          <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-3">
+          <div className="flex items-center justify-between gap-3 mb-4 sm:mb-5 shrink-0">
+            <div className="flex items-center gap-3 min-w-0">
               <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
                 <FileSpreadsheet size={20} className="text-emerald-400" />
               </div>
-              <div>
-                <h2 className="text-lg font-bold text-white">Importar desde Excel</h2>
-                <p className="text-xs text-zinc-400">Columnas: A=Artista · B=Canción · C=Link YouTube</p>
+              <div className="min-w-0">
+                <h2 id="bulk-import-title" className="text-lg font-bold text-white">Importar desde Excel</h2>
+                <p className="text-xs text-zinc-400 line-clamp-2">Columnas: A=Artista · B=Canción · C=Link YouTube</p>
               </div>
             </div>
             {!isImporting && (
-              <button onClick={handleClose} className="p-2 hover:bg-white/5 rounded-xl transition-colors">
+              <button onClick={handleClose} className="w-11 h-11 shrink-0 flex items-center justify-center hover:bg-white/5 rounded-xl transition-colors" aria-label="Cerrar">
                 <X size={20} className="text-zinc-400" />
               </button>
             )}
@@ -276,9 +290,10 @@ export const BulkImportKaraokeModal = ({ isOpen, onClose }: BulkImportKaraokeMod
           {/* ── STEP 1: UPLOAD ── */}
           {step === 'upload' && (
             <div className="flex-1 flex flex-col gap-4">
-              <div
+              <button
+                type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="flex-1 border-2 border-dashed border-white/10 rounded-2xl p-10 flex flex-col items-center justify-center gap-4 cursor-pointer hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-all group"
+                className="group flex min-h-40 flex-1 cursor-pointer flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed border-white/10 p-6 transition-all hover:border-emerald-500/40 hover:bg-emerald-500/5 focus-visible:border-emerald-500/60 sm:p-10"
               >
                 <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 flex items-center justify-center group-hover:bg-emerald-500/20 transition-colors">
                   <Upload size={32} className="text-emerald-400" />
@@ -287,7 +302,7 @@ export const BulkImportKaraokeModal = ({ isOpen, onClose }: BulkImportKaraokeMod
                   <p className="font-bold text-white mb-1">Haz clic para subir tu Excel</p>
                   <p className="text-sm text-zinc-400">Formatos: .xlsx o .xls</p>
                 </div>
-              </div>
+              </button>
 
               {parseError && (
                 <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-red-400 text-sm">
@@ -298,7 +313,7 @@ export const BulkImportKaraokeModal = ({ isOpen, onClose }: BulkImportKaraokeMod
 
               <div className="bg-zinc-800/50 rounded-xl p-4 text-xs text-zinc-400 space-y-2">
                 <p className="font-bold text-zinc-300">📋 Formato esperado:</p>
-                <div className="grid grid-cols-3 gap-2 font-mono">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 sm:gap-2 font-mono">
                   <span className="bg-zinc-800 rounded px-2 py-1.5 text-center">A: Artista</span>
                   <span className="bg-zinc-800 rounded px-2 py-1.5 text-center">B: Canción</span>
                   <span className="bg-zinc-800 rounded px-2 py-1.5 text-center">C: Link YouTube</span>
@@ -317,11 +332,11 @@ export const BulkImportKaraokeModal = ({ isOpen, onClose }: BulkImportKaraokeMod
           {/* ── STEP 2: PREVIEW ── */}
           {step === 'preview' && (
             <div className="flex-1 flex flex-col min-h-0">
-              <div className="flex items-center gap-3 mb-3">
-                <p className="text-sm text-zinc-400 flex-1">
+              <div className="mb-3 flex items-center gap-3">
+                <p className="flex-1 text-sm text-zinc-400">
                   <span className="text-white font-bold">{rows.length} canciones</span> encontradas
                   {noLinkCount > 0 && (
-                    <span className="ml-2 text-yellow-400 font-medium">· {noLinkCount} sin link (serán omitidas)</span>
+                    <span className="mt-1 block font-medium text-yellow-400 sm:ml-2 sm:mt-0 sm:inline">· {noLinkCount} sin link (serán omitidas)</span>
                   )}
                 </p>
               </div>
@@ -345,11 +360,11 @@ export const BulkImportKaraokeModal = ({ isOpen, onClose }: BulkImportKaraokeMod
                 })}
               </div>
 
-              <div className="flex gap-3 mt-4 pt-4 border-t border-white/5">
-                <button onClick={() => setStep('upload')} className="flex-1 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-sm transition-all">
+              <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 mt-4 pt-4 border-t border-white/5 shrink-0">
+                <button onClick={() => setStep('upload')} className="flex-1 min-h-11 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-sm transition-all">
                   Cambiar archivo
                 </button>
-                <button onClick={() => handleImport()} className="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-sm transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)]">
+                <button onClick={() => handleImport()} className="flex-1 min-h-11 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-sm transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)]">
                   Importar {rows.length - noLinkCount} canciones
                 </button>
               </div>
@@ -403,11 +418,13 @@ export const BulkImportKaraokeModal = ({ isOpen, onClose }: BulkImportKaraokeMod
                       {r.status === 'downloading'&& <Loader2      size={16} className="text-primary-400 animate-spin" />}
                       {r.status === 'pending'    && <div className="w-4 h-4 rounded-full border border-zinc-600" />}
                     </div>
-                    <div className="flex-1 min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="font-medium text-white truncate">{r.row.name}</p>
-                      {r.reason && <p className="text-xs text-zinc-400 truncate">{r.reason}</p>}
+                      <p className="truncate text-xs text-zinc-400">
+                        {r.row.artist || 'Desconocido'}
+                        {r.reason && <span className="text-zinc-500"> · {r.reason}</span>}
+                      </p>
                     </div>
-                    <span className="text-xs text-zinc-500 shrink-0 max-w-[100px] truncate">{r.row.artist || 'Desconocido'}</span>
                   </div>
                 ))}
               </div>
@@ -421,24 +438,24 @@ export const BulkImportKaraokeModal = ({ isOpen, onClose }: BulkImportKaraokeMod
               <div className="grid grid-cols-3 gap-2 mb-4">
                 <button
                   onClick={() => setDoneTab('success')}
-                  className={`rounded-xl p-3 text-center transition-all border ${doneTab === 'success' ? 'bg-emerald-500/20 border-emerald-500/40' : 'bg-emerald-500/5 border-transparent hover:border-emerald-500/20'}`}
+                  className={`min-h-20 rounded-xl border p-2 text-center transition-all sm:p-3 ${doneTab === 'success' ? 'bg-emerald-500/20 border-emerald-500/40' : 'bg-emerald-500/5 border-transparent hover:border-emerald-500/20'}`}
                 >
                   <p className="text-2xl font-bold text-emerald-400">{successCount}</p>
-                  <p className="text-xs text-zinc-400 mt-0.5">Importadas ✅</p>
+                  <p className="mt-0.5 text-[10px] text-zinc-400 sm:text-xs">Importadas ✅</p>
                 </button>
                 <button
                   onClick={() => setDoneTab('skipped')}
-                  className={`rounded-xl p-3 text-center transition-all border ${doneTab === 'skipped' ? 'bg-yellow-500/20 border-yellow-500/40' : 'bg-yellow-500/5 border-transparent hover:border-yellow-500/20'}`}
+                  className={`min-h-20 rounded-xl border p-2 text-center transition-all sm:p-3 ${doneTab === 'skipped' ? 'bg-yellow-500/20 border-yellow-500/40' : 'bg-yellow-500/5 border-transparent hover:border-yellow-500/20'}`}
                 >
                   <p className="text-2xl font-bold text-yellow-400">{skippedCount}</p>
-                  <p className="text-xs text-zinc-400 mt-0.5">Omitidas ⚠️</p>
+                  <p className="mt-0.5 text-[10px] text-zinc-400 sm:text-xs">Omitidas ⚠️</p>
                 </button>
                 <button
                   onClick={() => setDoneTab('error')}
-                  className={`rounded-xl p-3 text-center transition-all border ${doneTab === 'error' ? 'bg-red-500/20 border-red-500/40' : 'bg-red-500/5 border-transparent hover:border-red-500/20'}`}
+                  className={`min-h-20 rounded-xl border p-2 text-center transition-all sm:p-3 ${doneTab === 'error' ? 'bg-red-500/20 border-red-500/40' : 'bg-red-500/5 border-transparent hover:border-red-500/20'}`}
                 >
                   <p className="text-2xl font-bold text-red-400">{errorCount}</p>
-                  <p className="text-xs text-zinc-400 mt-0.5">Fallidas ❌</p>
+                  <p className="mt-0.5 text-[10px] text-zinc-400 sm:text-xs">Fallidas ❌</p>
                 </button>
               </div>
 

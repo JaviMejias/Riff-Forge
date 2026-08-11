@@ -23,21 +23,26 @@ export const SyncControlBar = ({
   currentTime,
   onSeek
 }: SyncControlBarProps) => {
+  const formatTime = (time: number) => {
+    const safeTime = Number.isFinite(time) ? Math.max(0, time) : 0;
+    return `${Math.floor(safeTime / 60)}:${Math.floor(safeTime % 60).toString().padStart(2, '0')}`;
+  };
+
   return (
-    <div className="p-3 bg-zinc-900/50 border-b border-white/5 flex flex-wrap items-center justify-between gap-3">
+    <div className="flex flex-col gap-3 border-b border-white/5 bg-zinc-900/70 p-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
       
-      <div className="flex items-center w-full justify-between sm:w-auto sm:justify-start gap-2">
+      <div className="grid w-full grid-cols-[1fr_1fr_auto] items-center gap-2 sm:flex sm:w-auto sm:justify-start">
         <button
           onClick={undoSync}
           disabled={syncIndex === 0}
-          className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-zinc-300 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors"
+          className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-zinc-800 px-3 text-xs font-bold text-zinc-300 transition-colors hover:bg-zinc-700 disabled:opacity-40 sm:min-h-9"
         >
           <RotateCcw size={14} />
           Deshacer
         </button>
         <button
           onClick={isPlaying ? onPause : onPlay}
-          className={`px-4 py-1.5 rounded-lg text-xs font-black flex items-center gap-1.5 transition-colors ${isPlaying ? 'bg-red-500/20 text-red-500 hover:bg-red-500/30' : 'bg-primary-500 text-zinc-950 hover:bg-primary-400'}`}
+          className={`flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-4 text-xs font-black transition-colors sm:min-h-9 ${isPlaying ? 'bg-red-500/20 text-red-500 hover:bg-red-500/30' : 'bg-primary-500 text-zinc-950 hover:bg-primary-400'}`}
         >
           {isPlaying ? <Pause size={14} /> : <Play size={14} />}
           {isPlaying ? 'Pausar' : 'Reproducir'}
@@ -45,8 +50,9 @@ export const SyncControlBar = ({
         {onSpeedChange && (
           <select 
             onChange={(e) => onSpeedChange(parseFloat(e.target.value))}
-            className="ml-2 px-2 py-1 bg-zinc-800 text-xs font-bold text-zinc-300 rounded-lg outline-none cursor-pointer hover:bg-zinc-700 transition-colors"
+            className="min-h-11 cursor-pointer rounded-xl bg-zinc-800 px-2 text-xs font-bold text-zinc-300 outline-none transition-colors hover:bg-zinc-700 sm:ml-2 sm:min-h-9"
             defaultValue="1.0"
+            aria-label="Velocidad de reproducción"
           >
             <option value="0.5">0.5x</option>
             <option value="0.75">0.75x</option>
@@ -57,21 +63,22 @@ export const SyncControlBar = ({
 
       {/* BARRA DE PROGRESO */}
       {duration ? (
-        <div className="flex-1 w-full sm:w-auto flex items-center gap-2">
-          <span className="text-[10px] font-mono text-zinc-500 min-w-[32px] text-right">
-            {Math.floor(currentTime / 60)}:{(Math.floor(currentTime % 60)).toString().padStart(2, '0')}
+        <div className="grid w-full flex-1 grid-cols-[auto_1fr_auto] items-center gap-2 rounded-xl bg-zinc-950/40 px-2 py-2 sm:w-auto sm:min-w-64 sm:bg-transparent sm:p-0">
+          <span className="min-w-9 text-right font-mono text-[10px] tabular-nums text-zinc-500">
+            {formatTime(currentTime)}
           </span>
           <input 
             type="range" 
             min="0" 
             max={duration || 100} 
             step="0.1"
-            value={currentTime || 0}
+            value={Math.min(Math.max(currentTime || 0, 0), duration)}
             onChange={(e) => onSeek(parseFloat(e.target.value))}
-            className="flex-1 h-1.5 bg-zinc-800 rounded-full appearance-none cursor-pointer accent-primary-500 hover:accent-primary-400"
+            className="h-2 w-full cursor-pointer appearance-none rounded-full bg-zinc-800 accent-primary-500 hover:accent-primary-400"
+            aria-label="Posición de reproducción"
           />
-          <span className="text-[10px] font-mono text-zinc-500 min-w-[32px]">
-            {Math.floor(duration / 60)}:{(Math.floor(duration % 60)).toString().padStart(2, '0')}
+          <span className="min-w-9 font-mono text-[10px] tabular-nums text-zinc-500">
+            {formatTime(duration)}
           </span>
         </div>
       ) : null}

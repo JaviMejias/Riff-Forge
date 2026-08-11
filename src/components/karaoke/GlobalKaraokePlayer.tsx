@@ -1,11 +1,14 @@
-import { Suspense, useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useLocation } from 'react-router-dom';
 import { db } from '../../db';
 import { usePlayerStore } from '../../store/playerStore';
 import { useUiStore } from '../../store/uiStore';
 import { Loader2 } from 'lucide-react';
-import { KaraokePlayer } from './KaraokePlayer';
+
+const KaraokePlayer = lazy(() =>
+  import('./KaraokePlayer').then((module) => ({ default: module.KaraokePlayer }))
+);
 
 export const GlobalKaraokePlayer = () => {
   const { activeKaraokeId, setIsKaraokeMiniPlayer, isKaraokeMiniPlayer } = usePlayerStore();
@@ -18,17 +21,23 @@ export const GlobalKaraokePlayer = () => {
     if (!isKaraokeMiniPlayer && activeKaraokeId) {
       setIsKaraokeMiniPlayer(true);
     }
-  }, [location.pathname]);
+  }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps -- only route changes should minimize an already-open player
   
   const karaoke = useLiveQuery(
-    () => activeKaraokeId ? db.karaokes.get(activeKaraokeId) : undefined,
+    async () => activeKaraokeId ? (await db.karaokes.get(activeKaraokeId) ?? null) : null,
     [activeKaraokeId]
   );
+
+  useEffect(() => {
+    if (karaoke !== null || !activeKaraokeId) return;
+    usePlayerStore.getState().setActiveKaraokeId(null);
+    usePlayerStore.getState().setIsKaraokeMiniPlayer(false);
+  }, [activeKaraokeId, karaoke]);
 
   if (!activeKaraokeId) return null;
 
   if (karaoke === undefined) return (
-    <div className="fixed bottom-0 left-0 right-0 h-20 bg-zinc-950/90 backdrop-blur-lg flex items-center justify-center z-50 border-t border-white/10">
+    <div className="global-karaoke-placeholder fixed bottom-[calc(4.25rem+env(safe-area-inset-bottom))] md:bottom-0 left-0 right-0 h-20 bg-zinc-950/90 backdrop-blur-lg flex items-center justify-center z-50 border-t border-white/10">
       <Loader2 className="animate-spin text-primary-500 w-6 h-6" />
     </div>
   );
@@ -37,7 +46,7 @@ export const GlobalKaraokePlayer = () => {
 
   return (
     <Suspense fallback={
-      <div className="fixed bottom-0 left-0 right-0 h-20 bg-zinc-950/90 backdrop-blur-lg flex items-center justify-center z-50 border-t border-white/10">
+      <div className="global-karaoke-placeholder fixed bottom-[calc(4.25rem+env(safe-area-inset-bottom))] md:bottom-0 left-0 right-0 h-20 bg-zinc-950/90 backdrop-blur-lg flex items-center justify-center z-50 border-t border-white/10">
         <Loader2 className="animate-spin text-primary-500 w-6 h-6" />
       </div>
     }>

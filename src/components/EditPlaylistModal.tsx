@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Edit3 } from 'lucide-react';
 import { Modal } from './Modal';
 
@@ -11,26 +11,31 @@ interface EditPlaylistModalProps {
 
 export const EditPlaylistModal = ({ isOpen, onClose, currentName, onSave }: EditPlaylistModalProps) => {
   const [name, setName] = useState(currentName);
+  const [previousName, setPreviousName] = useState(currentName);
 
-  useEffect(() => {
-    if (isOpen) {
-      setName(currentName);
-    }
-  }, [isOpen, currentName]);
+  if (currentName !== previousName) {
+    setPreviousName(currentName);
+    setName(currentName);
+  }
+
+  const handleClose = () => {
+    setName(currentName);
+    onClose();
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (name.trim() && name.trim() !== currentName) {
       onSave(name.trim());
     } else {
-      onClose(); // Just close if it hasn't changed or is empty
+      handleClose(); // Just close if it hasn't changed or is empty
     }
   };
 
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       title="Editar Lista"
       subtitle="Cambia el nombre de tu lista de reproducción."
       icon={<Edit3 size={24} />}
@@ -44,16 +49,16 @@ export const EditPlaylistModal = ({ isOpen, onClose, currentName, onSave }: Edit
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full bg-zinc-900/50 border border-white/5 rounded-xl px-4 py-3 text-zinc-200 focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/50 transition-all placeholder:text-zinc-600 shadow-inner"
+            className="w-full min-h-12 bg-zinc-900/50 border border-white/5 rounded-xl px-4 py-3 text-zinc-200 focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/50 transition-all placeholder:text-zinc-600 shadow-inner"
             placeholder="Ej: Rock Clásico"
             autoFocus
           />
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-3 justify-end pt-2 border-t border-white/5 mt-2">
+        <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end pt-3 border-t border-white/5 mt-2">
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="w-full sm:w-auto px-6 py-3 sm:py-2.5 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl font-bold transition-all text-center"
           >
             Cancelar

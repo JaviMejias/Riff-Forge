@@ -35,7 +35,7 @@ export const ManagePlaylistsModal = ({ isOpen, onClose, songId }: ManagePlaylist
       subtitle="Añade o quita esta canción de tus listas de reproducción."
       icon={<ListMusic size={24} />}
     >
-      <div className="p-6 flex flex-col max-h-[60vh] overflow-y-auto custom-scrollbar">
+      <div className="p-3 sm:p-6 flex-1 min-h-0 flex flex-col overflow-y-auto custom-scrollbar">
         {playlists.length === 0 ? (
           <div className="text-center py-8 text-zinc-500">
             <p>No tienes listas de reproducción creadas.</p>
@@ -48,7 +48,7 @@ export const ManagePlaylistsModal = ({ isOpen, onClose, songId }: ManagePlaylist
                 <button
                   key={playlist.id}
                   onClick={() => togglePlaylist(playlist)}
-                  className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
+                  className={`min-h-14 flex items-center justify-between p-3 sm:p-4 rounded-xl border transition-all ${
                     isIncluded 
                       ? 'bg-primary-500/10 border-primary-500/50 text-primary-500' 
                       : 'bg-zinc-900 border-white/5 text-zinc-300 hover:bg-zinc-800'
@@ -62,10 +62,10 @@ export const ManagePlaylistsModal = ({ isOpen, onClose, songId }: ManagePlaylist
           </div>
         )}
       </div>
-      <div className="p-6 border-t border-white/5 flex justify-end">
+      <div className="p-3 sm:p-4 border-t border-white/5 flex justify-end shrink-0 bg-zinc-900/80">
         <button
           onClick={onClose}
-          className="px-6 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-xl transition-colors"
+          className="w-full sm:w-auto min-h-11 px-6 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-xl transition-colors"
         >
           Cerrar
         </button>

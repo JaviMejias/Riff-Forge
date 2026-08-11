@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as alphaTab from '@coderline/alphatab';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Guitar, Loader2, Settings2, Play, Pause, Plus, Minus, Printer, Trash2, MoreVertical, Maximize, Download } from 'lucide-react';
+import { Guitar, Loader2, Settings2, Play, Pause, Plus, Minus, Printer, Trash2, MoreVertical, Maximize, Download, X } from 'lucide-react';
 import { PlayerToolbar } from './PlayerToolbar';
 import { PracticeControls } from './PracticeControls';
 import { TrackMixer } from './TrackMixer';
@@ -61,6 +61,16 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
     setTrackSolos,
     changeTrack
   } = useAlphaTab(song);
+
+  const hasCifraContent = useMemo(() => {
+    if (song.textContent?.trim()) return true;
+    const activeTrack = tracks[activeTrackIndex];
+    return activeTrack?.staves.some(stave => stave.bars.some(bar =>
+      bar.voices.some(voice => voice.beats.some(beat =>
+        Boolean(beat.chord?.name || beat.lyrics?.some(lyric => lyric.trim()))
+      ))
+    )) ?? false;
+  }, [activeTrackIndex, song.textContent, tracks]);
 
   const targetBpm = Math.round(originalTempo * playbackSpeed);
   useMetronome(targetBpm, isMetronomeActive && mainViewMode === 'cifra');
@@ -184,7 +194,7 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
   const [showToolbar, setShowToolbar] = useState(true);
   const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleMouseMove = () => {
+  const handleMouseMove = useCallback(() => {
     setShowToolbar(true);
     if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
     hideTimeoutRef.current = setTimeout(() => {
@@ -192,19 +202,23 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
         setShowToolbar(false);
       }
     }, 2500);
-  };
+  }, [apiRef]);
 
   useEffect(() => {
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('touchstart', handleMouseMove);
-    handleMouseMove(); // Initial trigger
+    hideTimeoutRef.current = setTimeout(() => {
+      if (apiRef.current && apiRef.current.playerState === alphaTab.synth.PlayerState.Playing) {
+        setShowToolbar(false);
+      }
+    }, 2500);
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('touchstart', handleMouseMove);
       if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
     };
-  }, []);
+  }, [apiRef, handleMouseMove]);
 
   const [isHorizontalMode, setIsHorizontalMode] = useState<boolean>(false);
   const [isCountInActive, setIsCountInActive] = useState<boolean>(false);
@@ -217,12 +231,6 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
     }
     window.removeEventListener('mousemove', handleMouseMove);
   };
-
-  useEffect(() => {
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-    };
-  }, [isPlaying]);
 
   // EFECTO DE AUTOSCROLL
   useEffect(() => {
@@ -314,13 +322,13 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
     }
   };
 
-  const handleTrackMuteToggle = (index: number) => {
+  const handleTrackMuteToggle = useCallback((index: number) => {
     const newMute = !trackMutes[index];
     setTrackMutes(prev => ({ ...prev, [index]: newMute }));
     if (apiRef.current && tracks[index]) {
       apiRef.current.changeTrackMute([tracks[index]], newMute);
     }
-  };
+  }, [apiRef, setTrackMutes, trackMutes, tracks]);
 
   // === KEYBOARD SHORTCUTS ===
   useEffect(() => {
@@ -379,7 +387,7 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [mainViewMode, activeTrackIndex, trackMutes, trackSolos, tracks]);
+  }, [apiRef, mainViewMode, activeTrackIndex, trackMutes, trackSolos, tracks, handleTrackMuteToggle, setTrackSolos]);
 
   const handleTrackSoloToggle = (index: number) => {
     const newSolo = !trackSolos[index];
@@ -430,7 +438,7 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
   };
 
   return (
-    <div className="flex flex-col h-full w-full relative p-8" onMouseMove={handleMouseMove}>
+    <div className="tab-player-shell relative flex h-full w-full flex-col px-2 py-2 sm:p-4 lg:p-6" onMouseMove={handleMouseMove}>
       {!song && (
         <div className="absolute inset-0 z-50 flex flex-col items-center justify-center text-slate-500 bg-slate-950 border-2 border-dashed border-slate-800 rounded-3xl">
           <Guitar size={80} className="mb-6 opacity-20" />
@@ -448,7 +456,7 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
           onBack={onBack}
         >
           {song.type !== 'text' && (
-            <div className="flex bg-zinc-950/50 p-1 rounded-xl border border-white/5 shadow-inner">
+            <div className="hidden bg-zinc-950/50 p-1 rounded-xl border border-white/5 shadow-inner sm:flex">
               <button
                 onClick={() => setMainViewMode('pro')}
                 className={`px-3 sm:px-4 py-1.5 rounded-lg font-bold transition-all text-xs sm:text-sm ${mainViewMode === 'pro'
@@ -473,14 +481,19 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
           {/* Menú para móviles (Agrupado) */}
           <div className="relative sm:hidden ml-1" ref={mobileMoreMenuRef}>
             <button 
+              type="button"
               onClick={() => setIsMobileMoreMenuOpen(!isMobileMoreMenuOpen)}
+              aria-label="Mostrar opciones de la tablatura"
+              aria-expanded={isMobileMoreMenuOpen}
+              aria-controls="tab-player-actions-menu"
               className="p-2 bg-zinc-800/50 text-zinc-300 rounded-xl hover:bg-zinc-800 hover:text-white transition-colors border border-white/5"
             >
               <MoreVertical size={20} />
             </button>
             <AnimatePresence>
               {isMobileMoreMenuOpen && (
-                <motion.div 
+                <motion.div
+                  id="tab-player-actions-menu"
                   initial={{ opacity: 0, y: -10, scale: 0.95 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -10, scale: 0.95 }}
@@ -543,20 +556,27 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
         </Navbar>
       )}
 
+      {song && !errorMsg && song.type !== 'text' && (
+        <div className="tab-view-switch mx-auto my-2 flex shrink-0 rounded-xl border border-white/5 bg-zinc-900/80 p-1 shadow-inner sm:hidden">
+          <button onClick={() => setMainViewMode('pro')} className={`min-h-10 rounded-lg px-5 text-xs font-bold transition-all ${mainViewMode === 'pro' ? 'bg-primary-500 text-zinc-950 shadow-[0_0_15px_var(--theme-glow)]' : 'text-zinc-400'}`}>Tab</button>
+          <button onClick={() => setMainViewMode('cifra')} className={`min-h-10 rounded-lg px-5 text-xs font-bold transition-all ${mainViewMode === 'cifra' ? 'bg-purple-500 text-white shadow-[0_0_15px_rgba(168,85,247,0.3)]' : 'text-zinc-400'}`}>Cifra</button>
+        </div>
+      )}
+
       {/* Banner para canciones temporales del catálogo */}
       {song?.isTemporary && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="shrink-0 flex items-center justify-between gap-3 px-4 py-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl mb-2 mx-0"
+          className="mx-0 mb-2 flex shrink-0 flex-col items-stretch justify-between gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 sm:flex-row sm:items-center sm:gap-3 sm:px-4"
         >
-          <div className="flex items-center gap-2 text-amber-400 text-sm font-medium">
+          <div className="flex items-start gap-2 text-xs font-medium text-amber-400 sm:items-center sm:text-sm">
             <span className="text-base">👁️</span>
             <span>Estás viendo una <strong>vista previa temporal</strong>. No está guardada en tu biblioteca.</span>
           </div>
           <button
             onClick={handleSaveToLibrary}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-zinc-900 font-bold text-xs rounded-lg transition-colors shrink-0"
+            className="flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-bold text-zinc-900 transition-colors hover:bg-amber-400"
           >
             <Download size={14} />
             Guardar en mi Biblioteca
@@ -570,8 +590,9 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
             initial={{ height: 0, opacity: 0, marginBottom: 0 }}
             animate={{ height: 'auto', opacity: 1, marginBottom: 16 }}
             exit={{ height: 0, opacity: 0, marginBottom: 0 }}
-            className="shrink-0 relative z-40"
+            className="practice-controls-panel fixed inset-x-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-[70] max-h-[60vh] overflow-y-auto rounded-2xl border border-white/10 bg-zinc-950 p-1 shadow-2xl sm:relative sm:inset-auto sm:z-40 sm:max-h-none sm:overflow-visible sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none"
           >
+            <button type="button" onClick={() => setShowPracticeControls(false)} className="sticky top-1 z-10 ml-auto flex min-h-10 min-w-10 items-center justify-center rounded-xl bg-zinc-800 text-zinc-300 sm:hidden" aria-label="Cerrar herramientas de práctica"><X size={18} /></button>
             <PracticeControls
               isLoading={isLoading}
               originalBpm={originalTempo}
@@ -604,7 +625,7 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
                   <p className="font-bold text-lg animate-pulse">{loadingMsg}</p>
                 </div>
               )}
-              <div ref={containerRef} className={`overflow-y-auto overflow-x-auto p-4 relative w-full h-full flex-1 ${!isHorizontalMode ? 'hide-scrollbar' : 'custom-scrollbar'}`}></div>
+              <div ref={containerRef} className={`relative h-full w-full flex-1 overflow-x-auto overflow-y-auto p-1 sm:p-4 ${!isHorizontalMode ? 'hide-scrollbar' : 'custom-scrollbar'}`}></div>
             </div>
 
           </div>
@@ -632,7 +653,7 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
       </div>
 
       <AnimatePresence>
-        {mainViewMode === 'cifra' && !isChordsEditing && (
+        {mainViewMode === 'cifra' && hasCifraContent && !isChordsEditing && (
           <motion.div
             initial={{ y: 100, opacity: 0, x: '-50%' }}
             animate={{ y: 0, opacity: 1, x: '-50%' }}
@@ -692,7 +713,7 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
             initial={{ y: 100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 100, opacity: 0 }}
-            className="absolute bottom-6 left-0 right-0 px-6 w-full max-w-7xl mx-auto flex justify-center z-50 pointer-events-none"
+            className="absolute bottom-2 left-0 right-0 px-2 sm:bottom-6 sm:px-6 w-full max-w-7xl mx-auto flex justify-center z-50 pointer-events-none"
           >
             <div className="w-full max-w-6xl pointer-events-auto">
               <PlayerToolbar

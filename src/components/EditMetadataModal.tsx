@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Edit3 } from 'lucide-react';
 import { Modal } from './Modal';
 
@@ -11,27 +11,33 @@ interface EditMetadataModalProps {
 }
 
 export const EditMetadataModal = ({ isOpen, onClose, initialTitle, initialArtist, onSave }: EditMetadataModalProps) => {
-  const [title, setTitle] = useState('');
-  const [artist, setArtist] = useState('');
+  const [title, setTitle] = useState(initialTitle);
+  const [artist, setArtist] = useState(initialArtist);
+  const [initialValues, setInitialValues] = useState({ title: initialTitle, artist: initialArtist });
 
-  useEffect(() => {
-    if (isOpen) {
-      setTitle(initialTitle);
-      setArtist(initialArtist);
-    }
-  }, [isOpen, initialTitle, initialArtist]);
+  if (initialTitle !== initialValues.title || initialArtist !== initialValues.artist) {
+    setInitialValues({ title: initialTitle, artist: initialArtist });
+    setTitle(initialTitle);
+    setArtist(initialArtist);
+  }
+
+  const handleClose = () => {
+    setTitle(initialTitle);
+    setArtist(initialArtist);
+    onClose();
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
     onSave(title.trim(), artist.trim());
-    onClose();
+    handleClose();
   };
 
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       title="Editar Metadatos"
       subtitle="Modifica el título y el artista para actualizar la carátula."
       icon={<Edit3 size={24} />}
@@ -43,7 +49,7 @@ export const EditMetadataModal = ({ isOpen, onClose, initialTitle, initialArtist
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="w-full bg-zinc-950 border border-white/10 rounded-xl px-4 py-3 text-zinc-200 focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/50 transition-all placeholder:text-zinc-600"
+            className="w-full min-h-12 bg-zinc-950 border border-white/10 rounded-xl px-4 py-3 text-zinc-200 focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/50 transition-all placeholder:text-zinc-600"
             placeholder="Título de la canción"
             autoFocus
           />
@@ -55,23 +61,23 @@ export const EditMetadataModal = ({ isOpen, onClose, initialTitle, initialArtist
             type="text"
             value={artist}
             onChange={(e) => setArtist(e.target.value)}
-            className="w-full bg-zinc-950 border border-white/10 rounded-xl px-4 py-3 text-zinc-200 focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/50 transition-all placeholder:text-zinc-600"
+            className="w-full min-h-12 bg-zinc-950 border border-white/10 rounded-xl px-4 py-3 text-zinc-200 focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/50 transition-all placeholder:text-zinc-600"
             placeholder="Nombre del artista"
           />
         </div>
 
-        <div className="flex gap-3 justify-end mt-4">
+        <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end mt-3 pt-3 border-t border-white/5">
           <button
             type="button"
-            onClick={onClose}
-            className="px-6 py-2.5 rounded-xl text-zinc-400 hover:text-white font-medium transition-colors"
+            onClick={handleClose}
+            className="w-full sm:w-auto min-h-11 px-6 py-2.5 rounded-xl text-zinc-400 hover:text-white font-medium transition-colors"
           >
             Cancelar
           </button>
           <button
             type="submit"
             disabled={!title.trim()}
-            className="px-6 py-2.5 bg-primary-500 hover:bg-primary-400 disabled:opacity-50 disabled:hover:bg-primary-500 text-zinc-950 font-bold rounded-xl transition-colors shadow-[0_0_15px_var(--theme-glow)]"
+            className="w-full sm:w-auto min-h-11 px-6 py-2.5 bg-primary-500 hover:bg-primary-400 disabled:opacity-50 disabled:hover:bg-primary-500 text-zinc-950 font-bold rounded-xl transition-colors shadow-[0_0_15px_var(--theme-glow)]"
           >
             Guardar
           </button>

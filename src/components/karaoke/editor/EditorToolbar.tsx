@@ -1,4 +1,4 @@
-import { AlignLeft, MousePointerClick, Save } from 'lucide-react';
+import { AlignLeft, MousePointerClick, Save, X } from 'lucide-react';
 import type { EditorMode } from './KaraokeLyricsEditor';
 
 interface SyncProgress {
@@ -19,6 +19,7 @@ export const EditorToolbar = ({
   mode,
   setMode,
   textContent,
+  onCancel,
   handleSave,
   syncProgress,
 }: EditorToolbarProps) => {
@@ -28,14 +29,14 @@ export const EditorToolbar = ({
       : 0;
 
   return (
-    <div className="flex items-center justify-between p-3 border-b border-white/5 bg-zinc-900/50 backdrop-blur-sm gap-2">
+    <div className="flex min-w-0 items-center justify-between gap-1.5 border-b border-white/5 bg-zinc-900/50 p-2 backdrop-blur-sm sm:gap-2 sm:p-3">
 
       {/* PESTAÑAS — solo 2 ahora */}
       <div className="flex items-center gap-1 bg-zinc-900/60 backdrop-blur-md border border-white/5 p-1 rounded-2xl flex-shrink-0">
         <button
           onClick={() => setMode('text')}
           title="Texto Plano"
-          className={`px-2 xl:px-4 py-2 rounded-xl text-xs font-bold transition-all flex-shrink-0 flex items-center justify-center gap-1.5 ${
+          className={`min-w-10 min-h-10 px-2 xl:px-4 py-2 rounded-xl text-xs font-bold transition-all flex-shrink-0 flex items-center justify-center gap-1.5 ${
             mode === 'text'
               ? 'bg-primary-500/10 text-primary-400 border border-primary-500/20 shadow-[0_0_15px_var(--theme-glow)]'
               : 'text-zinc-500 hover:bg-white/5 hover:text-zinc-200 border border-transparent'
@@ -48,7 +49,7 @@ export const EditorToolbar = ({
           onClick={() => setMode('sync')}
           disabled={!textContent.trim()}
           title="Sincronizador"
-          className={`px-2 xl:px-4 py-2 rounded-xl text-xs font-bold transition-all flex-shrink-0 flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed ${
+          className={`min-w-10 min-h-10 px-2 xl:px-4 py-2 rounded-xl text-xs font-bold transition-all flex-shrink-0 flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed ${
             mode === 'sync'
               ? 'bg-primary-500/10 text-primary-400 border border-primary-500/20 shadow-[0_0_15px_var(--theme-glow)]'
               : 'text-zinc-500 hover:bg-white/5 hover:text-zinc-200 border border-transparent'
@@ -82,10 +83,21 @@ export const EditorToolbar = ({
       )}
 
       {/* DERECHA: GUARDAR */}
-      <div className="flex items-center gap-2 flex-shrink-0">
+      <div className="flex flex-shrink-0 items-center gap-1 sm:gap-2">
         <button
+          type="button"
+          onClick={onCancel}
+          aria-label="Cerrar editor"
+          title="Cerrar editor"
+          className="flex min-h-10 min-w-10 items-center justify-center rounded-xl text-zinc-400 transition-colors hover:bg-white/10 hover:text-white active:scale-95"
+        >
+          <X size={17} />
+        </button>
+        <button
+          type="button"
           onClick={handleSave}
-          className="flex items-center gap-1.5 px-3 py-2 bg-primary-500 hover:bg-primary-400 text-zinc-950 rounded-xl transition-all font-black text-xs shadow-[0_0_15px_var(--theme-glow)] hover:shadow-[0_0_25px_var(--theme-glow-strong)] hover:-translate-y-0.5 active:scale-95"
+          aria-label="Guardar letra"
+          className="min-h-10 flex items-center gap-1.5 px-3 py-2 bg-primary-500 hover:bg-primary-400 text-zinc-950 rounded-xl transition-all font-black text-xs shadow-[0_0_15px_var(--theme-glow)] hover:shadow-[0_0_25px_var(--theme-glow-strong)] hover:-translate-y-0.5 active:scale-95"
         >
           <Save size={15} />
           <span className="hidden sm:inline">Guardar</span>

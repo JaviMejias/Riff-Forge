@@ -92,7 +92,7 @@ export const PasteChordsModal = ({ isOpen, onClose, onSuccess }: PasteChordsModa
       subtitle="Pega letras y acordes desde Cifra Club o Ultimate Guitar."
       icon={<FileText size={24} />}
     >
-      <form onSubmit={handleSubmit} className="p-4 sm:p-6 flex flex-col h-[85vh] sm:h-[70vh] max-h-[700px] overflow-y-auto custom-scrollbar">
+      <form onSubmit={handleSubmit} className="p-4 sm:p-6 flex-1 min-h-0 flex flex-col overflow-y-auto custom-scrollbar">
         <div className="flex flex-col sm:flex-row gap-4 mb-4">
           <div className="flex-1">
             <label className="block text-sm font-bold text-zinc-300 mb-2">Título *</label>
@@ -182,7 +182,7 @@ export const PasteChordsModal = ({ isOpen, onClose, onSuccess }: PasteChordsModa
           />
         </div>
 
-        <div className="flex flex-col sm:flex-row items-center justify-end gap-3 shrink-0 mt-auto">
+        <div className="sticky bottom-0 -mx-4 -mb-4 sm:-mx-6 sm:-mb-6 px-4 sm:px-6 py-3 sm:py-4 flex flex-col-reverse sm:flex-row items-center justify-end gap-2 sm:gap-3 shrink-0 mt-auto border-t border-white/10 bg-zinc-900/95 backdrop-blur-xl">
           <button
             type="button"
             onClick={onClose}

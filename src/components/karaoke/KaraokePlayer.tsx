@@ -10,7 +10,7 @@ import { ViewModeSelector } from './view/ViewModeSelector';
 import { KaraokeLyricsEditor } from './editor/KaraokeLyricsEditor';
 import { db } from '../../db';
 import type { Karaoke } from '../../db';
-import YouTube from 'react-youtube';
+import YouTube, { type YouTubePlayer } from 'react-youtube';
 import { downloadKaraokeMp3 } from '../../utils/download';
 import Swal from 'sweetalert2';
 import { useAudioStore } from '../../store/audioStore';
@@ -25,6 +25,12 @@ interface KaraokePlayerProps {
   isSidebarOpen: boolean;
   onToggleSidebar: () => void;
 }
+
+type LegacyKaraoke = Karaoke & {
+  localFile?: BlobPart;
+};
+
+type AudioContextConstructor = typeof AudioContext;
 
 export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar }: KaraokePlayerProps) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -106,14 +112,14 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
       } else if (urlObj.hostname.includes('youtu.be')) {
         return urlObj.pathname.slice(1);
       }
-    } catch (e) {
-      // invalid url
+    } catch {
+      return null;
     }
     return null;
   };
 
   const ytVideoId = karaoke.youtubeUrl ? getYoutubeVideoId(karaoke.youtubeUrl) : null;
-  const hasLocalAudio = !!karaoke.hasLocalAudio || !!(karaoke as any).localFile;
+  const hasLocalAudio = !!karaoke.hasLocalAudio || !!(karaoke as LegacyKaraoke).localFile;
 
   const [activeSource, setActiveSource] = useState<'youtube' | 'local'>(
     ytVideoId ? 'youtube' : 'local'
@@ -145,7 +151,7 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
     setActiveSource(newSource);
   };
 
-  const [ytPlayer, setYtPlayer] = useState<any>(null);
+  const [ytPlayer, setYtPlayer] = useState<YouTubePlayer | null>(null);
   const [hasStarted, setHasStarted] = useState(false);
   const [globalDuration, setGlobalDuration] = useState(0);
 
@@ -160,13 +166,12 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
         ytPlayer.seekTo(time, true);
         setTimeout(() => ytPlayer.pauseVideo(), 150);
         pendingSeekRef.current = null;
-        setGlobalIsPlaying(false);
       } catch(e) { console.warn('Error pending seek YT', e); }
     }
   }, [activeSource, ytPlayer]);
 
   useEffect(() => {
-    let interval: any;
+    let interval: ReturnType<typeof setInterval> | undefined;
     if (activeSource === 'youtube' && ytPlayer) {
       interval = setInterval(() => {
         const time = ytPlayer.getCurrentTime();
@@ -185,12 +190,14 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
             if (Math.abs(localTime - time) > 0.25) {
               localPlayerRef.current.seek(time);
             }
-          } catch (err) {}
+          } catch (error) {
+            console.warn('Error synchronizing local audio:', error);
+          }
         }
       }, 100); // M-1 fix: 10fps is plenty for lyric sync and saves React re-renders
     }
     return () => clearInterval(interval);
-  }, [activeSource, ytPlayer]);
+  }, [activeSource, ytPlayer, hasLocalAudio]);
 
   // Audio Control Methods for Sync Editor
   const handleAbstractPlay = () => {
@@ -209,7 +216,10 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
 
   const playCountInTick = () => {
     try {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      const audioWindow = window as typeof window & {
+        webkitAudioContext?: AudioContextConstructor;
+      };
+      const AudioContextClass = window.AudioContext || audioWindow.webkitAudioContext;
       if (!AudioContextClass) return;
       const ctx = new AudioContextClass();
       const osc = ctx.createOscillator();
@@ -389,18 +399,22 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
       if (ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo();
     } catch (e) { console.warn(e); }
     if (localPlayerRef.current) localPlayerRef.current.pause();
-    setGlobalIsPlaying(false);
+    const stateTimer = setTimeout(() => setGlobalIsPlaying(false), 0);
+    return () => clearTimeout(stateTimer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSource]);
 
   // Sync state if karaoke prop changes
   useEffect(() => {
-    if (karaoke.textContent && !showLyrics && !isEditing) {
-      setShowLyrics(true);
-    }
-    // Update active source if the available sources change (prioritize youtube)
-    if (ytVideoId) setActiveSource('youtube');
-    else if (hasLocalAudio) setActiveSource('local');
+    const stateTimer = setTimeout(() => {
+      if (karaoke.textContent && !showLyrics && !isEditing) {
+        setShowLyrics(true);
+      }
+      if (ytVideoId) setActiveSource('youtube');
+      else if (hasLocalAudio) setActiveSource('local');
+    }, 0);
+
+    return () => clearTimeout(stateTimer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [karaoke.id, ytVideoId, hasLocalAudio]);
 
@@ -445,7 +459,7 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
 
   return (
     <>
-      <div className={isKaraokeMiniPlayer ? "opacity-0 w-0 h-0 overflow-hidden absolute pointer-events-none" : "flex flex-col absolute inset-0 z-[60] bg-zinc-950 p-4 sm:p-8"}>
+      <div className={isKaraokeMiniPlayer ? "opacity-0 w-0 h-0 overflow-hidden absolute pointer-events-none" : "karaoke-player-shell flex flex-col absolute inset-0 z-[60] bg-zinc-950 px-3 pt-3 pb-[calc(4.75rem+env(safe-area-inset-bottom))] sm:p-8"}>
       
       <Navbar
         title={karaoke.name}
@@ -457,14 +471,18 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
         <div className="flex gap-2 relative z-[100]" ref={mobileMenuRef}>
           {/* Botón menú hamburguesa (solo móvil) */}
           <button
+            type="button"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            aria-label="Mostrar opciones del karaoke"
+            aria-expanded={isMobileMenuOpen}
+            aria-controls="karaoke-player-actions-menu"
             className="sm:hidden flex items-center justify-center p-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl transition-all"
           >
             <MoreVertical size={20} />
           </button>
 
           {/* Contenedor de botones (visible en PC, menú desplegable en móvil) */}
-          <div className={`
+          <div id="karaoke-player-actions-menu" className={`
             absolute top-full right-0 mt-2 p-2 bg-zinc-900 border border-white/10 rounded-2xl shadow-xl flex-col gap-2 min-w-[200px]
             sm:static sm:mt-0 sm:p-0 sm:bg-transparent sm:border-none sm:shadow-none sm:flex sm:flex-row sm:w-auto
             ${isMobileMenuOpen ? 'flex' : 'hidden sm:flex'}
@@ -527,12 +545,12 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
         </div>
       </Navbar>
 
-      <div className="flex-1 flex flex-col lg:flex-row gap-6 mt-6 overflow-hidden">
+      <div className="karaoke-player-content flex-1 min-h-0 flex flex-col lg:flex-row gap-2 sm:gap-4 lg:gap-6 mt-2 sm:mt-4 lg:mt-6 overflow-hidden">
         
         {/* LADO IZQUIERDO: REPRODUCTOR */}
-        <div className={`relative flex-col transition-all duration-300 flex ${
+        <div className={`karaoke-media-pane relative flex-col transition-all duration-300 flex ${
           showLyrics || isEditing
-            ? 'lg:w-1/2 shrink-0 lg:h-full' 
+            ? `${isEditing ? 'h-[210px]' : 'h-[250px]'} sm:h-[320px] lg:w-1/2 shrink-0 lg:h-full`
             : 'w-full h-full'
         }`}>
           {/* Selector de Fuente (superpuesto para ahorrar espacio) */}
@@ -581,7 +599,7 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
 
           <div 
             ref={fullscreenRef}
-            className={`flex flex-col rounded-3xl overflow-hidden bg-black border border-white/10 relative z-20 transition-all duration-700 ${
+            className={`flex flex-col h-full rounded-2xl sm:rounded-3xl overflow-hidden bg-black border border-white/10 relative z-20 transition-all duration-700 ${
               isFullscreen ? 'fixed inset-0 z-[9999] rounded-none border-none w-screen h-screen' : 
               ((showLyrics || isEditing)
                 ? 'shrink-0 lg:h-auto lg:flex-1' 
@@ -618,12 +636,16 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
                         if (!hasStarted) setHasStarted(true);
                         try {
                           if (e.target && typeof e.target.mute === 'function') e.target.mute(); 
-                        } catch (err) {}
+                        } catch (error) {
+                          console.warn('Error muting YouTube player:', error);
+                        }
                         if (hasLocalAudio && activeSource === 'youtube') {
                           try {
                             localPlayerRef.current?.seek(e.target.getCurrentTime());
                             localPlayerRef.current?.play();
-                          } catch (err) {}
+                          } catch (error) {
+                            console.warn('Error starting synchronized local audio:', error);
+                          }
                         }
                       }}
                       onPause={() => {
@@ -682,7 +704,7 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
                 {/* Animación del tocadiscos (Vinilo Realista) */}
                 <div className="relative flex flex-col items-center justify-center mb-4">
                   {/* Contenedor principal del vinilo */}
-                  <div className="relative w-48 h-48 sm:w-64 sm:h-64">
+                  <div className="relative w-28 h-28 sm:w-48 sm:h-48 xl:w-64 xl:h-64">
                     
                     {/* El disco que gira */}
                     <div className="absolute inset-0 rounded-full bg-zinc-950 border-[6px] sm:border-8 border-zinc-900 shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex items-center justify-center overflow-hidden animate-spin" 
@@ -756,7 +778,9 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
                           setTimeout(() => localPlayerRef.current?.pause(), 150);
                           pendingSeekRef.current = null;
                           setGlobalIsPlaying(false);
-                        } catch(e) {}
+                        } catch (error) {
+                          console.warn('Error applying pending local seek:', error);
+                        }
                       }
                     }
                   }}
@@ -807,7 +831,7 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
 
         {/* LADO DERECHO: LETRA */}
         {showLyrics && (
-          <div className="flex-1 w-full lg:w-1/2 lg:h-full bg-gradient-to-br from-zinc-900/90 to-zinc-950/90 backdrop-blur-xl rounded-3xl border border-white/5 flex flex-col overflow-hidden shadow-2xl relative">
+          <div className="flex-1 min-h-0 w-full lg:w-1/2 lg:h-full bg-gradient-to-br from-zinc-900/90 to-zinc-950/90 backdrop-blur-xl rounded-2xl sm:rounded-3xl border border-white/5 flex flex-col overflow-hidden shadow-2xl relative">
             
             {/* Brillo decorativo superior */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-24 bg-primary-500/5 blur-3xl pointer-events-none rounded-full" />
@@ -853,27 +877,33 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
     </div>
 
       {isKaraokeMiniPlayer && (
-        <div className="absolute bottom-0 left-0 right-0 h-20 sm:h-24 bg-zinc-950/95 backdrop-blur-xl border-t border-white/10 z-[60] flex flex-col shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+        <div className="karaoke-mini-player absolute inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-[60] flex h-[4.5rem] flex-col border-t border-white/10 bg-zinc-950/95 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] backdrop-blur-xl sm:h-24 md:bottom-0">
           <input
             type="range"
             min={0}
             max={globalDuration || 100}
-            value={localCurrentTime}
+            value={Math.min(Math.max(localCurrentTime, 0), globalDuration || 100)}
             onChange={(e) => handleAbstractSeek(parseFloat(e.target.value))}
             className="w-full h-1 bg-zinc-800 appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-0 [&::-webkit-slider-thumb]:h-0 hover:[&::-webkit-slider-thumb]:w-3 hover:[&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary-500 hover:h-2 transition-all absolute top-0 -translate-y-1/2 z-10"
             style={{
               background: `linear-gradient(to right, var(--primary-500) ${((localCurrentTime / (globalDuration || 1)) * 100) || 0}%, #27272a ${((localCurrentTime / (globalDuration || 1)) * 100) || 0}%)`
             }}
+            aria-label="Posición del karaoke"
           />
-          <div className="flex items-center px-3 sm:px-6 gap-3 sm:gap-4 flex-1">
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-zinc-800 overflow-hidden shrink-0 border border-white/10 shadow-inner">
+          <div className="flex flex-1 items-center gap-2 px-2.5 sm:gap-4 sm:px-6">
+          <button
+            type="button"
+            onClick={() => setIsKaraokeMiniPlayer(false)}
+            className="h-11 w-11 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-zinc-800 shadow-inner sm:h-12 sm:w-12"
+            aria-label="Expandir karaoke"
+          >
             {coverUrl ? <img src={coverUrl} alt="Cover" className="w-full h-full object-cover" /> : <Music className="w-full h-full p-2 text-zinc-500 opacity-50" />}
-          </div>
-          <div className="flex flex-col min-w-0 flex-1 cursor-pointer group" onClick={() => setIsKaraokeMiniPlayer(false)}>
-            <p className="font-bold text-white text-sm sm:text-base truncate group-hover:text-primary-400 transition-colors">{karaoke.name}</p>
-            <p className="text-xs text-zinc-400 truncate">{karaoke.artist}</p>
-          </div>
-          <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+          </button>
+          <button type="button" className="group flex min-w-0 flex-1 flex-col text-left" onClick={() => setIsKaraokeMiniPlayer(false)} aria-label={`Expandir ${karaoke.name}`}>
+            <span className="w-full truncate text-sm font-bold text-white transition-colors group-hover:text-primary-400 sm:text-base">{karaoke.name}</span>
+            <span className="w-full truncate text-[11px] text-zinc-400 sm:text-xs">{karaoke.artist || 'Desconocido'}</span>
+          </button>
+          <div className="flex shrink-0 items-center gap-1 sm:gap-4">
             <div className="hidden sm:flex items-center gap-2 mr-2">
               <button 
                 onClick={handleMuteToggle} 
@@ -891,17 +921,17 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
                 className="w-20 md:w-24 h-1.5 bg-zinc-800 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary-500 hover:[&::-webkit-slider-thumb]:bg-primary-400"
               />
             </div>
-            <button onClick={togglePlayPause} className="w-10 h-10 sm:w-12 sm:h-12 bg-primary-500 hover:bg-primary-400 text-black rounded-full flex items-center justify-center transition-all shadow-[0_0_15px_rgba(245,158,11,0.3)]">
+            <button onClick={togglePlayPause} className="flex h-11 w-11 items-center justify-center rounded-full bg-primary-500 text-black shadow-[0_0_15px_rgba(245,158,11,0.3)] transition-all hover:bg-primary-400 sm:h-12 sm:w-12" aria-label={globalIsPlaying ? 'Pausar karaoke' : 'Reproducir karaoke'}>
               {globalIsPlaying ? <Pause size={18} className="fill-black" /> : <Play size={18} className="fill-black ml-1" />}
             </button>
-            <button onClick={() => setActiveKaraokeId(null)} className="w-10 h-10 flex items-center justify-center text-zinc-400 hover:text-white transition-colors sm:hidden">
+            <button onClick={() => setActiveKaraokeId(null)} className="flex h-11 w-10 items-center justify-center text-zinc-400 transition-colors hover:text-white sm:hidden" aria-label="Cerrar karaoke">
                <X size={20} />
             </button>
           </div>
-          <button onClick={() => setIsKaraokeMiniPlayer(false)} className="hidden sm:flex px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-sm font-bold transition-all text-zinc-300 hover:text-white border border-white/5">
+          <button onClick={() => setIsKaraokeMiniPlayer(false)} className="hidden rounded-xl border border-white/5 bg-white/5 px-4 py-2 text-sm font-bold text-zinc-300 transition-all hover:bg-white/10 hover:text-white sm:flex">
             Expandir
           </button>
-          <button onClick={() => setActiveKaraokeId(null)} className="hidden sm:flex w-10 h-10 items-center justify-center text-zinc-400 hover:text-white transition-colors">
+          <button onClick={() => setActiveKaraokeId(null)} className="hidden h-10 w-10 items-center justify-center text-zinc-400 transition-colors hover:text-white sm:flex" aria-label="Cerrar karaoke">
             <X size={20} />
           </button>
           </div>

@@ -17,19 +17,19 @@ export const AddKaraokeOptionsModal = ({ isOpen, onClose, onCreateNew, onUpload 
       subtitle="Elige cómo quieres añadir tu pista de karaoke."
       icon={<Plus size={24} />}
     >
-      <div className="flex flex-col gap-3 p-6">
+      <div className="flex flex-col gap-3 p-4 sm:p-6 overflow-y-auto">
         <button
           onClick={() => {
             onClose();
             onCreateNew();
           }}
-          className="flex items-center justify-center gap-3 px-4 py-4 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-primary-500 font-bold transition-colors border border-primary-500/20 hover:border-primary-500/40"
+          className="min-h-14 flex items-center justify-center gap-3 px-4 py-4 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-primary-500 font-bold transition-colors border border-primary-500/20 hover:border-primary-500/40"
         >
           <Video size={20} />
           Añadir desde YouTube
         </button>
         
-        <label className="flex items-center justify-center gap-3 px-4 py-4 bg-primary-500 hover:bg-primary-400 rounded-2xl text-zinc-950 font-bold transition-colors cursor-pointer shadow-[0_0_15px_var(--theme-glow)] mt-2">
+        <label className="min-h-14 flex items-center justify-center gap-3 px-4 py-4 bg-primary-500 hover:bg-primary-400 rounded-2xl text-zinc-950 font-bold transition-colors cursor-pointer shadow-[0_0_15px_var(--theme-glow)] mt-1 sm:mt-2">
           <Upload size={20} />
           Subir Archivo MP3 / Audio
           <input

@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Search, Plus, ListMusic } from 'lucide-react';
+import { Search, Plus, ListMusic, X } from 'lucide-react';
 import type { Playlist } from '../db';
 import { Modal } from './Modal';
 
@@ -26,22 +26,24 @@ export const PlaylistSelectorModal = ({ isOpen, onClose, playlists, onSelect, on
       subtitle="Selecciona o busca una lista de reproducción."
     >
       {/* Search */}
-      <div className="p-4 border-b border-white/5 bg-zinc-900/50">
+      <div className="p-3 sm:p-4 border-b border-white/5 bg-zinc-900/50 shrink-0">
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
           <input
             type="text"
+            aria-label="Buscar lista de reproducción"
             autoFocus
             placeholder="Buscar lista..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-zinc-950/80 border border-white/10 rounded-xl py-3 pl-11 pr-4 text-sm text-zinc-200 focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/50 transition-all placeholder:text-zinc-600"
+            className="w-full min-h-11 bg-zinc-950/80 border border-white/10 rounded-xl py-3 pl-11 pr-11 text-sm text-zinc-200 focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/50 transition-all placeholder:text-zinc-600"
           />
+          {search && <button onClick={() => setSearch('')} className="absolute inset-y-0 right-0 w-11 flex items-center justify-center text-zinc-500 hover:text-white" aria-label="Limpiar búsqueda"><X size={17} /></button>}
         </div>
       </div>
 
       {/* List */}
-      <div className="flex-1 overflow-y-auto hide-scrollbar p-2">
+      <div className="flex-1 min-h-0 overflow-y-auto hide-scrollbar p-2">
         {filteredPlaylists.length === 0 ? (
           <div className="py-8 flex flex-col items-center justify-center text-zinc-500">
             <ListMusic size={32} className="mb-2 opacity-20" />
@@ -53,7 +55,7 @@ export const PlaylistSelectorModal = ({ isOpen, onClose, playlists, onSelect, on
               <button
                 key={playlist.id}
                 onClick={() => onSelect(playlist.id!)}
-                className="flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-all w-full text-left group"
+                className="min-h-14 flex items-center gap-3 sm:gap-4 p-2.5 sm:p-3 rounded-xl hover:bg-white/5 transition-all w-full text-left group"
               >
                 <div className="w-12 h-12 rounded-lg bg-zinc-800/80 flex items-center justify-center group-hover:bg-primary-500/20 group-hover:text-primary-500 transition-colors shrink-0">
                   <ListMusic size={20} className="text-zinc-500 group-hover:text-primary-500" />
@@ -73,10 +75,10 @@ export const PlaylistSelectorModal = ({ isOpen, onClose, playlists, onSelect, on
       </div>
 
       {/* Footer Actions */}
-      <div className="p-4 border-t border-white/5 bg-zinc-950/50">
+      <div className="p-3 sm:p-4 border-t border-white/5 bg-zinc-950/80 shrink-0">
         <button
           onClick={onCreateNew}
-          className="w-full flex items-center justify-center gap-2 bg-primary-500 hover:bg-primary-400 text-zinc-950 font-bold py-3 px-4 rounded-xl transition-all"
+          className="w-full min-h-12 flex items-center justify-center gap-2 bg-primary-500 hover:bg-primary-400 text-zinc-950 font-bold py-3 px-4 rounded-xl transition-all"
         >
           <Plus size={18} />
           Crear Nueva Lista

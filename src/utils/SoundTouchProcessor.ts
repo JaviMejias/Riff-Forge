@@ -1,6 +1,18 @@
-// @ts-nocheck
-// @ts-ignore
-import { SoundTouch, SimpleFilter } from 'soundtouchjs';
+import { SoundTouch, SimpleFilter, type SoundTouchInstance } from 'soundtouchjs';
+
+interface AudioWorkletProcessorInstance {
+  readonly port: MessagePort;
+  process(inputs: Float32Array[][], outputs: Float32Array[][]): boolean;
+}
+
+declare const AudioWorkletProcessor: {
+  new (): AudioWorkletProcessorInstance;
+};
+
+declare function registerProcessor(
+  name: string,
+  processor: new (options?: AudioWorkletNodeOptions) => AudioWorkletProcessorInstance
+): void;
 
 class Float32Fifo {
   private buffer: Float32Array;
@@ -43,11 +55,11 @@ class StreamSource {
 }
 
 class SoundTouchProcessor extends AudioWorkletProcessor {
-  private soundTouch: any;
-  private filter: any;
+  private soundTouch: SoundTouchInstance;
+  private filter: SimpleFilter;
   private inFifo: Float32Fifo;
   
-  constructor(options: any) {
+  constructor(options?: AudioWorkletNodeOptions) {
     super();
     this.soundTouch = new SoundTouch();
     this.soundTouch.pitch = 1.0;

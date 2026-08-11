@@ -7,33 +7,28 @@ interface UseInfiniteScrollProps<T> {
 
 export function useInfiniteScroll<T>({ items, itemsPerPage = 20 }: UseInfiniteScrollProps<T>) {
   const [visibleCount, setVisibleCount] = useState(itemsPerPage);
-  const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  // Resetear la cuenta visible si cambian los ítems originales (ej. por búsqueda o filtros)
   useEffect(() => {
-    setVisibleCount(itemsPerPage);
-  }, [items, itemsPerPage]);
-
-  useEffect(() => {
-    if (observerRef.current) observerRef.current.disconnect();
-
-    observerRef.current = new IntersectionObserver((entries) => {
+    const observer = new IntersectionObserver((entries) => {
       if (entries[0].isIntersecting) {
-        setVisibleCount((prev) => prev + itemsPerPage);
+        setVisibleCount((previous) => Math.min(
+          previous + itemsPerPage,
+          items?.length ?? previous
+        ));
       }
     }, {
       rootMargin: '200px' // Empezar a cargar 200px antes de llegar al final
     });
 
     if (loadMoreRef.current) {
-      observerRef.current.observe(loadMoreRef.current);
+      observer.observe(loadMoreRef.current);
     }
 
     return () => {
-      if (observerRef.current) observerRef.current.disconnect();
+      observer.disconnect();
     };
-  }, [itemsPerPage]);
+  }, [items?.length, itemsPerPage]);
 
   const visibleItems = useMemo(() => {
     if (!items) return undefined;

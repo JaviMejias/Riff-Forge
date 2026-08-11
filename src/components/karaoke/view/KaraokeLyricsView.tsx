@@ -80,7 +80,7 @@ export const KaraokeLyricsView = ({ karaoke, currentTime, onEdit, onSeek, animat
       {/* Visor de Letra */}
       <div 
         ref={containerRef}
-        className={`relative flex-1 overflow-y-auto overflow-x-hidden p-6 sm:p-10 hide-scrollbar scroll-smooth flex flex-col ${
+        className={`relative flex-1 overflow-y-auto overflow-x-hidden px-4 py-5 sm:p-10 hide-scrollbar scroll-smooth flex flex-col ${
           animationMode === 'carousel' 
             ? 'justify-center' 
             : isDynamic && animationMode !== 'static' 
@@ -90,13 +90,13 @@ export const KaraokeLyricsView = ({ karaoke, currentTime, onEdit, onSeek, animat
       >
         {!isDynamic ? (
           // MODO ESTÁTICO (Plano)
-          <div className="flex flex-col gap-4 sm:gap-6">
+          <div className="flex flex-col gap-3 sm:gap-6">
             {textContent.split('\n').map((line, idx) => {
               const trimmed = line.trim();
               if (!trimmed) return <div key={idx} className="h-2 sm:h-4" />;
               
               return (
-                <p key={idx} className="font-sans text-2xl sm:text-3xl lg:text-4xl font-black leading-tight text-zinc-400 max-w-[90%] sm:max-w-[85%]">
+                <p key={idx} className="font-sans text-xl sm:text-3xl lg:text-4xl font-black leading-tight text-zinc-400 max-w-full sm:max-w-[85%]">
                   {trimmed}
                 </p>
               );
@@ -104,7 +104,7 @@ export const KaraokeLyricsView = ({ karaoke, currentTime, onEdit, onSeek, animat
           </div>
         ) : (
           // MODO DINÁMICO (LRC)
-          <div className="flex flex-col gap-6 sm:gap-8">
+          <div className="flex flex-col gap-5 sm:gap-8">
             <AnimatePresence mode="popLayout">
               {lines.map((line, idx) => {
                 const isActive = idx === activeIndex;
@@ -169,7 +169,7 @@ export const KaraokeLyricsView = ({ karaoke, currentTime, onEdit, onSeek, animat
                         <div className="flex items-center gap-3 opacity-80">
                           <Music size={24} className={isActive ? "animate-bounce text-primary-400" : ""} />
                           <span className="text-xl sm:text-2xl font-bold uppercase tracking-widest italic opacity-80">
-                            {line.text.replace(/[\[\]()]/g, '').trim() || 'Instrumental'}
+                            {line.text.replaceAll('[', '').replaceAll(']', '').replaceAll('(', '').replaceAll(')', '').trim() || 'Instrumental'}
                           </span>
                         </div>
                         {isActive && lineDuration > 2 && (
@@ -184,7 +184,7 @@ export const KaraokeLyricsView = ({ karaoke, currentTime, onEdit, onSeek, animat
                         )}
                       </div>
                     ) : (
-                      <p className={`font-sans text-3xl sm:text-4xl lg:text-5xl font-black leading-tight transition-colors duration-500 max-w-[90%] sm:max-w-[85%] ${colorClass}`}>
+                      <p className={`font-sans text-2xl sm:text-4xl lg:text-5xl font-black leading-tight transition-colors duration-500 max-w-full sm:max-w-[85%] ${colorClass}`}>
                         {line.text}
                       </p>
                     )}

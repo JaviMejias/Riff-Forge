@@ -5,7 +5,6 @@ import type { Song } from './db';
 import { Sidebar } from './components/Sidebar';
 import { Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import * as alphaTab from '@coderline/alphatab';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 import { Routes, Route, useNavigate, useParams, useLocation } from 'react-router-dom';
@@ -19,7 +18,8 @@ import { LoginView } from './components/LoginView';
 import { useAuthStore } from './store/authStore';
 import { CatalogView } from './components/CatalogView';
 import { GlobalKaraokePlayer } from './components/karaoke/GlobalKaraokePlayer';
-// @ts-ignore
+import { MobileBottomNav } from './components/MobileBottomNav';
+import { SyncStatusIndicator } from './components/SyncStatusIndicator';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 
 // Lazy loaded views
@@ -38,9 +38,20 @@ const PlayerRoute = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { isDesktopSidebarOpen, toggleDesktopSidebar } = useUiStore();
-  const song = useLiveQuery(() => db.songs.get(parseInt(id || '0')), [id]);
+  const song = useLiveQuery(
+    async () => (await db.songs.get(parseInt(id || '0'))) ?? null,
+    [id]
+  );
 
-  if (!song) return <div className="p-8 text-zinc-400">Cargando canción...</div>;
+  if (song === undefined) return <div className="p-8 text-zinc-400">Cargando canción...</div>;
+  if (song === null) return (
+    <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center text-zinc-400">
+      <p className="text-lg font-bold text-white">Esta canción ya no está disponible.</p>
+      <button type="button" onClick={() => navigate('/', { replace: true })} className="min-h-11 rounded-xl bg-primary-500 px-5 py-2 font-bold text-zinc-950">
+        Volver a la biblioteca
+      </button>
+    </div>
+  );
 
   const handleBack = () => {
     if (window.history.state && window.history.state.idx > 0) {
@@ -115,7 +126,7 @@ function App() {
       serviceWorkerRegistrationRef.current = registration || null;
       console.log('SW Registered');
     },
-    onRegisterError(error: any) {
+    onRegisterError(error) {
       console.error('SW registration error', error);
     },
   });
@@ -231,7 +242,8 @@ function App() {
     let importedCount = 0;
     let lastId: number | null = null;
     let lastData: Uint8Array | null = null;
-    let failedFiles: string[] = []; // M-8 fix
+    const failedFiles: string[] = []; // M-8 fix
+    const alphaTabModule = import('@coderline/alphatab');
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
@@ -244,6 +256,7 @@ function App() {
       let finalAlbum = '';
 
       try {
+        const alphaTab = await alphaTabModule;
         const settings = new alphaTab.Settings();
         const score = alphaTab.importer.ScoreLoader.loadScoreFromBytes(uint8Array, settings);
         if (score.title && score.title.trim()) finalName = score.title.trim();
@@ -351,6 +364,7 @@ function App() {
       {token && (
     <div className={`flex h-screen bg-zinc-950 text-zinc-100 overflow-hidden font-sans ${isImmersiveMode ? 'bg-black' : 'bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-[var(--theme-glow)] via-zinc-950 to-zinc-950'}`}>
         <GlobalAmbilight />
+        <SyncStatusIndicator />
         {/* OVERLAY MOBILE */}
         <AnimatePresence>
           {isMobileMenuOpen && (
@@ -366,7 +380,7 @@ function App() {
 
         {!isImmersiveMode && <Sidebar />}
 
-        <main className="flex-1 relative overflow-hidden flex flex-col h-full z-10 w-full min-w-0 p-4 sm:p-6 md:p-8 lg:p-10">
+        <main className={`flex-1 relative overflow-hidden flex flex-col h-full z-10 w-full min-w-0 ${isImmersiveMode ? 'p-0' : 'p-0 pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:p-4 lg:p-6'}`}>
           <ErrorBoundary>
             <Suspense fallback={
               <div className="h-full flex items-center justify-center bg-zinc-950 text-primary-500">
@@ -448,7 +462,10 @@ function App() {
                       transition={{ duration: 0.3, ease: "easeOut" }}
                       className="absolute inset-0 h-full w-full"
                     >
-                      <CatalogView />
+                      <CatalogView
+                        isSidebarOpen={isDesktopSidebarOpen}
+                        onToggleSidebar={toggleDesktopSidebar}
+                      />
                     </motion.div>
                   } />
 
@@ -550,6 +567,7 @@ function App() {
           
           <GlobalKaraokePlayer />
         </main>
+        {!isImmersiveMode && <MobileBottomNav />}
     </div>
       )}
     </>

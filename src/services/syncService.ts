@@ -44,6 +44,10 @@ interface SyncResponse {
 let syncTimeout: ReturnType<typeof setTimeout> | null = null;
 let syncInProgress: Promise<void> | null = null;
 
+const emitSyncStatus = (status: 'idle' | 'syncing' | 'error') => {
+  window.dispatchEvent(new CustomEvent('sync-status-change', { detail: { status } }));
+};
+
 const getDeviceId = () => {
   let deviceId = localStorage.getItem(DEVICE_ID_KEY);
   if (!deviceId) {
@@ -177,9 +181,10 @@ const applySimpleEntity = async (change: SyncChange) => {
   if (change.entityType === 'playlist') {
     const songs = await db.songs.toArray();
     const ids = new Map(songs.map(song => [song.cloudId, song.id]));
-    const songIds = (change.data.songCloudIds || []).map((id: string) => ids.get(id)).filter(Boolean) as number[];
+    const remoteCloudIds = (change.data.songCloudIds || []) as string[];
+    const songIds = remoteCloudIds.map((id: string) => ids.get(id)).filter(Boolean) as number[];
     const existing = await db.playlists.where('cloudId').equals(change.entityId).first();
-    const values = { ...change.data, songCloudIds: undefined, songIds, cloudId: change.entityId, version: change.version, createdAt: change.createdAt, updatedAt: change.updatedAt, syncDirty: false };
+    const values = { ...change.data, songCloudIds: undefined, songIds, remoteCloudIds, cloudId: change.entityId, version: change.version, createdAt: change.createdAt, updatedAt: change.updatedAt, syncDirty: false };
     if (existing) await db.playlists.update(existing.id!, values);
     else await db.playlists.add(values as any);
     return;
@@ -187,11 +192,34 @@ const applySimpleEntity = async (change: SyncChange) => {
 
   const karaokes = await db.karaokes.toArray();
   const ids = new Map(karaokes.map(karaoke => [karaoke.cloudId, karaoke.id]));
-  const karaokeIds = (change.data.karaokeCloudIds || []).map((id: string) => ids.get(id)).filter(Boolean) as number[];
+  const remoteCloudIds = (change.data.karaokeCloudIds || []) as string[];
+  const karaokeIds = remoteCloudIds.map((id: string) => ids.get(id)).filter(Boolean) as number[];
   const existing = await db.karaokePlaylists.where('cloudId').equals(change.entityId).first();
-  const values = { ...change.data, karaokeCloudIds: undefined, karaokeIds, cloudId: change.entityId, version: change.version, createdAt: change.createdAt, updatedAt: change.updatedAt, syncDirty: false };
+  const values = { ...change.data, karaokeCloudIds: undefined, karaokeIds, remoteCloudIds, cloudId: change.entityId, version: change.version, createdAt: change.createdAt, updatedAt: change.updatedAt, syncDirty: false };
   if (existing) await db.karaokePlaylists.update(existing.id!, values);
   else await db.karaokePlaylists.add(values as any);
+};
+
+const resolvePendingPlaylistReferences = async () => {
+  const songs = await db.songs.toArray();
+  const songIdsByCloudId = new Map(songs.map(song => [song.cloudId, song.id]));
+  const playlists = await db.playlists.filter(playlist => Array.isArray(playlist.remoteCloudIds)).toArray();
+  for (const playlist of playlists) {
+    const resolvedIds = playlist.remoteCloudIds!.map(cloudId => songIdsByCloudId.get(cloudId));
+    if (resolvedIds.every((id): id is number => typeof id === 'number')) {
+      await runRemoteWrite(() => db.playlists.update(playlist.id!, { songIds: resolvedIds, remoteCloudIds: undefined }));
+    }
+  }
+
+  const karaokes = await db.karaokes.toArray();
+  const karaokeIdsByCloudId = new Map(karaokes.map(karaoke => [karaoke.cloudId, karaoke.id]));
+  const karaokePlaylists = await db.karaokePlaylists.filter(playlist => Array.isArray(playlist.remoteCloudIds)).toArray();
+  for (const playlist of karaokePlaylists) {
+    const resolvedIds = playlist.remoteCloudIds!.map(cloudId => karaokeIdsByCloudId.get(cloudId));
+    if (resolvedIds.every((id): id is number => typeof id === 'number')) {
+      await runRemoteWrite(() => db.karaokePlaylists.update(playlist.id!, { karaokeIds: resolvedIds, remoteCloudIds: undefined }));
+    }
+  }
 };
 
 const applyChanges = async (changes: SyncChange[]) => {
@@ -208,6 +236,7 @@ const applyChanges = async (changes: SyncChange[]) => {
   for (const change of activeChanges.filter(item => !['song', 'karaoke'].includes(item.entityType))) {
     await runRemoteWrite(() => applySimpleEntity(change));
   }
+  await resolvePendingPlaylistReferences();
 };
 
 const applyConflict = async (rejection: RejectedOperation) => {
@@ -339,9 +368,10 @@ export const SyncService = {
 
   async _doSync(onProgress?: (message: string) => void) {
     const token = useAuthStore.getState().token;
-    if (!token) return;
+    if (!token || !navigator.onLine) return;
     const headers = { Authorization: `Bearer ${token}` };
 
+    emitSyncStatus('syncing');
     try {
       await migrateUnsyncedRecords();
       await recoverPendingSyncOperations();
@@ -414,7 +444,9 @@ export const SyncService = {
       }
       await syncSettings(headers);
       onProgress?.('¡Sincronización completada!');
+      emitSyncStatus('idle');
     } catch (error) {
+      emitSyncStatus('error');
       console.error('Auto-sync v2 failed', error);
       throw error;
     }

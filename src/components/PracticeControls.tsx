@@ -1,6 +1,6 @@
 import { Gauge, Bell, Repeat, LayoutTemplate, Music, Timer, RotateCcw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 interface PracticeControlsProps {
   isLoading: boolean;
@@ -63,19 +63,17 @@ export const PracticeControls = ({
   isHorizontalMode,
   toggleLayoutMode,
 }: PracticeControlsProps) => {
-  const [bpmInput, setBpmInput] = useState(String(targetBpm));
-
-  useEffect(() => {
-    setBpmInput(String(targetBpm));
-  }, [targetBpm]);
+  const [bpmInput, setBpmInput] = useState<string | null>(null);
+  const displayedBpm = bpmInput ?? String(targetBpm);
 
   const commitBpmInput = () => {
-    const bpm = Number(bpmInput);
-    if (bpmInput.trim() === '' || !Number.isFinite(bpm)) {
-      setBpmInput(String(targetBpm));
+    const bpm = Number(displayedBpm);
+    if (displayedBpm.trim() === '' || !Number.isFinite(bpm)) {
+      setBpmInput(null);
       return;
     }
     handleBpmChange(bpm);
+    setBpmInput(null);
   };
 
   return (
@@ -88,7 +86,7 @@ export const PracticeControls = ({
             <motion.button
               whileTap={{ scale: 0.9 }}
               disabled={isLoading}
-              onClick={() => handleBpmChange(targetBpm - 1)}
+              onClick={() => { setBpmInput(null); handleBpmChange(targetBpm - 1); }}
               className="w-7 h-7 flex items-center justify-center bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded shadow-sm font-bold disabled:opacity-50"
               aria-label="Disminuir un BPM"
             >
@@ -98,7 +96,7 @@ export const PracticeControls = ({
               type="text"
               inputMode="numeric"
               disabled={isLoading}
-              value={bpmInput}
+              value={displayedBpm}
               onChange={(event) => {
                 if (/^\d*$/.test(event.target.value)) {
                   setBpmInput(event.target.value);
@@ -108,7 +106,7 @@ export const PracticeControls = ({
               onKeyDown={(event) => {
                 if (event.key === 'Enter') event.currentTarget.blur();
                 if (event.key === 'Escape') {
-                  setBpmInput(String(targetBpm));
+                  setBpmInput(null);
                   event.currentTarget.blur();
                 }
               }}
@@ -119,7 +117,7 @@ export const PracticeControls = ({
             <motion.button
               whileTap={{ scale: 0.9 }}
               disabled={isLoading}
-              onClick={() => handleBpmChange(targetBpm + 1)}
+              onClick={() => { setBpmInput(null); handleBpmChange(targetBpm + 1); }}
               className="w-7 h-7 flex items-center justify-center bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded shadow-sm font-bold disabled:opacity-50"
               aria-label="Aumentar un BPM"
             >
@@ -129,7 +127,7 @@ export const PracticeControls = ({
           <motion.button
             whileTap={{ scale: 0.9 }}
             disabled={isLoading || targetBpm === originalBpm}
-            onClick={() => handleBpmChange(originalBpm)}
+            onClick={() => { setBpmInput(null); handleBpmChange(originalBpm); }}
             className="w-7 h-7 flex items-center justify-center text-zinc-500 hover:text-sky-300 rounded-md transition-colors disabled:opacity-30 disabled:cursor-default"
             aria-label="Restaurar BPM original"
             title={`Restaurar ${originalBpm} BPM`}

@@ -1,4 +1,4 @@
-import { Edit3, Trash, Search, Library, Plus, MoreVertical } from 'lucide-react';
+import { Edit3, Trash, Search, Library, Plus, MoreVertical, GripVertical } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SongCard } from './SongCard';
 import { SongSkeleton } from './SongSkeleton';
@@ -43,7 +43,10 @@ export const PlaylistView = ({ playlistId, activeSongId, onPlaySong, onBackToLib
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const playlist = useLiveQuery(() => db.playlists.get(playlistId));
+  const playlist = useLiveQuery(
+    async () => (await db.playlists.get(playlistId)) ?? null,
+    [playlistId]
+  );
   const songs = useLiveQuery(async () => {
     if (!playlist) return [];
     const fetchedSongs = await db.songs.where('id').anyOf(playlist.songIds).toArray();
@@ -190,10 +193,18 @@ export const PlaylistView = ({ playlistId, activeSongId, onPlaySong, onBackToLib
     await db.playlists.update(playlist.id, { songIds: newSongIds });
   };
 
-  if (!playlist) return null;
+  if (playlist === undefined) return <div className="flex h-full items-center justify-center text-zinc-400">Cargando lista…</div>;
+  if (playlist === null) return (
+    <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center text-zinc-400">
+      <p className="text-lg font-bold text-white">Esta lista ya no está disponible.</p>
+      <button type="button" onClick={onBackToLibrary} className="min-h-11 rounded-xl bg-primary-500 px-5 py-2 font-bold text-zinc-950">
+        Volver a mis listas
+      </button>
+    </div>
+  );
 
   return (
-    <div className="flex flex-col h-full w-full p-8">
+    <div className="flex h-full w-full flex-col px-3 py-2 sm:p-4 lg:p-6">
       <Navbar
         title={playlist.name}
         subtitle={`Lista de Reproducción • ${songs?.length || 0} canciones`}
@@ -204,14 +215,18 @@ export const PlaylistView = ({ playlistId, activeSongId, onPlaySong, onBackToLib
         <div className="flex gap-2 relative z-[100]" ref={mobileMenuRef}>
           {/* Botón menú hamburguesa (solo móvil) */}
           <button
+            type="button"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            aria-label="Mostrar acciones de la lista"
+            aria-expanded={isMobileMenuOpen}
+            aria-controls="playlist-actions-menu"
             className="sm:hidden flex items-center justify-center p-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl transition-all"
           >
             <MoreVertical size={20} />
           </button>
 
           {/* Contenedor de botones (visible en PC, menú desplegable en móvil) */}
-          <div className={`
+          <div id="playlist-actions-menu" className={`
             absolute top-full right-0 mt-2 p-2 bg-zinc-900 border border-white/10 rounded-2xl shadow-xl flex-col gap-2 min-w-[160px]
             sm:static sm:mt-0 sm:p-0 sm:bg-transparent sm:border-none sm:shadow-none sm:flex sm:flex-row sm:w-auto
             ${isMobileMenuOpen ? 'flex' : 'hidden sm:flex'}
@@ -242,8 +257,8 @@ export const PlaylistView = ({ playlistId, activeSongId, onPlaySong, onBackToLib
       </Navbar>
 
       {/* LISTA DE CANCIONES */}
-      <div className="flex-1 overflow-y-auto hide-scrollbar pb-10 mt-6">
-        <div className="bg-zinc-900/30 border border-white/5 rounded-3xl p-4 sm:p-6 min-h-[500px]">
+      <div className="flex-1 overflow-y-auto hide-scrollbar pb-6 mt-3 sm:mt-5">
+        <div className="min-h-full rounded-2xl border border-white/5 bg-zinc-900/30 p-3 sm:rounded-3xl sm:p-6">
 
           {/* HEADER DEL CONTENEDOR: Buscador */}
           <div className="flex justify-end mb-6">
@@ -251,6 +266,7 @@ export const PlaylistView = ({ playlistId, activeSongId, onPlaySong, onBackToLib
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
               <input
                 type="text"
+                aria-label="Buscar canciones en esta lista"
                 placeholder="Buscar en la lista..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -262,7 +278,7 @@ export const PlaylistView = ({ playlistId, activeSongId, onPlaySong, onBackToLib
           {songs?.length === 0 ? (
             <motion.div
               initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-              className="flex flex-col items-center justify-center h-[450px] text-zinc-500 border-2 border-dashed border-white/5 rounded-2xl bg-zinc-900/20"
+              className="flex min-h-80 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-white/5 bg-zinc-900/20 px-5 text-center text-zinc-500 sm:min-h-[450px]"
             >
               <motion.div
                 animate={{ y: [0, -10, 0] }}
@@ -277,12 +293,12 @@ export const PlaylistView = ({ playlistId, activeSongId, onPlaySong, onBackToLib
           ) : (
             <>
               <DragDropContext onDragEnd={handleDragEnd}>
-                <Droppable droppableId="playlist-songs" direction="horizontal">
+                <Droppable droppableId="playlist-songs" direction="vertical">
                   {(provided) => (
                     <div 
                       {...provided.droppableProps} 
                       ref={provided.innerRef}
-                      className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+                      className="flex flex-col gap-2.5 sm:gap-3"
                     >
                       <AnimatePresence>
                         {songs === undefined ? (
@@ -296,17 +312,27 @@ export const PlaylistView = ({ playlistId, activeSongId, onPlaySong, onBackToLib
                                 <div
                                   ref={provided.innerRef}
                                   {...provided.draggableProps}
-                                  {...provided.dragHandleProps}
-                                  className={`${snapshot.isDragging ? 'z-50 scale-105 opacity-90 shadow-2xl' : ''}`}
+                                  className={`flex items-center gap-1 sm:gap-2 ${snapshot.isDragging ? 'z-50 scale-[1.01] opacity-90 shadow-2xl' : ''}`}
                                   style={provided.draggableProps.style}
                                 >
-                                  <SongCard
-                                    song={song}
-                                    index={index}
-                                    isActive={activeSongId === song.id}
-                                    onPlay={() => onPlaySong(song)}
-                                    onRemove={(e) => removeSongFromPlaylist(song.id!, e)}
-                                  />
+                                  <button
+                                    type="button"
+                                    {...provided.dragHandleProps}
+                                    className="flex min-h-12 w-9 shrink-0 touch-none items-center justify-center rounded-xl text-zinc-600 transition-colors hover:bg-zinc-800 hover:text-primary-400 active:bg-zinc-800"
+                                    title={searchQuery ? 'Limpia la búsqueda para ordenar' : 'Arrastrar para ordenar'}
+                                    aria-label={`Mover ${song.name}`}
+                                  >
+                                    <GripVertical size={20} />
+                                  </button>
+                                  <div className="min-w-0 flex-1">
+                                    <SongCard
+                                      song={song}
+                                      index={index}
+                                      isActive={activeSongId === song.id}
+                                      onPlay={() => onPlaySong(song)}
+                                      onRemove={(e) => removeSongFromPlaylist(song.id!, e)}
+                                    />
+                                  </div>
                                 </div>
                               )}
                             </Draggable>

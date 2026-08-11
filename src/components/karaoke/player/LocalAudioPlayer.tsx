@@ -43,7 +43,7 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
 
   // Web Audio API and Pitch Shifting refs
   const audioCtxRef = useRef<AudioContext | null>(null);
-  const pitchShiftNodeRef = useRef<any>(null);
+  const pitchShiftNodeRef = useRef<SoundTouchNode | null>(null);
   const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
 
   useEffect(() => {
@@ -52,9 +52,12 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
   }, [isPlaying]);
 
   useEffect(() => {
+    const audioElement = audioRef.current;
     return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
+      if (audioElement) {
+        audioElement.pause();
+        audioElement.removeAttribute('src');
+        audioElement.load();
       }
       
       // Cleanup Web Audio API
@@ -131,6 +134,16 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
   useEffect(() => {
     let url = '';
     let isMounted = true;
+    const audioElement = audioRef.current;
+
+    audioElement?.pause();
+    if (audioElement) audioElement.currentTime = 0;
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+    setAudioUrl(null);
+    setIsLoading(true);
+    onPlayStateChange?.(false);
 
     const loadAudio = async () => {
       try {
@@ -141,7 +154,9 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
               try {
                 const urlObj = new URL(fullUrl);
                 fullUrl = urlObj.pathname + urlObj.search;
-              } catch (e) {}
+              } catch {
+                // Keep the original URL when it cannot be normalized.
+              }
             }
           } else {
             if (API_BASE_URL && window.location.protocol === 'https:' && API_BASE_URL.startsWith('http://')) {
@@ -165,12 +180,13 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
         let data: Uint8Array | undefined;
         if (fileRecord) {
           data = fileRecord.data;
-        } else if ((karaoke as any).localFile) {
-          data = (karaoke as any).localFile;
+        } else {
+          const legacyKaraoke = karaoke as Karaoke & { localFile?: Uint8Array };
+          data = legacyKaraoke.localFile;
         }
 
         if (data && isMounted) {
-          const blob = new Blob([data as any], { type: 'audio/mpeg' });
+          const blob = new Blob([new Uint8Array(data)], { type: 'audio/mpeg' });
           url = URL.createObjectURL(blob);
           setAudioUrl(url);
         }
@@ -190,11 +206,12 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
     return () => {
       isMounted = false;
       clearTimeout(timer);
+      audioElement?.pause();
       if (url) {
         URL.revokeObjectURL(url);
       }
     };
-  }, [karaoke.id]);
+  }, [karaoke, onPlayStateChange]);
 
   // Initialize Web Audio API and BungeePitchShift once the audioUrl is set and the audio element is ready
   useEffect(() => {
@@ -205,7 +222,9 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
     const initAudio = async () => {
       try {
         if (!audioCtxRef.current) {
-          const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+          const audioWindow = window as Window & typeof globalThis & { webkitAudioContext?: typeof AudioContext };
+          const AudioContextClass = window.AudioContext || audioWindow.webkitAudioContext;
+          if (!AudioContextClass) throw new Error('Web Audio API is not available');
           audioCtxRef.current = new AudioContextClass();
         }
         
@@ -214,13 +233,18 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
           sourceNodeRef.current = audioCtxRef.current.createMediaElementSource(audioRef.current as HTMLMediaElement);
         }
         if (!pitchShiftNodeRef.current) {
-          pitchShiftNodeRef.current = await SoundTouchNode.create(audioCtxRef.current);
-          pitchShiftNodeRef.current.setPitch(pitch);
+          const pitchShiftNode = await SoundTouchNode.create(audioCtxRef.current);
+          if (!isMounted) {
+            pitchShiftNode.dispose();
+            return;
+          }
+          pitchShiftNodeRef.current = pitchShiftNode;
+          pitchShiftNode.setPitch(pitch);
         }
         if (isMounted && sourceNodeRef.current && pitchShiftNodeRef.current && audioCtxRef.current) {
           // Connect nodes: source -> (pitchShift if active) -> destination
-          try { sourceNodeRef.current.disconnect(); } catch (e) {}
-          try { pitchShiftNodeRef.current.disconnect(); } catch (e) {}
+          try { sourceNodeRef.current.disconnect(); } catch { /* Already disconnected. */ }
+          try { pitchShiftNodeRef.current.disconnect(); } catch { /* Already disconnected. */ }
           
           if (pitch === 0) {
             sourceNodeRef.current.connect(audioCtxRef.current.destination);
@@ -229,8 +253,8 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
             pitchShiftNodeRef.current.connect(audioCtxRef.current.destination);
           }
         }
-      } catch (e: any) {
-        console.error("Failed to initialize pitch shift", e);
+      } catch (error: unknown) {
+        console.error("Failed to initialize pitch shift", error);
         // Fallback to normal playback if pitch shift fails
         if (sourceNodeRef.current && audioCtxRef.current) {
            sourceNodeRef.current.connect(audioCtxRef.current.destination);
@@ -243,7 +267,7 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
     return () => {
       isMounted = false;
     };
-  }, [audioUrl]); // Run when audioUrl is loaded
+  }, [audioUrl, pitch]); // Run when audioUrl is loaded
 
   // Handle dynamic pitch changes and routing
   useEffect(() => {
@@ -251,8 +275,8 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
       pitchShiftNodeRef.current.setPitch(pitch);
       
       // Update routing based on pitch
-      try { sourceNodeRef.current.disconnect(); } catch (e) {}
-      try { pitchShiftNodeRef.current.disconnect(); } catch (e) {}
+      try { sourceNodeRef.current.disconnect(); } catch { /* Already disconnected. */ }
+      try { pitchShiftNodeRef.current.disconnect(); } catch { /* Already disconnected. */ }
       
       if (pitch === 0) {
         sourceNodeRef.current.connect(audioCtxRef.current.destination);
@@ -296,7 +320,7 @@ export const LocalAudioPlayer = forwardRef<LocalAudioPlayerRef, LocalAudioPlayer
       setDuration(audioRef.current.duration);
       if (onDurationUpdate) onDurationUpdate(audioRef.current.duration);
       // We want to preserve pitch when changing playbackRate so we can shift it independently
-      (audioRef.current as any).preservesPitch = true;
+      audioRef.current.preservesPitch = true;
     }
   };
 

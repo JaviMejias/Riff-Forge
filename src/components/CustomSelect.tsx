@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useId, useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 
@@ -27,9 +27,17 @@ export const CustomSelect = ({
   dropup = false
 }: CustomSelectProps) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
+  const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const listboxId = useId();
 
   const selectedOption = options.find((opt) => String(opt.value) === String(value));
+
+  useEffect(() => {
+    if (!isOpen) return;
+    requestAnimationFrame(() => optionRefs.current[focusedIndex]?.focus());
+  }, [focusedIndex, isOpen]);
 
   // Close when clicking outside
   useEffect(() => {
@@ -39,8 +47,50 @@ export const CustomSelect = ({
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsOpen(false);
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
   }, []);
+
+  const selectOption = (index: number) => {
+    const option = options[index];
+    if (!option) return;
+    onChange(option.value);
+    setIsOpen(false);
+  };
+
+  const toggleSelect = () => {
+    if (disabled) return;
+    if (!isOpen) {
+      const selectedIndex = options.findIndex((option) => String(option.value) === String(value));
+      setFocusedIndex(selectedIndex >= 0 ? selectedIndex : 0);
+    }
+    setIsOpen((open) => !open);
+  };
+
+  const handleListKeyDown = (event: React.KeyboardEvent) => {
+    if (options.length === 0) return;
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      const direction = event.key === 'ArrowDown' ? 1 : -1;
+      const nextIndex = (focusedIndex + direction + options.length) % options.length;
+      setFocusedIndex(nextIndex);
+      optionRefs.current[nextIndex]?.focus();
+    } else if (event.key === 'Home' || event.key === 'End') {
+      event.preventDefault();
+      const nextIndex = event.key === 'Home' ? 0 : options.length - 1;
+      setFocusedIndex(nextIndex);
+      optionRefs.current[nextIndex]?.focus();
+    } else if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      selectOption(focusedIndex);
+    }
+  };
 
   const colorStyles = theme === 'amber' 
     ? {
@@ -63,8 +113,11 @@ export const CustomSelect = ({
       <button
         type="button"
         disabled={disabled}
-        onClick={() => !disabled && setIsOpen(!isOpen)}
-        className={`flex items-center justify-between w-full bg-zinc-950/80 border ${isOpen ? colorStyles.borderHover : 'border-white/10'} text-zinc-200 font-medium text-sm rounded-xl px-4 py-2 outline-none cursor-pointer disabled:opacity-50 transition-colors ${colorStyles.borderHover}`}
+        onClick={toggleSelect}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        aria-controls={isOpen ? listboxId : undefined}
+        className={`min-h-10 flex items-center justify-between w-full bg-zinc-950/80 border ${isOpen ? colorStyles.borderHover : 'border-white/10'} text-zinc-200 font-medium text-sm rounded-xl px-4 py-2 outline-none cursor-pointer disabled:opacity-50 transition-colors ${colorStyles.borderHover}`}
       >
         <span className="truncate pr-2">{selectedOption?.label ?? 'Seleccionar'}</span>
         <motion.div
@@ -82,20 +135,25 @@ export const CustomSelect = ({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: dropup ? 10 : -10, scale: 0.95 }}
             transition={{ duration: 0.15, ease: "easeOut" }}
-            className={`absolute z-50 w-full ${dropup ? 'bottom-full mb-2 origin-bottom' : 'mt-2 origin-top'} bg-zinc-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl shadow-black/60 overflow-hidden max-h-60 overflow-y-auto custom-scrollbar`}
+            id={listboxId}
+            className={`custom-select-listbox fixed inset-x-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-[110] max-h-[min(55dvh,22rem)] overflow-y-auto rounded-2xl border border-white/10 bg-zinc-900/98 shadow-2xl shadow-black/60 backdrop-blur-xl custom-scrollbar sm:absolute sm:inset-x-auto sm:z-50 sm:w-full sm:max-h-60 sm:rounded-xl ${dropup ? 'sm:bottom-full sm:mb-2 sm:origin-bottom' : 'sm:top-full sm:mt-2 sm:origin-top'}`}
+            role="listbox"
+            onKeyDown={handleListKeyDown}
           >
             <div className="flex flex-col p-1 gap-0.5">
-              {options.map((option) => {
+              {options.map((option, index) => {
                 const isSelected = String(option.value) === String(value);
                 return (
                   <button
                     key={option.value}
+                    ref={(element) => { optionRefs.current[index] = element; }}
                     type="button"
-                    onClick={() => {
-                      onChange(option.value);
-                      setIsOpen(false);
-                    }}
-                    className={`text-left px-3 py-2 text-sm rounded-lg transition-colors truncate ${
+                    role="option"
+                    aria-selected={isSelected}
+                    tabIndex={focusedIndex === index ? 0 : -1}
+                    onFocus={() => setFocusedIndex(index)}
+                    onClick={() => selectOption(index)}
+                    className={`min-h-11 text-left px-3 py-2 text-sm rounded-lg transition-colors truncate sm:min-h-10 ${
                       isSelected 
                         ? colorStyles.bgSelected
                         : `text-zinc-300 ${colorStyles.bgHover}`

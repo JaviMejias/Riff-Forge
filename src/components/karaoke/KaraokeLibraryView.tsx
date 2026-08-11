@@ -1,21 +1,25 @@
-import { Search, Mic2, Plus, FileSpreadsheet } from 'lucide-react';
+import { Search, Mic2, Plus, FileSpreadsheet, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { KaraokeCard } from './KaraokeCard';
 import { CreateKaraokeModal } from './CreateKaraokeModal';
 import { AddKaraokeOptionsModal } from './AddKaraokeOptionsModal';
-import { BulkImportKaraokeModal } from './BulkImportKaraokeModal';
 import { EditMetadataModal } from '../EditMetadataModal';
 import { SongSkeleton } from '../SongSkeleton';
 import { db } from '../../db';
 import type { Karaoke } from '../../db';
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
 import { Navbar } from '../Navbar';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 import { Toast } from '../../utils/toast';
+import { usePlayerStore } from '../../store/playerStore';
 
 const MySwal = withReactContent(Swal);
+const getCurrentTimestamp = () => Date.now();
+const BulkImportKaraokeModal = lazy(() =>
+  import('./BulkImportKaraokeModal').then((module) => ({ default: module.BulkImportKaraokeModal }))
+);
 
 interface KaraokeLibraryViewProps {
   karaokes: Karaoke[] | undefined;
@@ -94,6 +98,7 @@ export const KaraokeLibraryView = ({ karaokes, activeKaraokeId, onPlayKaraoke, i
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    e.target.value = '';
 
     // Pedir artista y confirmar título (usamos el nombre del archivo sin extensión como default)
     const defaultTitle = file.name.replace(/\.[^/.]+$/, "");
@@ -103,11 +108,11 @@ export const KaraokeLibraryView = ({ karaokes, activeKaraokeId, onPlayKaraoke, i
       html: `
         <div class="flex flex-col gap-4 text-left">
           <div>
-            <label class="text-zinc-400 text-sm font-bold mb-1 block">Título</label>
-            <input id="swal-file-title" value="${defaultTitle}" class="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-primary-500 focus:outline-none" placeholder="Ej: Bohemian Rhapsody">
+            <label for="swal-file-title" class="text-zinc-400 text-sm font-bold mb-1 block">Título</label>
+            <input id="swal-file-title" class="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-primary-500 focus:outline-none" placeholder="Ej: Bohemian Rhapsody">
           </div>
           <div>
-            <label class="text-zinc-400 text-sm font-bold mb-1 block">Artista</label>
+            <label for="swal-file-artist" class="text-zinc-400 text-sm font-bold mb-1 block">Artista</label>
             <input id="swal-file-artist" class="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-primary-500 focus:outline-none" placeholder="Ej: Queen">
           </div>
         </div>
@@ -119,9 +124,14 @@ export const KaraokeLibraryView = ({ karaokes, activeKaraokeId, onPlayKaraoke, i
       confirmButtonText: 'Guardar',
       cancelButtonText: 'Cancelar',
       confirmButtonColor: '#f59e0b',
+      didOpen: () => {
+        const titleInput = Swal.getPopup()?.querySelector<HTMLInputElement>('#swal-file-title');
+        if (titleInput) titleInput.value = defaultTitle;
+      },
       preConfirm: () => {
-        const title = (document.getElementById('swal-file-title') as HTMLInputElement).value;
-        const artist = (document.getElementById('swal-file-artist') as HTMLInputElement).value;
+        const popup = Swal.getPopup();
+        const title = popup?.querySelector<HTMLInputElement>('#swal-file-title')?.value.trim() || '';
+        const artist = popup?.querySelector<HTMLInputElement>('#swal-file-artist')?.value.trim() || '';
         if (!title) {
           Swal.showValidationMessage('El título es obligatorio');
           return false;
@@ -207,25 +217,36 @@ export const KaraokeLibraryView = ({ karaokes, activeKaraokeId, onPlayKaraoke, i
     });
 
     if (result.isConfirmed) {
-      await db.karaokes.delete(id);
-      await db.karaokeFiles.delete(id); // Delete associated file to free space
+      try {
+        await db.transaction('rw', [db.karaokes, db.karaokeFiles, db.karaokePlaylists], async () => {
+          await db.karaokes.delete(id);
+          await db.karaokeFiles.delete(id);
+          const allPlaylists = await db.karaokePlaylists.toArray();
+          for (const playlist of allPlaylists) {
+            if (playlist.karaokeIds.includes(id)) {
+              await db.karaokePlaylists.update(playlist.id!, {
+                karaokeIds: playlist.karaokeIds.filter(karaokeId => karaokeId !== id)
+              });
+            }
+          }
+        });
 
-      if (activeKaraokeId === id) {
-        // optionally handle stopping playback
-      }
-      const allPlaylists = await db.karaokePlaylists.toArray();
-      for (const p of allPlaylists) {
-        if (p.karaokeIds.includes(id)) {
-          await db.karaokePlaylists.update(p.id!, {
-            karaokeIds: p.karaokeIds.filter(kid => kid !== id)
-          });
+        if (activeKaraokeId === id) {
+          usePlayerStore.getState().setActiveKaraokeId(null);
+          usePlayerStore.getState().setIsKaraokeMiniPlayer(false);
         }
-      }
 
-      Toast.fire({
-        icon: 'success',
-        title: 'Karaoke eliminado'
-      });
+        Toast.fire({
+          icon: 'success',
+          title: 'Karaoke eliminado'
+        });
+      } catch (error) {
+        console.error('Error deleting karaoke', error);
+        Toast.fire({
+          icon: 'error',
+          title: 'No se pudo eliminar el karaoke'
+        });
+      }
     }
   };
 
@@ -236,7 +257,7 @@ export const KaraokeLibraryView = ({ karaokes, activeKaraokeId, onPlayKaraoke, i
     
     await db.karaokes.update(id, { 
       isPublic: !karaoke.isPublic,
-      updatedAt: Date.now()
+      updatedAt: getCurrentTimestamp()
     });
     
     const { SyncService } = await import('../../services/syncService');
@@ -285,7 +306,7 @@ export const KaraokeLibraryView = ({ karaokes, activeKaraokeId, onPlayKaraoke, i
   const { visibleItems: displayedKaraokes, loadMoreRef, hasMore } = useInfiniteScroll({ items: filteredKaraokes, itemsPerPage: 20 });
 
   return (
-    <div className="flex flex-col h-full w-full p-8">
+    <div className="flex h-full w-full flex-col px-3 py-2 sm:p-4 lg:p-6">
       <Navbar
         title="Karaokes"
         subtitle="Tu colección de pistas"
@@ -312,9 +333,9 @@ export const KaraokeLibraryView = ({ karaokes, activeKaraokeId, onPlayKaraoke, i
         </div>
       </Navbar>
 
-      <div className="flex-1 overflow-y-auto hide-scrollbar pb-10 mt-6">
+      <div className="flex-1 overflow-y-auto hide-scrollbar pb-6 mt-3 sm:mt-5">
 
-        <div className="bg-zinc-900/30 border border-white/5 rounded-3xl p-4 sm:p-6 min-h-[500px]">
+        <div className="min-h-full rounded-2xl border border-white/5 bg-zinc-900/30 p-3 sm:rounded-3xl sm:p-6">
 
           {/* HEADER DEL CONTENEDOR: Buscador */}
           <div className="flex flex-col sm:flex-row justify-end items-center gap-4 mb-6">
@@ -322,6 +343,7 @@ export const KaraokeLibraryView = ({ karaokes, activeKaraokeId, onPlayKaraoke, i
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
               <input
                 type="text"
+                aria-label="Buscar karaokes en la biblioteca"
                 placeholder="Buscar karaoke o artista..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -333,7 +355,7 @@ export const KaraokeLibraryView = ({ karaokes, activeKaraokeId, onPlayKaraoke, i
           {karaokes?.length === 0 ? (
             <motion.div
               initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-              className="flex flex-col items-center justify-center h-[450px] text-zinc-500 border-2 border-dashed border-white/5 rounded-2xl bg-zinc-900/20"
+              className="flex min-h-80 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-white/5 bg-zinc-900/20 px-5 text-center text-zinc-500 sm:min-h-[450px]"
             >
               <motion.div
                 animate={{ y: [0, -10, 0] }}
@@ -346,7 +368,7 @@ export const KaraokeLibraryView = ({ karaokes, activeKaraokeId, onPlayKaraoke, i
               <p className="text-sm">Añade enlaces de YouTube o archivos locales.</p>
             </motion.div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-4">
               <AnimatePresence mode="popLayout">
                 {karaokes === undefined ? (
                   Array.from({ length: 8 }).map((_, i) => (
@@ -401,10 +423,18 @@ export const KaraokeLibraryView = ({ karaokes, activeKaraokeId, onPlayKaraoke, i
         initialArtist={editingKaraoke?.artist || ''}
         onSave={handleSaveMetadata}
       />
-      <BulkImportKaraokeModal
-        isOpen={isBulkImportOpen}
-        onClose={() => setIsBulkImportOpen(false)}
-      />
+      {isBulkImportOpen && (
+        <Suspense fallback={
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm" role="status" aria-label="Cargando importador">
+            <Loader2 className="h-8 w-8 animate-spin text-primary-500" />
+          </div>
+        }>
+          <BulkImportKaraokeModal
+            isOpen
+            onClose={() => setIsBulkImportOpen(false)}
+          />
+        </Suspense>
+      )}
     </div>
   );
 };

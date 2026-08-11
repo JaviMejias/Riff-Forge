@@ -41,7 +41,7 @@ export default defineConfig({
         theme_color: '#f59e0b', // amber-500
         background_color: '#09090b', // zinc-950
         display: 'fullscreen',
-        orientation: 'portrait-primary',
+        orientation: 'any',
         icons: [
           {
             src: 'icon-192x192.png',
@@ -63,11 +63,23 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,wasm}'],
+        globIgnores: ['**/xlsx-*.js'],
         maximumFileSizeToCacheInBytes: 5000000, // 5MB to handle alphaTab wasm
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: true,
         runtimeCaching: [
+          {
+            urlPattern: ({ url }) => /\/assets\/xlsx-[^/]+\.js$/.test(url.pathname),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'optional-import-tools',
+              expiration: {
+                maxEntries: 2,
+                maxAgeSeconds: 60 * 60 * 24 * 30
+              }
+            }
+          },
           {
             urlPattern: ({ url }) => ['/api/', '/downloads/', '/uploads/', '/media/']
               .some(path => url.pathname.startsWith(path)),

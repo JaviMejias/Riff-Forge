@@ -1,4 +1,4 @@
-import { Edit3, Trash, Search, Library, Plus, MoreVertical } from 'lucide-react';
+import { Edit3, Trash, Search, Library, Plus, MoreVertical, GripVertical } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { KaraokeCard } from '../karaoke/KaraokeCard';
 import { Navbar } from '../Navbar';
@@ -11,6 +11,8 @@ import { useState, useRef, useEffect } from 'react';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import type { DropResult } from '@hello-pangea/dnd';
 
 const MySwal = withReactContent(Swal);
 
@@ -40,10 +42,14 @@ export const KaraokePlaylistView = ({ playlistId, activeKaraokeId, onPlayKaraoke
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const playlist = useLiveQuery(() => db.karaokePlaylists.get(playlistId));
+  const playlist = useLiveQuery(
+    async () => (await db.karaokePlaylists.get(playlistId)) ?? null,
+    [playlistId]
+  );
   const karaokes = useLiveQuery(async () => {
     if (!playlist) return [];
-    return await db.karaokes.where('id').anyOf(playlist.karaokeIds).toArray();
+    const fetchedKaraokes = await db.karaokes.where('id').anyOf(playlist.karaokeIds).toArray();
+    return fetchedKaraokes.sort((left, right) => playlist.karaokeIds.indexOf(left.id!) - playlist.karaokeIds.indexOf(right.id!));
   }, [playlist]);
 
   const allKaraokes = useLiveQuery(() => db.karaokes.toArray());
@@ -125,6 +131,14 @@ export const KaraokePlaylistView = ({ playlistId, activeKaraokeId, onPlayKaraoke
     });
   };
 
+  const handleDragEnd = async (result: DropResult) => {
+    if (!playlist?.id || !result.destination || searchQuery) return;
+    const karaokeIds = [...playlist.karaokeIds];
+    const [movedId] = karaokeIds.splice(result.source.index, 1);
+    karaokeIds.splice(result.destination.index, 0, movedId);
+    await db.karaokePlaylists.update(playlist.id, { karaokeIds });
+  };
+
 
   const filteredKaraokes = karaokes?.filter(k => 
     k.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -133,11 +147,19 @@ export const KaraokePlaylistView = ({ playlistId, activeKaraokeId, onPlayKaraoke
 
   const { visibleItems: displayedKaraokes, loadMoreRef, hasMore } = useInfiniteScroll({ items: filteredKaraokes, itemsPerPage: 20 });
 
-  if (!playlist) return null;
+  if (playlist === undefined) return <div className="flex h-full items-center justify-center text-zinc-400">Cargando lista…</div>;
+  if (playlist === null) return (
+    <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center text-zinc-400">
+      <p className="text-lg font-bold text-white">Esta lista ya no está disponible.</p>
+      <button type="button" onClick={onBackToLibrary} className="min-h-11 rounded-xl bg-primary-500 px-5 py-2 font-bold text-zinc-950">
+        Volver a mis listas
+      </button>
+    </div>
+  );
 
   return (
-    <div className="flex flex-col h-full w-full">
-      <div className="p-8 pb-4 shrink-0">
+    <div className="flex h-full w-full flex-col px-3 py-2 sm:p-4 lg:p-6">
+      <div className="shrink-0">
         <Navbar
           title={playlist.name}
           subtitle={`Lista de Karaoke • ${karaokes?.length || 0} pistas`}
@@ -147,13 +169,17 @@ export const KaraokePlaylistView = ({ playlistId, activeKaraokeId, onPlayKaraoke
         >
           <div className="flex gap-2 relative z-[100]" ref={mobileMenuRef}>
             <button
+              type="button"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              aria-label="Mostrar acciones de la lista"
+              aria-expanded={isMobileMenuOpen}
+              aria-controls="karaoke-playlist-actions-menu"
               className="sm:hidden flex items-center justify-center p-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl transition-all"
             >
               <MoreVertical size={20} />
             </button>
 
-            <div className={`
+            <div id="karaoke-playlist-actions-menu" className={`
               absolute top-full right-0 mt-2 p-2 bg-zinc-900 border border-white/10 rounded-2xl shadow-xl flex-col gap-2 min-w-[160px]
               sm:static sm:mt-0 sm:p-0 sm:bg-transparent sm:border-none sm:shadow-none sm:flex sm:flex-row sm:w-auto
               ${isMobileMenuOpen ? 'flex' : 'hidden sm:flex'}
@@ -184,11 +210,12 @@ export const KaraokePlaylistView = ({ playlistId, activeKaraokeId, onPlayKaraoke
         </Navbar>
       </div>
 
-      <div className="px-8 pb-4 shrink-0">
-        <div className="relative max-w-md">
+      <div className="shrink-0 py-3 sm:py-4">
+        <div className="relative w-full max-w-md">
           <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" />
           <input
             type="text"
+            aria-label="Buscar karaokes en esta lista"
             placeholder="Buscar en esta lista..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -197,11 +224,11 @@ export const KaraokePlaylistView = ({ playlistId, activeKaraokeId, onPlayKaraoke
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-8 pt-4 hide-scrollbar">
+      <div className="flex-1 overflow-y-auto hide-scrollbar pb-6">
         {filteredKaraokes?.length === 0 ? (
           <motion.div
             initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col items-center justify-center h-[450px] text-zinc-500 border-2 border-dashed border-white/5 rounded-2xl bg-zinc-900/20"
+            className="flex min-h-80 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-white/5 bg-zinc-900/20 px-5 text-center text-zinc-500 sm:min-h-[450px]"
           >
             <motion.div
               animate={{ y: [0, -10, 0] }}
@@ -218,30 +245,31 @@ export const KaraokePlaylistView = ({ playlistId, activeKaraokeId, onPlayKaraoke
             </p>
           </motion.div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-            <AnimatePresence>
-              {displayedKaraokes?.map((karaoke, idx) => (
-                <motion.div
-                  key={karaoke.id}
-                  layout
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  whileHover={{ y: -5 }}
-                >
-                  <div className="relative group h-full">
-                    <KaraokeCard
-                      karaoke={karaoke}
-                      isActive={karaoke.id === activeKaraokeId}
-                      index={idx}
-                      onPlay={() => onPlayKaraoke(karaoke)}
-                      onDelete={(e) => removeKaraokeFromPlaylist(karaoke.id!, e)}
-                    />
-                  </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </div>
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <Droppable droppableId="playlist-karaokes" direction="vertical">
+              {(provided) => (
+                <div ref={provided.innerRef} {...provided.droppableProps} className="flex flex-col gap-2.5 sm:gap-3">
+                  <AnimatePresence>
+                    {displayedKaraokes?.map((karaoke, idx) => (
+                      <Draggable key={karaoke.id!.toString()} draggableId={karaoke.id!.toString()} index={idx} isDragDisabled={!!searchQuery}>
+                        {(provided, snapshot) => (
+                          <div ref={provided.innerRef} {...provided.draggableProps} style={provided.draggableProps.style} className={`flex items-center gap-1 sm:gap-2 ${snapshot.isDragging ? 'z-50 scale-[1.01] opacity-90 shadow-2xl' : ''}`}>
+                            <button type="button" {...provided.dragHandleProps} className="flex min-h-12 w-9 shrink-0 touch-none items-center justify-center rounded-xl text-zinc-600 transition-colors hover:bg-zinc-800 hover:text-primary-400 active:bg-zinc-800" title={searchQuery ? 'Limpia la búsqueda para ordenar' : 'Arrastrar para ordenar'} aria-label={`Mover ${karaoke.name}`}>
+                              <GripVertical size={20} />
+                            </button>
+                            <div className="min-w-0 flex-1">
+                              <KaraokeCard karaoke={karaoke} isActive={karaoke.id === activeKaraokeId} index={idx} onPlay={() => onPlayKaraoke(karaoke)} onDelete={(event) => removeKaraokeFromPlaylist(karaoke.id!, event)} />
+                            </div>
+                          </div>
+                        )}
+                      </Draggable>
+                    ))}
+                  </AnimatePresence>
+                  {provided.placeholder}
+                </div>
+              )}
+            </Droppable>
+          </DragDropContext>
         )}
 
         {hasMore && (

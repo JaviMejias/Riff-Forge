@@ -40,12 +40,6 @@ export const SyncLineItem = ({
 
   const [timeInput, setTimeInput] = useState(formattedTime || '00:00.0');
 
-  useEffect(() => {
-    if (formattedTime) {
-      setTimeInput(formattedTime);
-    }
-  }, [formattedTime]);
-
   const commitTimeEdit = () => {
     const parts = timeInput.trim().split(':');
     let totalSeconds = 0;
@@ -66,10 +60,6 @@ export const SyncLineItem = ({
   };
 
   useEffect(() => {
-    if (!isEditing) setEditValue(line.text);
-  }, [line.text, isEditing]);
-
-  useEffect(() => {
     if (isEditing && inputRef.current) {
       inputRef.current.focus();
       inputRef.current.select();
@@ -79,6 +69,8 @@ export const SyncLineItem = ({
   const enterEdit = (e: React.MouseEvent) => {
     if (!handleUpdateLineText) return;
     e.stopPropagation();
+    setEditValue(line.text);
+    setTimeInput(formattedTime || '00:00.0');
     setIsEditing(true);
     // Iniciar loop de audio si la línea ya tiene tiempo
     if (isDone && onEnterEditMode) {
@@ -256,7 +248,7 @@ export const SyncLineItem = ({
             {handleUpdateLineText && !isInstrumental && (
               <button
                 onClick={enterEdit}
-                className="w-7 h-7 flex items-center justify-center rounded-lg text-zinc-600 hover:text-primary-400 hover:bg-primary-500/10 transition-all hidden lg:flex lg:opacity-0 lg:group-hover:opacity-100 flex-shrink-0"
+                className="w-10 h-10 lg:w-7 lg:h-7 flex items-center justify-center rounded-lg text-zinc-500 hover:text-primary-400 hover:bg-primary-500/10 transition-all lg:opacity-0 lg:group-hover:opacity-100 flex-shrink-0"
                 title="Editar (o doble clic)"
               >
                 <Pencil size={13} />
@@ -267,7 +259,7 @@ export const SyncLineItem = ({
             {isInstrumental && handleDeleteLine && (
               <button
                 onClick={(e) => { e.stopPropagation(); handleDeleteLine(idx); }}
-                className="w-7 h-7 flex items-center justify-center rounded-xl text-zinc-600 hover:text-red-500 hover:bg-red-500/10 transition-all lg:opacity-0 lg:group-hover:opacity-100 flex-shrink-0"
+                className="w-10 h-10 lg:w-7 lg:h-7 flex items-center justify-center rounded-xl text-zinc-500 hover:text-red-500 hover:bg-red-500/10 transition-all lg:opacity-0 lg:group-hover:opacity-100 flex-shrink-0"
                 title="Eliminar"
               >
                 <Trash2 size={14} />

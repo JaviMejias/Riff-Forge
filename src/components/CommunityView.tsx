@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react';
 import { Navbar } from './Navbar';
 import { SongCard } from './SongCard';
 import { KaraokeCard } from './karaoke/KaraokeCard';
-import { Users, Loader2, Download, Music, Mic2 } from 'lucide-react';
+import { Users, Loader2, Download, Music, Mic2, Search, X } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../store/authStore';
 import { db } from '../db';
+import type { Karaoke, Song } from '../db';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 import { Toast } from '../utils/toast';
@@ -13,6 +14,12 @@ import { API_BASE_URL } from '../config'; // FE-1: use central config, no hardco
 
 const MySwal = withReactContent(Swal);
 const API_URL = `${API_BASE_URL}/api`;
+const getCurrentTimestamp = () => Date.now();
+
+type CommunityItem = Song & Partial<Karaoke> & {
+  userId?: string;
+  user?: { name?: string };
+};
 
 interface CommunityViewProps {
   isSidebarOpen: boolean;
@@ -21,10 +28,18 @@ interface CommunityViewProps {
 
 export const CommunityView = ({ isSidebarOpen, onToggleSidebar }: CommunityViewProps) => {
   const [activeTab, setActiveTab] = useState<'songs' | 'karaokes'>('songs');
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<CommunityItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const isMultiSelectMode = selectedIds.size > 0;
+  const normalizedQuery = query.trim().toLowerCase();
+  const visibleItems = normalizedQuery
+    ? items.filter((item) =>
+        [item.name, item.artist, item.user?.name]
+          .some((value) => String(value || '').toLowerCase().includes(normalizedQuery))
+      )
+    : items;
 
   const token = useAuthStore(state => state.token);
   const currentUser = useAuthStore(state => state.user);
@@ -48,8 +63,8 @@ export const CommunityView = ({ isSidebarOpen, onToggleSidebar }: CommunityViewP
         if (!res.ok) throw new Error('Error fetching community items');
         const data = await res.json();
         if (isMounted) setItems(data);
-      } catch (error: any) {
-        if (error.name === 'AbortError') return; // tab switched — ignore stale response
+      } catch (error: unknown) {
+        if (error instanceof DOMException && error.name === 'AbortError') return; // tab switched — ignore stale response
         console.error(error);
         if (isMounted) Toast.fire({ icon: 'error', title: 'Error al cargar la comunidad' });
       } finally {
@@ -60,10 +75,6 @@ export const CommunityView = ({ isSidebarOpen, onToggleSidebar }: CommunityViewP
     run();
     return () => { isMounted = false; controller.abort(); };
   }, [activeTab, token]);
-
-  useEffect(() => {
-    setSelectedIds(new Set());
-  }, [activeTab]);
 
   const toggleSelect = (id: number, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -77,14 +88,14 @@ export const CommunityView = ({ isSidebarOpen, onToggleSidebar }: CommunityViewP
   };
 
   const selectAll = () => {
-    if (selectedIds.size === items.length) {
+    if (selectedIds.size === visibleItems.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(items.map(i => i.id!)));
+      setSelectedIds(new Set(visibleItems.map(i => i.id!)));
     }
   };
 
-  const executeCloneItem = async (item: any) => {
+  const executeCloneItem = async (item: CommunityItem) => {
     if (currentUser && item.userId === currentUser.id) return;
     try {
       if (activeTab === 'songs') {
@@ -99,7 +110,7 @@ export const CommunityView = ({ isSidebarOpen, onToggleSidebar }: CommunityViewP
           fileData = new Uint8Array(arrayBuffer);
         }
         const titleNorm = item.name.toLowerCase();
-        const artistNorm = item.artist.toLowerCase();
+        const artistNorm = (item.artist || '').toLowerCase();
 
         const existingSongs = await db.songs.toArray();
         const existing = existingSongs.find(s => 
@@ -118,7 +129,7 @@ export const CommunityView = ({ isSidebarOpen, onToggleSidebar }: CommunityViewP
             strummingPattern: item.strummingPattern || existing.strummingPattern,
             capo: item.capo || existing.capo,
             data: fileData || existing.data,
-            updatedAt: Date.now()
+            updatedAt: getCurrentTimestamp()
           });
         } else {
           await db.songs.add({
@@ -132,7 +143,7 @@ export const CommunityView = ({ isSidebarOpen, onToggleSidebar }: CommunityViewP
             strummingPattern: item.strummingPattern,
             capo: item.capo,
             data: fileData,
-            dateAdded: Date.now(),
+            dateAdded: getCurrentTimestamp(),
             isPublic: false
           });
         }
@@ -166,7 +177,7 @@ export const CommunityView = ({ isSidebarOpen, onToggleSidebar }: CommunityViewP
           hasLocalAudio: item.hasLocalAudio,
           pitchShift: item.pitchShift,
           textContent: item.textContent,
-          dateAdded: Date.now(),
+          dateAdded: getCurrentTimestamp(),
           isPublic: false
         }) as number;
 
@@ -216,7 +227,7 @@ export const CommunityView = ({ isSidebarOpen, onToggleSidebar }: CommunityViewP
     }
   };
 
-  const cloneSong = async (item: any) => {
+  const cloneSong = async (item: CommunityItem) => {
     if (currentUser && item.userId === currentUser.id) {
       Toast.fire({ icon: 'info', title: 'Este aporte es tuyo', text: 'Ya tienes este elemento en tu biblioteca.' });
       return;
@@ -243,7 +254,7 @@ export const CommunityView = ({ isSidebarOpen, onToggleSidebar }: CommunityViewP
   };
 
   return (
-    <div className="flex flex-col h-full w-full p-8">
+    <div className="flex h-full w-full flex-col px-3 py-2 sm:p-4 lg:p-6">
       <Navbar
         title={isMultiSelectMode ? `${selectedIds.size} seleccionados` : "Comunidad"}
         subtitle={isMultiSelectMode ? "Acciones en lote" : "Explora y clona contenido de otros usuarios"}
@@ -268,9 +279,9 @@ export const CommunityView = ({ isSidebarOpen, onToggleSidebar }: CommunityViewP
               </button>
             </>
           ) : (
-            <div className="flex bg-zinc-900/80 p-1 rounded-xl border border-white/5 shadow-inner">
+            <div className="hidden sm:flex bg-zinc-900/80 p-1 rounded-xl border border-white/5 shadow-inner">
               <button
-                onClick={() => setActiveTab('songs')}
+                onClick={() => { setActiveTab('songs'); setSelectedIds(new Set()); setQuery(''); }}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all duration-300 ${
                   activeTab === 'songs' 
                     ? 'bg-primary-500 text-zinc-950 shadow-lg' 
@@ -280,7 +291,7 @@ export const CommunityView = ({ isSidebarOpen, onToggleSidebar }: CommunityViewP
                 <Music size={16} /> Canciones
               </button>
               <button
-                onClick={() => setActiveTab('karaokes')}
+                onClick={() => { setActiveTab('karaokes'); setSelectedIds(new Set()); setQuery(''); }}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all duration-300 ${
                   activeTab === 'karaokes' 
                     ? 'bg-primary-500 text-zinc-950 shadow-lg' 
@@ -294,19 +305,58 @@ export const CommunityView = ({ isSidebarOpen, onToggleSidebar }: CommunityViewP
         </div>
       </Navbar>
 
-      <div className="flex-1 overflow-y-auto hide-scrollbar pb-10 mt-6">
-        <div className="bg-zinc-900/30 border border-white/5 rounded-3xl p-4 sm:p-6 min-h-[500px]">
+      {!isMultiSelectMode && (
+        <div className="mt-2 sm:hidden grid grid-cols-2 gap-1 p-1 bg-zinc-900/80 rounded-xl border border-white/5">
+          <button
+            onClick={() => { setActiveTab('songs'); setSelectedIds(new Set()); setQuery(''); }}
+            className={`min-h-10 flex items-center justify-center gap-2 rounded-lg font-bold text-sm transition-all ${activeTab === 'songs' ? 'bg-primary-500 text-zinc-950' : 'text-zinc-400'}`}
+          >
+            <Music size={16} /> Canciones
+          </button>
+          <button
+            onClick={() => { setActiveTab('karaokes'); setSelectedIds(new Set()); setQuery(''); }}
+            className={`min-h-10 flex items-center justify-center gap-2 rounded-lg font-bold text-sm transition-all ${activeTab === 'karaokes' ? 'bg-primary-500 text-zinc-950' : 'text-zinc-400'}`}
+          >
+            <Mic2 size={16} /> Karaokes
+          </button>
+        </div>
+      )}
+
+      <div className="flex-1 overflow-y-auto hide-scrollbar pb-6 mt-3 sm:mt-5">
+        <div className="min-h-full rounded-2xl border border-white/5 bg-zinc-900/30 p-3 sm:rounded-3xl sm:p-6">
+          {!loading && items.length > 0 && (
+            <div className="relative mb-4 sm:mb-6">
+              <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" />
+              <input
+                type="search"
+                aria-label={`Buscar ${activeTab === 'songs' ? 'canciones' : 'karaokes'} en la comunidad`}
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder={`Buscar ${activeTab === 'songs' ? 'canciones' : 'karaokes'}, artistas o usuarios`}
+                className="w-full min-h-11 bg-zinc-950/60 border border-white/10 rounded-xl pl-11 pr-11 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/30"
+              />
+              {query && (
+                <button
+                  onClick={() => setQuery('')}
+                  className="absolute right-1 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center text-zinc-500 hover:text-white"
+                  aria-label="Limpiar búsqueda"
+                >
+                  <X size={17} />
+                </button>
+              )}
+            </div>
+          )}
           
           {/* HEADER DEL CONTENEDOR */}
-          {items.length > 0 && !loading && (
-            <div className="flex mb-6">
+          {visibleItems.length > 0 && !loading && (
+            <div className="flex mb-4 sm:mb-6">
               <button
                 onClick={selectAll}
-                className={`p-2.5 rounded-xl border transition-all shrink-0 ${isMultiSelectMode && selectedIds.size === items.length ? 'bg-primary-500 border-primary-500 text-zinc-950' : 'bg-zinc-900/50 border-white/5 text-zinc-400 hover:text-white hover:border-white/20'}`}
-                title={isMultiSelectMode && selectedIds.size === items.length ? "Deseleccionar todo" : "Seleccionar todo"}
+                className={`min-w-11 min-h-11 p-2.5 rounded-xl border transition-all shrink-0 ${isMultiSelectMode && selectedIds.size === visibleItems.length ? 'bg-primary-500 border-primary-500 text-zinc-950' : 'bg-zinc-900/50 border-white/5 text-zinc-400 hover:text-white hover:border-white/20'}`}
+                title={isMultiSelectMode && selectedIds.size === visibleItems.length ? "Deseleccionar todo" : "Seleccionar todo"}
               >
                 <div className="w-4 h-4 rounded-sm border border-current flex items-center justify-center">
-                  {isMultiSelectMode && selectedIds.size === items.length && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-3 h-3"><polyline points="20 6 9 17 4 12"></polyline></svg>}
+                  {isMultiSelectMode && selectedIds.size === visibleItems.length && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-3 h-3"><polyline points="20 6 9 17 4 12"></polyline></svg>}
                 </div>
               </button>
             </div>
@@ -317,15 +367,22 @@ export const CommunityView = ({ isSidebarOpen, onToggleSidebar }: CommunityViewP
               <p>Cargando comunidad...</p>
             </div>
           ) : items.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-[400px] text-zinc-500 border-2 border-dashed border-white/5 rounded-2xl bg-zinc-900/20">
+            <div className="flex flex-col items-center justify-center min-h-72 sm:h-[400px] px-5 text-center text-zinc-500 border-2 border-dashed border-white/5 rounded-2xl bg-zinc-900/20">
               <Users size={40} className="mb-4 text-zinc-600" />
               <p className="text-xl font-bold text-zinc-400">No hay contenido público</p>
               <p className="text-sm">Sé el primero en compartir algo.</p>
             </div>
+          ) : visibleItems.length === 0 ? (
+            <div className="flex flex-col items-center justify-center min-h-64 px-5 text-center border-2 border-dashed border-white/5 rounded-2xl">
+              <Search size={36} className="text-zinc-700 mb-3" />
+              <p className="font-bold text-zinc-300">No encontramos coincidencias</p>
+              <p className="text-sm text-zinc-500 mt-1">Prueba con otro título, artista o usuario.</p>
+              <button onClick={() => setQuery('')} className="mt-4 min-h-11 px-4 rounded-xl bg-zinc-800 text-white font-bold text-sm">Limpiar búsqueda</button>
+            </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-4">
               <AnimatePresence mode="popLayout">
-                {items.map((item, index) => (
+                {visibleItems.map((item, index) => (
                   <div key={item.id} className="relative group">
                     {activeTab === 'songs' ? (
                       <SongCard
@@ -348,11 +405,11 @@ export const CommunityView = ({ isSidebarOpen, onToggleSidebar }: CommunityViewP
                       />
                     )}
                     {/* Contribuidor */}
-                    <div className="absolute -top-3 -left-3 z-30 bg-zinc-800 border border-primary-500/30 text-primary-400 text-xs px-2 py-1 rounded-lg shadow-xl shadow-black/50 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="hidden sm:block absolute -top-3 -left-3 z-30 bg-zinc-800 border border-primary-500/30 text-primary-400 text-xs px-2 py-1 rounded-lg shadow-xl shadow-black/50 opacity-0 group-hover:opacity-100 transition-opacity">
                       Subido por {item.user?.name || 'Usuario'}
                     </div>
                     {/* Icono Descargar overlay */}
-                    <div className="absolute inset-0 z-20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    <div className="hidden sm:flex absolute inset-0 z-20 items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                       <div className="bg-black/50 absolute inset-0 rounded-2xl"></div>
                       <div className="flex flex-col items-center justify-center transform translate-y-4 group-hover:translate-y-0 transition-all">
                         {currentUser?.id === item.userId ? (
@@ -367,6 +424,16 @@ export const CommunityView = ({ isSidebarOpen, onToggleSidebar }: CommunityViewP
                           </div>
                         )}
                       </div>
+                    </div>
+                    <div className="sm:hidden mt-1.5 min-h-11 flex items-center justify-between gap-2 px-3 rounded-xl bg-zinc-900/70 border border-white/5">
+                      <span className="text-xs text-zinc-500 truncate">Por {item.user?.name || 'Usuario'}</span>
+                      {currentUser?.id === item.userId ? (
+                        <span className="text-[10px] uppercase tracking-wider font-bold text-primary-400 shrink-0">Tu aporte</span>
+                      ) : (
+                        <button onClick={() => cloneSong(item)} className="min-h-9 flex items-center gap-1.5 text-xs font-bold text-primary-400 shrink-0">
+                          <Download size={15} /> Clonar
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}

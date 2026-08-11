@@ -19,6 +19,7 @@ import { Toast } from '../utils/toast';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 
 const MySwal = withReactContent(Swal);
+const getCurrentTimestamp = () => Date.now();
 
 interface LibraryViewProps {
   songs: Song[] | undefined;
@@ -67,14 +68,27 @@ export const LibraryView = ({ songs, activeSongId, onPlaySong, onImport, isSideb
   };
 
   const deleteFullSong = async (id: number) => {
-    await db.songs.delete(id);
-    const allPlaylists = await db.playlists.toArray();
-    for (const p of allPlaylists) {
-      if (p.songIds.includes(id)) {
-        await db.playlists.update(p.id!, {
-          songIds: p.songIds.filter(sid => sid !== id)
-        });
+    await db.transaction('rw', [db.songs, db.playlists], async () => {
+      await db.songs.delete(id);
+      const allPlaylists = await db.playlists.toArray();
+      for (const playlist of allPlaylists) {
+        if (playlist.songIds.includes(id)) {
+          await db.playlists.update(playlist.id!, {
+            songIds: playlist.songIds.filter(songId => songId !== id)
+          });
+        }
       }
+    });
+  };
+
+  const deleteSongPart = async (id: number, updates: Partial<Song>, successTitle: string) => {
+    try {
+      await db.songs.update(id, updates);
+      MySwal.close();
+      Toast.fire({ icon: 'success', title: successTitle });
+    } catch (error) {
+      console.error(error);
+      MySwal.fire({ icon: 'error', title: 'No se pudo actualizar la canción' });
     }
   };
 
@@ -114,18 +128,18 @@ export const LibraryView = ({ songs, activeSongId, onPlaySong, onImport, isSideb
           </div>
         `,
         didOpen: () => {
-          document.getElementById('btn-del-tab')?.addEventListener('click', () => {
-            MySwal.close();
-            db.songs.update(id, { type: 'text', data: undefined });
+          const popup = MySwal.getPopup();
+          popup?.querySelector('#btn-del-tab')?.addEventListener('click', () => {
+            void deleteSongPart(id, { type: 'text', data: null }, 'Tablatura eliminada');
           });
-          document.getElementById('btn-del-txt')?.addEventListener('click', () => {
-            MySwal.close();
-            db.songs.update(id, { type: 'gp', textContent: undefined });
+          popup?.querySelector('#btn-del-txt')?.addEventListener('click', () => {
+            void deleteSongPart(id, { type: 'gp', textContent: null }, 'Letra y acordes eliminados');
           });
-          document.getElementById('btn-del-all')?.addEventListener('click', async () => {
-            MySwal.close();
+          popup?.querySelector('#btn-del-all')?.addEventListener('click', async () => {
             try {
               await deleteFullSong(id);
+              MySwal.close();
+              Toast.fire({ icon: 'success', title: 'Canción eliminada' });
             } catch (e) {
               console.error(e);
               MySwal.fire({ icon: 'error', title: 'Error al borrar' });
@@ -161,7 +175,7 @@ export const LibraryView = ({ songs, activeSongId, onPlaySong, onImport, isSideb
     
     await db.songs.update(id, { 
       isPublic: !song.isPublic,
-      updatedAt: Date.now()
+      updatedAt: getCurrentTimestamp()
     });
     
     const { SyncService } = await import('../services/syncService');
@@ -307,7 +321,7 @@ export const LibraryView = ({ songs, activeSongId, onPlaySong, onImport, isSideb
   const { visibleItems: displayedSongs, loadMoreRef, hasMore } = useInfiniteScroll({ items: filteredSongs, itemsPerPage: 20 });
 
   return (
-    <div className="flex flex-col h-full w-full p-8">
+    <div className="flex h-full w-full flex-col px-3 py-2 sm:p-4 lg:p-6">
       <Navbar
         title={isMultiSelectMode ? `${selectedSongIds.size} seleccionadas` : "Todas las Tabs"}
         subtitle={isMultiSelectMode ? "Acciones en lote" : "Colección Principal"}
@@ -349,9 +363,9 @@ export const LibraryView = ({ songs, activeSongId, onPlaySong, onImport, isSideb
         </div>
       </Navbar>
 
-      <div className="flex-1 overflow-y-auto hide-scrollbar pb-10 mt-6">
+      <div className="flex-1 overflow-y-auto hide-scrollbar pb-6 mt-3 sm:mt-5">
 
-        <div className="bg-zinc-900/30 border border-white/5 rounded-3xl p-4 sm:p-6 min-h-[500px]">
+        <div className="min-h-full rounded-2xl border border-white/5 bg-zinc-900/30 p-3 sm:rounded-3xl sm:p-6">
 
           {/* HEADER DEL CONTENEDOR: Filtros y Buscador */}
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
@@ -392,6 +406,7 @@ export const LibraryView = ({ songs, activeSongId, onPlaySong, onImport, isSideb
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
               <input
                 type="text"
+                aria-label="Buscar canciones en la biblioteca"
                 placeholder="Buscar canción o artista..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -403,7 +418,7 @@ export const LibraryView = ({ songs, activeSongId, onPlaySong, onImport, isSideb
           {songs?.length === 0 ? (
             <motion.div
               initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-              className="flex flex-col items-center justify-center h-[450px] text-zinc-500 border-2 border-dashed border-white/5 rounded-2xl bg-zinc-900/20"
+              className="flex min-h-80 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-white/5 bg-zinc-900/20 px-5 text-center text-zinc-500 sm:min-h-[450px]"
             >
               <motion.div
                 animate={{ y: [0, -10, 0] }}
@@ -416,7 +431,7 @@ export const LibraryView = ({ songs, activeSongId, onPlaySong, onImport, isSideb
               <p className="text-sm">Importa archivos GuitarPro para empezar.</p>
             </motion.div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-4">
               <AnimatePresence mode="popLayout">
                 {songs === undefined ? (
                   Array.from({ length: 8 }).map((_, i) => (

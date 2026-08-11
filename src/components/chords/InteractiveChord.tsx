@@ -69,7 +69,7 @@ export const InteractiveChord = ({ text, onClick }: InteractiveChordProps) => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
             transition={{ duration: 0.15 }}
-            className="absolute z-[100] top-[120%] left-0 mb-2 bg-zinc-900 border border-white/10 p-3 rounded-2xl shadow-2xl cursor-default min-w-[120px]"
+            className="fixed inset-x-3 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-[100] cursor-default rounded-2xl border border-white/10 bg-zinc-900 p-3 shadow-2xl sm:absolute sm:inset-x-auto sm:bottom-auto sm:left-0 sm:top-[120%] sm:mb-2 sm:min-w-[120px]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex flex-col items-center">
@@ -80,7 +80,7 @@ export const InteractiveChord = ({ text, onClick }: InteractiveChordProps) => {
                     e.stopPropagation();
                     playChordAudio(chordDef.frets);
                   }}
-                  className="flex-1 flex items-center justify-center gap-2 py-1.5 bg-zinc-800 hover:bg-primary-500 hover:text-zinc-950 text-zinc-400 rounded-xl transition-all font-bold text-xs group"
+                  className="group flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-zinc-800 py-1.5 text-xs font-bold text-zinc-400 transition-all hover:bg-primary-500 hover:text-zinc-950 sm:min-h-0"
                 >
                   <Volume2 size={14} className="group-hover:scale-110 transition-transform" />
                   Sonar
@@ -92,7 +92,7 @@ export const InteractiveChord = ({ text, onClick }: InteractiveChordProps) => {
                       setIsHovered(false);
                       onClick(trimmed);
                     }}
-                    className="flex-1 flex items-center justify-center gap-2 py-1.5 bg-zinc-800 hover:bg-primary-500 hover:text-zinc-950 text-zinc-400 rounded-xl transition-all font-bold text-xs group"
+                    className="group flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-zinc-800 py-1.5 text-xs font-bold text-zinc-400 transition-all hover:bg-primary-500 hover:text-zinc-950 sm:min-h-0"
                   >
                     <Edit2 size={14} className="group-hover:scale-110 transition-transform" />
                     Editar
@@ -100,7 +100,7 @@ export const InteractiveChord = ({ text, onClick }: InteractiveChordProps) => {
                 )}
               </div>
             </div>
-            <div className="absolute bottom-full left-4 border-[6px] border-transparent border-b-zinc-900 pointer-events-none" />
+            <div className="pointer-events-none absolute bottom-full left-4 hidden border-[6px] border-transparent border-b-zinc-900 sm:block" />
           </motion.div>
         )}
       </AnimatePresence>

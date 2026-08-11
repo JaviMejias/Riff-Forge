@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as alphaTab from '@coderline/alphatab';
 import { usePlayerStore } from '../store/playerStore';
 import type { Song } from '../db';
@@ -6,6 +6,9 @@ import type { Song } from '../db';
 export function useAlphaTab(song: Song | null) {
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<alphaTab.AlphaTabApi | null>(null);
+  const renderTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const loadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scoreLoadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   const [isPlaying, setIsPlaying] = useState(false);
   const [tracks, setTracks] = useState<alphaTab.model.Track[]>([]);
@@ -27,6 +30,16 @@ export function useAlphaTab(song: Song | null) {
   const [trackSolos, setTrackSolos] = useState<Record<number, boolean>>({});
 
   const { masterVolume, setPlaybackSpeed, setIsLooping, setMainViewMode } = usePlayerStore();
+  const songType = song?.type;
+  const songData = useMemo(() => {
+    if (!song?.data) return null;
+    return song.data instanceof Uint8Array ? song.data : new Uint8Array(song.data);
+    // File identity is intentionally stable across metadata-only IndexedDB updates.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [song?.id, song?.fileVersion, song?.data?.byteLength]);
+  const songLoadKey = song && songType !== 'text' && songData
+    ? `${song.id || 'temp'}:${song.fileVersion ?? 0}:${songData.byteLength}`
+    : null;
 
   const getNoteName = (midiValue: number): string => {
     const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -55,17 +68,19 @@ export function useAlphaTab(song: Song | null) {
     apiRef.current?.renderTracks([track]);
 
     // Safety timeout in case alphaTab hangs during render
-    setTimeout(() => {
+    if (renderTimeoutRef.current) clearTimeout(renderTimeoutRef.current);
+    renderTimeoutRef.current = setTimeout(() => {
       setIsLoading(false);
+      renderTimeoutRef.current = null;
     }, 4000);
   };
 
   useEffect(() => {
     if (!containerRef.current) return;
 
-    apiRef.current = new alphaTab.AlphaTabApi(containerRef.current, {
+    const api = new alphaTab.AlphaTabApi(containerRef.current, {
       core: {
-        fontDirectory: 'https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/font/',
+        fontDirectory: '/alphatab/font/',
         // Workers disabled: the UMD bundle uses importScripts() which requires a special server setup.
         // Running in the main thread is fully functional for our use case.
         useWorkers: false,
@@ -75,7 +90,7 @@ export function useAlphaTab(song: Song | null) {
         enableCursor: true,
         scrollMode: alphaTab.ScrollMode.Off,
         scrollElement: containerRef.current,
-        soundFont: 'https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/soundfont/sonivox.sf2'
+        soundFont: '/alphatab/soundfont/sonivox.sf2'
       },
       display: {
         layoutMode: alphaTab.LayoutMode.Page,
@@ -91,24 +106,29 @@ export function useAlphaTab(song: Song | null) {
           [alphaTab.NotationElement.ScoreMusic, false],
           [alphaTab.NotationElement.ScoreWordsAndMusic, false],
           [alphaTab.NotationElement.ScoreCopyright, false]
-        ]) as any
+        ])
       }
     });
+    apiRef.current = api;
 
-    apiRef.current.masterVolume = masterVolume;
+    api.masterVolume = masterVolume;
 
-    apiRef.current.soundFontLoaded.on(() => {
+    api.soundFontLoaded.on(() => {
         setLoadingMsg('Banco de sonidos cargado...');
     });
 
-    apiRef.current.scoreLoaded.on((score: any) => {
+    api.scoreLoaded.on((score) => {
+      if (scoreLoadTimeoutRef.current) {
+        clearTimeout(scoreLoadTimeoutRef.current);
+        scoreLoadTimeoutRef.current = null;
+      }
       setLoadingMsg('Dibujando partituras...');
       setSongTitle(score.title || 'Canción sin título');
       setSongArtist(score.artist || '');
       setSongAlbum(score.album || '');
       setOriginalTempo(Math.round(score.tempo || 120));
       setTracks(score.tracks);
-      
+
       if (score.tracks.length > 0) {
         const firstValidIndex = score.tracks.findIndex((t: alphaTab.model.Track) => !t.isPercussion);
         const indexToLoad = firstValidIndex !== -1 ? firstValidIndex : 0;
@@ -126,7 +146,7 @@ export function useAlphaTab(song: Song | null) {
       const initialMutes: Record<number, boolean> = {};
       const initialSolos: Record<number, boolean> = {};
       
-      score.tracks.forEach((track: any, index: number) => {
+      score.tracks.forEach((track, index: number) => {
         initialVolumes[index] = track.playbackInfo.volume;
         initialMutes[index] = track.playbackInfo.isMute;
         initialSolos[index] = track.playbackInfo.isSolo;
@@ -141,13 +161,11 @@ export function useAlphaTab(song: Song | null) {
       }
     });
 
-    apiRef.current.beatMouseDown.on((beat) => {
-      if (apiRef.current) {
-        apiRef.current.tickPosition = beat.playbackStart;
-      }
+    api.beatMouseDown.on((beat) => {
+      api.tickPosition = beat.playbackStart;
     });
 
-    apiRef.current.playedBeatChanged.on(() => {
+    api.playedBeatChanged.on(() => {
       if (!containerRef.current) return;
       const container = containerRef.current;
       const cursor = container.querySelector('.at-cursor-beat') as HTMLElement;
@@ -171,75 +189,99 @@ export function useAlphaTab(song: Song | null) {
       });
     });
 
-    apiRef.current.renderFinished.on(() => {
+    api.renderFinished.on(() => {
+      if (renderTimeoutRef.current) {
+        clearTimeout(renderTimeoutRef.current);
+        renderTimeoutRef.current = null;
+      }
       setIsLoading(false);
     });
 
-    apiRef.current.error.on(() => {
+    api.error.on(() => {
+      if (scoreLoadTimeoutRef.current) {
+        clearTimeout(scoreLoadTimeoutRef.current);
+        scoreLoadTimeoutRef.current = null;
+      }
       setIsLoading(false);
       setErrorMsg("No se pudo leer el archivo. Es posible que esté corrupto o en un formato muy nuevo.");
     });
 
-    apiRef.current.playerStateChanged.on((e) => {
+    api.playerStateChanged.on((e) => {
       setIsPlaying(e.state === alphaTab.synth.PlayerState.Playing);
     });
 
-    apiRef.current.playerReady.on(() => {
-      if (apiRef.current) {
-        apiRef.current.masterVolume = usePlayerStore.getState().masterVolume;
-      }
+    api.playerReady.on(() => {
+      api.masterVolume = usePlayerStore.getState().masterVolume;
     });
 
     return () => {
-      apiRef.current?.destroy();
+      if (renderTimeoutRef.current) clearTimeout(renderTimeoutRef.current);
+      if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
+      if (scoreLoadTimeoutRef.current) clearTimeout(scoreLoadTimeoutRef.current);
+      api.destroy();
+      if (apiRef.current === api) apiRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const lastLoadedSongRef = useRef<number | string | null>(null);
-
   useEffect(() => {
-    if (!song) return;
+    if (loadTimeoutRef.current) {
+      clearTimeout(loadTimeoutRef.current);
+      loadTimeoutRef.current = null;
+    }
 
-    if (song.type === 'text') {
-      setMainViewMode('cifra');
-      setSongTitle(song.name);
-      setSongArtist(song.artist || '');
-      setSongAlbum(song.album || '');
+    if (!songType && !songLoadKey) {
+      apiRef.current?.stop();
       return;
     }
 
-    if (song.data && apiRef.current) {
-      if (lastLoadedSongRef.current === song.id) return;
-      lastLoadedSongRef.current = song.id || 'temp';
+    if (songType === 'text') {
+      apiRef.current?.stop();
+      setMainViewMode('cifra');
+      return;
+    }
 
-      setTracks([]); 
+    if (songLoadKey && songData && apiRef.current) {
+      setTracks([]);
       setErrorMsg(null);
       setIsLoading(true);
       setLoadingMsg('Descargando audios y leyendo archivo (Esto puede tardar en tu primera canción)...');
-      
-      try {
-        const buffer = song.data instanceof Uint8Array ? song.data : new Uint8Array(song.data);
-        
-        // Wait a tick for the DOM to paint so AlphaTab reads correct container dimensions
-        setTimeout(() => {
-          if (apiRef.current) {
-            try {
-              apiRef.current.load(buffer);
-            } catch (innerErr) {
-              console.error("AlphaTab load error:", innerErr);
-              setIsLoading(false);
-              setErrorMsg("No se pudo leer el archivo. Formato no compatible o corrupto.");
-            }
-          }
-        }, 100);
 
-      } catch (e) {
+      if (scoreLoadTimeoutRef.current) clearTimeout(scoreLoadTimeoutRef.current);
+      scoreLoadTimeoutRef.current = setTimeout(() => {
+        scoreLoadTimeoutRef.current = null;
         setIsLoading(false);
-        setErrorMsg("Error crítico al intentar preparar el archivo.");
-      }
+        setErrorMsg('El archivo está tardando demasiado en abrirse. Intenta volver a entrar o verifica que el archivo no esté dañado.');
+      }, 20000);
+
+      const buffer = songData;
+
+      // Wait a tick for the DOM to paint so AlphaTab reads correct container dimensions
+      const targetApi = apiRef.current;
+      loadTimeoutRef.current = setTimeout(() => {
+        loadTimeoutRef.current = null;
+        if (apiRef.current === targetApi) {
+          try {
+            targetApi.load(buffer);
+          } catch (innerError) {
+            console.error("AlphaTab load error:", innerError);
+            setIsLoading(false);
+            setErrorMsg("No se pudo leer el archivo. Formato no compatible o corrupto.");
+          }
+        }
+      }, 100);
     }
-  }, [song]);
+    return () => {
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current);
+        loadTimeoutRef.current = null;
+      }
+      if (scoreLoadTimeoutRef.current) {
+        clearTimeout(scoreLoadTimeoutRef.current);
+        scoreLoadTimeoutRef.current = null;
+      }
+    };
+  }, [setMainViewMode, songData, songLoadKey, songType]);
 
   return {
     containerRef,
@@ -251,15 +293,15 @@ export function useAlphaTab(song: Song | null) {
     transposition,
     setTransposition,
     tuning,
-    songTitle,
-    songArtist,
-    songAlbum,
+    songTitle: song?.type === 'text' ? song.name : songTitle,
+    songArtist: song?.type === 'text' ? song.artist || '' : songArtist,
+    songAlbum: song?.type === 'text' ? song.album || '' : songAlbum,
     originalTempo,
-    isLoading,
+    isLoading: song?.type === 'text' ? false : isLoading,
     setIsLoading,
     loadingMsg,
     setLoadingMsg,
-    errorMsg,
+    errorMsg: song?.type === 'text' ? null : errorMsg,
     setErrorMsg,
     trackVolumes,
     setTrackVolumes,

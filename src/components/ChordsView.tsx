@@ -1,6 +1,6 @@
 import * as alphaTab from '@coderline/alphatab';
 import { ArrowUp, ArrowDown, RotateCcw, Guitar, Volume2 } from 'lucide-react';
-import { useState, useRef, useEffect } from 'react';
+import { useCallback, useMemo, useState, useRef, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
 import ChordSheetJS from 'chordsheetjs';
@@ -18,7 +18,7 @@ import { Button } from './ui/Button';
 import { Edit2, CheckCircle2, X } from 'lucide-react';
 import { usePlayerStore } from '../store/playerStore';
 
-const CSJS = (ChordSheetJS as any).default || ChordSheetJS;
+const CSJS = ChordSheetJS;
 
 interface ChordsViewProps {
   track: alphaTab.model.Track | null;
@@ -29,6 +29,13 @@ interface ChordsViewProps {
 
 export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewProps) => {
   const { cifraFontSize, setCifraFontSize } = usePlayerStore();
+  const [localSongUpdate, setLocalSongUpdate] = useState<{ songId: number; values: Partial<Song> } | null>(null);
+  const currentSong = useMemo(
+    () => song && localSongUpdate && localSongUpdate.songId === song.id
+      ? { ...song, ...localSongUpdate.values }
+      : song,
+    [localSongUpdate, song]
+  );
   // Extraer letras y acordes del modelo de AlphaTab
   // Agruparemos por compases (bars) para mantener un flujo lógico.
 
@@ -113,32 +120,35 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
   const [editCapo, setEditCapo] = useState('');
   const [editStrummingPattern, setEditStrummingPattern] = useState('');
 
-  const populateEditState = () => {
-    if (!song) return;
-    setEditContent(song.textContent || '');
-    setEditOriginalKey(song.originalKey || '');
-    setEditTuning(song.tuning || '');
-    setEditCapo(song.capo || '');
-    setEditStrummingPattern(song.strummingPattern || '');
+  const populateEditState = useCallback(() => {
+    if (!currentSong) return;
+    setEditContent(currentSong.textContent || '');
+    setEditOriginalKey(currentSong.originalKey || '');
+    setEditTuning(currentSong.tuning || '');
+    setEditCapo(currentSong.capo || '');
+    setEditStrummingPattern(currentSong.strummingPattern || '');
     setIsEditing(true);
     if (onEditChange) onEditChange(true);
-  };
+  }, [currentSong, onEditChange]);
 
   // Auto-open editor if requested
   useEffect(() => {
     if (location.state?.autoEdit && song) {
-      populateEditState();
-      // Clean up state so it doesn't trigger again on refresh
-      window.history.replaceState({}, document.title);
+      const editTimer = setTimeout(() => {
+        populateEditState();
+        window.history.replaceState({}, document.title);
+      }, 0);
+
+      return () => clearTimeout(editTimer);
     }
-  }, [location.state, song]);
+  }, [location.state, song, populateEditState]);
 
   const handleEditClick = () => {
     populateEditState();
   };
 
   const handleSaveEdit = async () => {
-    if (song && song.id) {
+    if (currentSong?.id) {
       const updates = {
         textContent: editContent,
         originalKey: editOriginalKey.trim() || undefined,
@@ -147,14 +157,8 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
         strummingPattern: editStrummingPattern.trim() || undefined
       };
       
-      await db.songs.update(song.id, updates);
-      
-      // Update local object so UI reflects it immediately
-      song.textContent = updates.textContent;
-      song.originalKey = updates.originalKey;
-      song.tuning = updates.tuning;
-      song.capo = updates.capo;
-      song.strummingPattern = updates.strummingPattern;
+      await db.songs.update(currentSong.id, updates);
+      setLocalSongUpdate({ songId: currentSong.id, values: updates });
       
       setIsEditing(false);
       if (onEditChange) onEditChange(false);
@@ -170,9 +174,9 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
   const menuRef = useRef<HTMLDivElement>(null);
   
   const handleChordReplace = async (oldChord: string, newChord: string) => {
-    if (!song || !song.id || !song.textContent) return;
+    if (!currentSong?.id || !currentSong.textContent) return;
     
-    let newContent = song.textContent;
+    let newContent = currentSong.textContent;
     
     // Escape special chars in oldChord
     const escapeRegExp = (string: string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -185,7 +189,11 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
     const regex = new RegExp(`(^|[\\s\\-\\|])${escapedOld}(?=[\\s\\-\\|]|$)`, 'gm');
     newContent = newContent.replace(regex, `$1${newChord}`);
     
-    await db.songs.update(song.id, { textContent: newContent });
+    await db.songs.update(currentSong.id, { textContent: newContent });
+    setLocalSongUpdate({
+      songId: currentSong.id,
+      values: { ...localSongUpdate?.values, textContent: newContent }
+    });
   };
 
   useEffect(() => {
@@ -205,10 +213,10 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
   const CHROMATIC_SCALE = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
 
   const getOriginalRoot = () => {
-    if (song?.originalKey) {
-      const match = song.originalKey.match(/^[A-G][#b]?/);
+    if (currentSong?.originalKey) {
+      const match = currentSong.originalKey.match(/^[A-G][#b]?/);
       if (match) {
-        let root = match[0];
+        const root = match[0];
         if (root === 'C#') return 'Db';
         if (root === 'D#') return 'Eb';
         if (root === 'Gb') return 'F#';
@@ -221,14 +229,14 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
     // Guess from parsed text
     try {
       const parser = new CSJS.UltimateGuitarParser();
-      const tempSong = parser.parse(song?.textContent || '');
+      const tempSong = parser.parse(currentSong?.textContent || '');
       if (tempSong && tempSong.lines) {
         for (const line of tempSong.lines) {
           for (const item of line.items) {
             if (item instanceof CSJS.ChordLyricsPair && item.chords) {
               const match = item.chords.match(/^[A-G][#b]?/);
               if (match) {
-                let root = match[0];
+                const root = match[0];
                 if (root === 'C#') return 'Db';
                 if (root === 'D#') return 'Eb';
                 if (root === 'Gb') return 'F#';
@@ -240,7 +248,9 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
           }
         }
       }
-    } catch(e) {}
+    } catch {
+      // Invalid chord text falls back to C.
+    }
     return 'C';
   };
 
@@ -252,11 +262,11 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
   const currentRoot = CHROMATIC_SCALE[currentIndex];
 
   // DEBUGGING TEXT CONTENT
-  if (song && (song.type === 'text' || song.textContent)) {
+  if (currentSong && (currentSong.type === 'text' || currentSong.textContent)) {
     let parsedSong;
     try {
       const parser = new CSJS.UltimateGuitarParser();
-      parsedSong = parser.parse(song.textContent || '');
+      parsedSong = parser.parse(currentSong.textContent || '');
     } catch (e) {
       return (
         <div className="bg-zinc-50 min-h-screen rounded-2xl p-8 md:p-12 shadow-2xl relative border border-white/10 text-zinc-900 font-sans flex flex-col items-center justify-center">
@@ -277,9 +287,9 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
     // Cifra Club fuerza *todos* los bemoles comunes a sostenidos para facilitar la lectura a guitarristas,
     // ¡incluso cuando la tonalidad de la canción se describe en bemoles (como Eb o Bb)!
     if (displaySong && displaySong.lines) {
-      displaySong.lines.forEach((line: any) => {
+      displaySong.lines.forEach((line) => {
         // Pre-check if line is a Tab line
-        const combinedText = line.items.map((item: any) => {
+        const combinedText = line.items.map((item) => {
           if (item instanceof CSJS.ChordLyricsPair) return (item.chords || '') + (item.lyrics || '');
           if (item instanceof CSJS.Literal) return item.string;
           return '';
@@ -288,7 +298,7 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
         const isTabLine = /^[A-Ga-g][#b]?\|/.test(combinedText.trim()) || combinedText.includes('|--') || combinedText.includes('|-');
         if (isTabLine) return; // Skip tab lines completely
 
-        line.items.forEach((item: any) => {
+        line.items.forEach((item) => {
           if (item instanceof CSJS.ChordLyricsPair && item.chords) {
             let c = item.chords;
             c = c.replace(/Gb/g, 'F#');
@@ -308,11 +318,11 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
     }
 
     return (
-      <div className="flex flex-col gap-6 w-full mt-6">
+      <div className="mt-2 flex w-full flex-col gap-3 sm:mt-6 sm:gap-6">
         {/* Botón de edición movido a la barra de metadatos inferior */}
 
         {isEditing && (
-          <div className="bg-zinc-900 border border-primary-500/30 rounded-3xl p-6 shadow-xl w-full flex flex-col gap-6">
+          <div className="flex w-full flex-col gap-4 rounded-2xl border border-primary-500/30 bg-zinc-900 p-3 shadow-xl sm:gap-6 sm:rounded-3xl sm:p-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <h3 className="text-primary-500 font-bold uppercase tracking-widest text-sm flex items-center gap-2">
                 <Edit2 size={16} /> Modo Edición
@@ -328,28 +338,28 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
               </div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-zinc-950/50 p-4 rounded-2xl border border-white/5">
+            <div className="grid grid-cols-2 gap-2 rounded-2xl border border-white/5 bg-zinc-950/50 p-3 sm:grid-cols-4 sm:gap-4 sm:p-4">
               <div>
                 <label className="block text-xs font-bold text-zinc-400 mb-1">Tono Original</label>
-                <input type="text" className="w-full bg-zinc-900 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-primary-500/50" value={editOriginalKey} onChange={e => setEditOriginalKey(e.target.value)} placeholder="Ej: G, Am" />
+                <input type="text" className="min-h-11 w-full rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 focus:border-primary-500/50 focus:outline-none" value={editOriginalKey} onChange={e => setEditOriginalKey(e.target.value)} placeholder="Ej: G, Am" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-zinc-400 mb-1">Afinación</label>
-                <input type="text" className="w-full bg-zinc-900 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-primary-500/50" value={editTuning} onChange={e => setEditTuning(e.target.value)} placeholder="Ej: Drop D, Eb" />
+                <input type="text" className="min-h-11 w-full rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 focus:border-primary-500/50 focus:outline-none" value={editTuning} onChange={e => setEditTuning(e.target.value)} placeholder="Ej: Drop D, Eb" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-zinc-400 mb-1">Capo</label>
-                <input type="text" className="w-full bg-zinc-900 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-primary-500/50" value={editCapo} onChange={e => setEditCapo(e.target.value)} placeholder="Ej: Traste 2" />
+                <input type="text" className="min-h-11 w-full rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 focus:border-primary-500/50 focus:outline-none" value={editCapo} onChange={e => setEditCapo(e.target.value)} placeholder="Ej: Traste 2" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-zinc-400 mb-1">Rasgueo</label>
-                <input type="text" className="w-full bg-zinc-900 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-primary-500/50" value={editStrummingPattern} onChange={e => setEditStrummingPattern(e.target.value)} placeholder="Ej: D DU U DU" />
+                <input type="text" className="min-h-11 w-full rounded-lg border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 focus:border-primary-500/50 focus:outline-none" value={editStrummingPattern} onChange={e => setEditStrummingPattern(e.target.value)} placeholder="Ej: D DU U DU" />
               </div>
             </div>
 
             <div className="flex flex-col gap-2">
               <textarea
-                className="w-full h-[600px] bg-zinc-950 text-zinc-100 font-mono text-sm sm:text-base p-6 rounded-xl border border-white/10 focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/50 resize-y custom-scrollbar whitespace-pre"
+                className="chords-source-editor h-[52dvh] min-h-80 w-full resize-y whitespace-pre rounded-xl border border-white/10 bg-zinc-950 p-3 font-mono text-sm text-zinc-100 custom-scrollbar focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/50 sm:h-[600px] sm:p-6 sm:text-base"
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}
                 spellCheck={false}
@@ -360,7 +370,7 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
         )}
 
         {!isEditing && uniqueChords.size > 0 && (
-          <div className="bg-zinc-900/30 rounded-3xl p-6 border border-white/5 shadow-xl relative">
+          <div className="relative rounded-2xl border border-white/5 bg-zinc-900/30 p-3 shadow-xl sm:rounded-3xl sm:p-6">
             <div className="flex items-center justify-between">
               <h3 className="text-zinc-500 font-bold uppercase tracking-widest text-xs flex items-center gap-2">
                 <Guitar size={14} className="text-primary-500" />
@@ -382,13 +392,13 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
                   exit={{ height: 0, opacity: 0 }}
                   className="overflow-hidden"
                 >
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 pt-6">
+                  <div className="grid grid-cols-2 gap-2 pt-4 sm:grid-cols-3 sm:gap-4 sm:pt-6 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 xl:gap-6">
                     {Array.from(uniqueChords).map(chordText => {
                        const chordDef = getChord(chordText);
                        return (
                          <div key={chordText} className="flex flex-col">
                            {chordDef ? (
-                             <div className="bg-zinc-900/60 border border-white/5 p-4 rounded-3xl flex flex-col items-center hover:bg-zinc-800 hover:border-primary-500/30 hover:shadow-[0_0_20px_rgba(245,158,11,0.1)] transition-all group h-full">
+                             <div className="group flex h-full flex-col items-center rounded-2xl border border-white/5 bg-zinc-900/60 p-2 transition-all hover:border-primary-500/30 hover:bg-zinc-800 hover:shadow-[0_0_20px_rgba(245,158,11,0.1)] sm:rounded-3xl sm:p-4">
                                <ChordBox chord={chordDef} width={110} height={150} hideName={true} />
                                <div className="text-center mt-1 mb-2 text-white font-bold text-xl">{chordText}</div>
                                <button
@@ -415,28 +425,28 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
         )}
 
         {!isEditing && (
-          <div className="bg-zinc-900/30 border border-white/5 rounded-3xl p-6 sm:p-10 md:px-16 min-h-[500px] text-zinc-100 font-sans relative shadow-xl">
+          <div className="relative min-h-[360px] rounded-2xl border border-white/5 bg-zinc-900/30 p-3 font-sans text-zinc-100 shadow-xl sm:min-h-[500px] sm:rounded-3xl sm:p-10 md:px-16">
           
           <div className="w-full relative">
-            {(song.originalKey || song.tuning || song.capo || song.strummingPattern || (!isEditing && song)) && (
-              <div className="relative sm:sticky top-0 sm:-top-10 -mt-2 sm:-mt-10 -mx-4 sm:-mx-10 md:-mx-16 z-[60] flex flex-wrap items-center gap-2 sm:gap-4 mb-4 sm:mb-8 bg-zinc-950/90 sm:bg-zinc-950/80 backdrop-blur-xl py-3 sm:py-4 px-4 sm:px-10 md:px-16 rounded-t-xl sm:rounded-t-3xl border-b border-white/10 shadow-lg">
-                {song.originalKey && (
-                  <TonalidadTooltip tonalidad={song.originalKey} />
+            {(currentSong.originalKey || currentSong.tuning || currentSong.capo || currentSong.strummingPattern || !isEditing) && (
+              <div className="relative top-0 z-[60] -mx-2 -mt-1 mb-4 flex flex-wrap items-center gap-2 rounded-t-xl border-b border-white/10 bg-zinc-950/90 px-2 py-2.5 shadow-lg backdrop-blur-xl sm:sticky sm:-top-10 sm:-mx-10 sm:-mt-10 sm:mb-8 sm:gap-4 sm:rounded-t-3xl sm:bg-zinc-950/80 sm:px-10 sm:py-4 md:-mx-16 md:px-16">
+                {currentSong.originalKey && (
+                  <TonalidadTooltip tonalidad={currentSong.originalKey} />
                 )}
-                {song.tuning && (
-                  <AfinacionTooltip afinacion={song.tuning} />
+                {currentSong.tuning && (
+                  <AfinacionTooltip afinacion={currentSong.tuning} />
                 )}
-                {song.capo && (
+                {currentSong.capo && (
                   <div className="flex items-center gap-2 bg-zinc-900 border border-white/5 px-4 py-2 rounded-xl shadow-sm text-sm">
                     <span className="text-zinc-500 font-bold">Capo:</span>
-                    <span className="text-primary-400 font-bold">{song.capo}</span>
+                    <span className="text-primary-400 font-bold">{currentSong.capo}</span>
                   </div>
                 )}
-                {song.strummingPattern && (
+                {currentSong.strummingPattern && (
                   <div className="flex items-center gap-2 bg-zinc-900 border border-white/5 px-4 py-2 rounded-xl shadow-sm text-sm">
                     <span className="text-zinc-500 font-bold">Rasgueo:</span>
                     <div className="flex items-center gap-0.5">
-                      {song.strummingPattern.split('').map((char, idx) => {
+                      {currentSong.strummingPattern.split('').map((char, idx) => {
                         if (char.toUpperCase() === 'D') return <ArrowDown key={idx} size={16} className="text-primary-400" strokeWidth={3} />;
                         if (char.toUpperCase() === 'U') return <ArrowUp key={idx} size={16} className="text-primary-400" strokeWidth={3} />;
                         if (char.trim() === '') return <span key={idx} className="w-1.5"></span>;
@@ -446,7 +456,7 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
                   </div>
                 )}
                 
-                {song && !isEditing && (
+                {!isEditing && (
                   <div className="ml-auto flex flex-wrap items-center justify-end gap-2 sm:gap-3">
                     {/* CONTROLES DE ZOOM DE LETRA */}
                     <div className="flex items-center gap-1 bg-zinc-900 border border-white/5 rounded-xl shadow-sm text-sm p-0.5">
@@ -537,7 +547,7 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
 
                     <button 
                       onClick={handleEditClick}
-                      className="flex items-center justify-center bg-zinc-900 border border-white/5 hover:border-white/20 w-10 h-10 sm:w-auto sm:px-4 sm:py-2.5 rounded-xl shadow-sm text-sm text-zinc-300 hover:text-white transition-colors font-medium shrink-0"
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/5 bg-zinc-900 text-sm font-medium text-zinc-300 shadow-sm transition-colors hover:border-white/20 hover:text-white sm:h-10 sm:w-auto sm:px-4 sm:py-2.5"
                       title="Editar Letra/Acordes"
                     >
                       <Edit2 size={16} className="text-primary-500" />
@@ -549,7 +559,7 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
             )}
 
           <div className="font-mono leading-snug tracking-wide whitespace-pre-wrap overflow-x-auto custom-scrollbar pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 lg:px-12 xl:px-24 w-[calc(100%+2rem)] sm:w-full" style={{ fontSize: `${cifraFontSize}px` }}>
-            {(!song.textContent || song.textContent.trim() === '') && (
+            {(!currentSong.textContent || currentSong.textContent.trim() === '') && (
               <div className="flex flex-col items-center justify-center py-20 text-center opacity-70">
                 <div className="bg-zinc-800/50 p-6 rounded-full mb-6 border border-white/5">
                   <Edit2 size={48} className="text-primary-500/50" />
@@ -567,17 +577,18 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
               </div>
             )}
             
-            {displaySong.lines.map((line: any, i: number) => {
+            {displaySong.lines.map((line, i: number) => {
               if (line.items.length === 0) return <div key={i} className="h-4"></div>;
 
-              const isCommentOrTag = line.items.some((item: any) => item instanceof CSJS.Tag);
+              const isCommentOrTag = line.items.some((item) => item instanceof CSJS.Tag);
               if (isCommentOrTag) {
-                const tagNames = line.items.map((item: any) => item.name || '').join(' ');
+                const tagNames = line.items.map((item) => item instanceof CSJS.Tag ? item.name : '').join(' ');
                 if (tagNames.includes('end_of_') || tagNames.includes('eoc') || tagNames.includes('eob')) {
                   return null;
                 }
 
-                let tagStr = line.items.map((item: any) => {
+                const tagStr = line.items.map((item) => {
+                  if (!(item instanceof CSJS.Tag)) return '';
                   if (item.name && item.name.startsWith('start_of_')) {
                     return item.name.replace('start_of_', '');
                   }
@@ -598,7 +609,7 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
               }
 
               // Reconstruct raw text to detect Tab lines
-              const combinedText = line.items.map((item: any) => {
+              const combinedText = line.items.map((item) => {
                 if (item instanceof CSJS.ChordLyricsPair) return (item.chords || '') + (item.lyrics || '');
                 if (item instanceof CSJS.Literal) return item.string;
                 return '';
@@ -609,9 +620,9 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
               if (isTabLine) {
                 return (
                   <div key={i} className="mb-0 whitespace-pre flex flex-col font-mono text-zinc-500 tracking-wide">
-                    {line.items.some((item: any) => item instanceof CSJS.ChordLyricsPair && item.chords) && (
+                    {line.items.some((item) => item instanceof CSJS.ChordLyricsPair && item.chords) && (
                       <div className="flex">
-                        {line.items.map((item: any, idx: number) => {
+                        {line.items.map((item, idx: number) => {
                           if (item instanceof CSJS.ChordLyricsPair) {
                             const chordText = item.chords || '';
                             const len = Math.max(chordText.length, (item.lyrics || '').length);
@@ -622,9 +633,9 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
                         })}
                       </div>
                     )}
-                    {line.items.some((item: any) => item instanceof CSJS.ChordLyricsPair && item.lyrics) && (
+                    {line.items.some((item) => item instanceof CSJS.ChordLyricsPair && item.lyrics) && (
                       <div className="flex">
-                        {line.items.map((item: any, idx: number) => {
+                        {line.items.map((item, idx: number) => {
                           if (item instanceof CSJS.ChordLyricsPair) {
                             const chordText = item.chords || '';
                             const len = Math.max(chordText.length, (item.lyrics || '').length);
@@ -641,7 +652,7 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
               // Normal lyric/chord line
               return (
                 <div key={i} className="mb-2 hover:bg-white/[0.02] py-1 px-3 -mx-3 rounded-xl transition-colors flex flex-wrap items-end gap-y-2 w-fit max-w-full">
-                  {line.items.map((item: any, idx: number) => {
+                  {line.items.map((item, idx: number) => {
                     if (item instanceof CSJS.ChordLyricsPair) {
                       const chordText = item.chords || ' ';
                       const lyricText = item.lyrics || ' ';
@@ -678,15 +689,15 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
   const contentLines = lines.filter(l => l.type === 'content');
 
   return (
-    <div className="bg-zinc-50 min-h-screen rounded-2xl p-8 md:p-12 shadow-2xl relative border border-white/10 text-zinc-900 font-sans">
+    <div className="relative min-h-full rounded-2xl border border-white/10 bg-zinc-50 p-4 font-sans text-zinc-900 shadow-2xl sm:min-h-screen sm:p-8 md:p-12">
       <div className="mx-auto">
-        <h1 className="text-4xl font-extrabold mb-8 border-b-2 border-primary-500 pb-4 inline-block">{songTitle}</h1>
+        <h1 className="mb-5 inline-block border-b-2 border-primary-500 pb-3 text-2xl font-extrabold sm:mb-8 sm:pb-4 sm:text-4xl">{songTitle}</h1>
 
         {contentLines.length === 0 ? (
-          <div className="flex flex-col items-center justify-center text-zinc-400 py-20">
+          <div className="flex flex-col items-center justify-center py-14 text-center text-zinc-400 sm:py-20">
             <Guitar size={64} className="mb-4 opacity-50" />
             <h2 className="text-xl font-bold mb-2">No se detectó letra ni acordes</h2>
-            <p>Este archivo de tablatura no contiene meta-datos de acordes (Cifra) o letras.</p>
+            <p className="max-w-md text-sm sm:text-base">Este archivo de tablatura no contiene metadatos de acordes (Cifra) o letras.</p>
           </div>
         ) : (
           <div className="font-mono text-base leading-relaxed tracking-wide whitespace-pre-wrap">

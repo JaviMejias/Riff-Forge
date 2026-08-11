@@ -162,7 +162,7 @@ export const CreateKaraokeModal = ({ isOpen, onClose, onSuccess }: CreateKaraoke
       subtitle="Añade un enlace de YouTube para cantar tus canciones favoritas."
       icon={<Video size={24} />}
     >
-      <form onSubmit={handleSubmit} className="p-4 sm:p-6 flex flex-col gap-5 overflow-y-auto max-h-[75vh] custom-scrollbar">
+      <form onSubmit={handleSubmit} className="p-4 sm:p-6 flex flex-col gap-5 overflow-y-auto min-h-0 custom-scrollbar">
         {error && (
           <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-lg text-sm">
             {error}
@@ -217,7 +217,7 @@ export const CreateKaraokeModal = ({ isOpen, onClose, onSuccess }: CreateKaraoke
           />
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-3 justify-end pt-2 border-t border-white/5 mt-2">
+        <div className="sticky bottom-0 -mx-4 -mb-4 sm:-mx-6 sm:-mb-6 px-4 sm:px-6 py-3 sm:py-4 flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end border-t border-white/10 mt-2 bg-zinc-900/95 backdrop-blur-xl">
           <button
             type="button"
             onClick={onClose}

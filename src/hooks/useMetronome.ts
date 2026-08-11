@@ -16,7 +16,10 @@ export const useMetronome = (bpm: number, isActive: boolean) => {
       return;
     }
 
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    const audioWindow = window as typeof window & {
+      webkitAudioContext?: typeof AudioContext;
+    };
+    const AudioContextClass = window.AudioContext || audioWindow.webkitAudioContext;
     if (!AudioContextClass) return;
 
     if (!audioContextRef.current || audioContextRef.current.state === 'closed') {

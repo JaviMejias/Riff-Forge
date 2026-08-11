@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Download, Upload, Palette, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { db } from '../db';
+import type { KaraokeFile, Song } from '../db';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 import { useUiStore } from '../store/uiStore';
@@ -15,7 +16,7 @@ interface SettingsViewProps {
   onToggleSidebar: () => void;
 }
 
-export const SettingsView = (_props: SettingsViewProps) => {
+export const SettingsView = ({ isSidebarOpen, onToggleSidebar }: SettingsViewProps) => {
   const { theme, setTheme } = useUiStore();
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -130,7 +131,7 @@ export const SettingsView = (_props: SettingsViewProps) => {
       const { songs = [], playlists = [], customChords = [], karaokes = [], karaokePlaylists = [], karaokeFiles = [], settings = {} } = backupData.data;
 
       // Reconstruct Uint8Array from base64
-      const restoredSongs = songs.map((s: any) => {
+      const restoredSongs = songs.map((s: Song & { dataBase64?: string }) => {
         if (s.dataBase64) {
           const data = base64ToUint8(s.dataBase64);
           delete s.dataBase64;
@@ -139,7 +140,7 @@ export const SettingsView = (_props: SettingsViewProps) => {
         return s;
       });
 
-      const restoredKaraokeFiles = karaokeFiles.map((f: any) => {
+      const restoredKaraokeFiles = karaokeFiles.map((f: KaraokeFile & { dataBase64?: string }) => {
         if (f.dataBase64) {
           const data = base64ToUint8(f.dataBase64);
           delete f.dataBase64;
@@ -225,7 +226,7 @@ export const SettingsView = (_props: SettingsViewProps) => {
 
           for (const p of karaokePlaylists) {
              delete p.id;
-             p.songIds = p.songIds.map((oldId: number) => kIdMapping.get(oldId) || oldId);
+             p.karaokeIds = p.karaokeIds.map((oldId: number) => kIdMapping.get(oldId) || oldId);
              await db.karaokePlaylists.add(p);
           }
 
@@ -288,33 +289,38 @@ export const SettingsView = (_props: SettingsViewProps) => {
   };
 
   return (
-    <div className="flex flex-col h-full w-full bg-zinc-950 overflow-y-auto custom-scrollbar">
+    <div className="flex flex-col h-full w-full bg-zinc-950 overflow-y-auto custom-scrollbar pb-[calc(4.75rem+env(safe-area-inset-bottom))] md:pb-0">
       {/* Navbar area */}
-      <div className="p-8 pb-4 shrink-0">
-        <Navbar title="Ajustes" subtitle="Configuración y personalización" />
+      <div className="px-4 pt-4 sm:px-8 sm:pt-8 sm:pb-4 shrink-0">
+        <Navbar
+          title="Ajustes"
+          subtitle="Configuración y personalización"
+          isSidebarOpen={isSidebarOpen}
+          onToggleSidebar={onToggleSidebar}
+        />
       </div>
 
-      <div className="w-full p-4 sm:p-8">
-        <div className="bg-zinc-900/30 border border-white/5 rounded-[2rem] p-6 sm:p-10 shadow-2xl backdrop-blur-sm flex flex-col gap-12">
+      <div className="w-full px-3 py-4 sm:p-8">
+        <div className="w-full max-w-6xl mx-auto bg-zinc-900/30 border border-white/5 rounded-2xl sm:rounded-[2rem] p-4 sm:p-10 shadow-2xl backdrop-blur-sm flex flex-col gap-8 sm:gap-12">
         
         {/* APARIENCIA */}
         <div>
-          <h2 className="text-sm font-bold text-zinc-500 uppercase tracking-widest mb-6">Apariencia</h2>
+          <h2 className="text-xs sm:text-sm font-bold text-zinc-500 uppercase tracking-widest mb-4 sm:mb-6">Apariencia</h2>
           
-          <div className="bg-zinc-900/50 border border-white/5 rounded-3xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-xl transition-all duration-300 hover:border-primary-500/20 hover:shadow-[0_0_30px_rgba(245,158,11,0.1)]">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-primary-500/10 rounded-2xl flex items-center justify-center border border-primary-500/20">
+          <div className="bg-zinc-900/50 border border-white/5 rounded-2xl sm:rounded-3xl p-4 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-5 sm:gap-6 shadow-xl transition-all duration-300 hover:border-primary-500/20 hover:shadow-[0_0_30px_rgba(245,158,11,0.1)]">
+            <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-primary-500/20 bg-primary-500/10">
                 <Palette className="text-primary-500" size={24} />
               </div>
-              <div>
-                <h3 className="text-xl font-bold text-white mb-1">Tema Principal</h3>
+              <div className="min-w-0">
+                <h3 className="text-lg sm:text-xl font-bold text-white mb-1">Tema Principal</h3>
                 <p className="text-zinc-400 text-sm">
                   Personaliza el color base de toda la interfaz.
                 </p>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center justify-start md:justify-end gap-3">
+            <div className="grid grid-cols-5 items-center justify-start gap-2 sm:flex sm:flex-wrap sm:gap-3 md:justify-end">
               {[
                 { id: 'amber', color: '#f59e0b', name: 'Riff Forge (Ámbar)' },
                 { id: 'ruby', color: '#ef4444', name: 'Carmín (Rojo)' },
@@ -331,7 +337,9 @@ export const SettingsView = (_props: SettingsViewProps) => {
                   key={t.id}
                   onClick={() => setTheme(t.id)}
                   title={t.name}
-                  className={`w-10 h-10 rounded-full transition-all flex items-center justify-center ${theme === t.id ? 'ring-2 ring-offset-2 ring-offset-zinc-900 ring-white scale-110' : 'hover:scale-110 opacity-70 hover:opacity-100'}`}
+                  aria-label={`Usar tema ${t.name}`}
+                  aria-pressed={theme === t.id}
+                  className={`w-11 h-11 sm:w-10 sm:h-10 rounded-full transition-all flex items-center justify-center ${theme === t.id ? 'ring-2 ring-offset-2 ring-offset-zinc-900 ring-white scale-105' : 'hover:scale-110 opacity-70 hover:opacity-100'}`}
                   style={{ backgroundColor: t.color }}
                 >
                   {theme === t.id && <CheckCircle2 size={16} className="text-white drop-shadow-md" />}
@@ -343,8 +351,8 @@ export const SettingsView = (_props: SettingsViewProps) => {
 
 
 
-        <div className="mb-12">
-          <h2 className="text-sm font-bold text-zinc-500 uppercase tracking-widest mb-6">Portabilidad y Respaldo Local</h2>
+        <div>
+          <h2 className="text-xs sm:text-sm font-bold text-zinc-500 uppercase tracking-widest mb-4 sm:mb-6">Portabilidad y Respaldo Local</h2>
           
           <motion.div 
             initial="hidden"
@@ -353,7 +361,7 @@ export const SettingsView = (_props: SettingsViewProps) => {
               hidden: { opacity: 0 },
               show: { opacity: 1, transition: { staggerChildren: 0.1 } }
             }}
-            className="grid grid-cols-1 md:grid-cols-2 gap-6"
+            className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6"
           >
             
             {/* EXPORT CARD */}
@@ -363,13 +371,13 @@ export const SettingsView = (_props: SettingsViewProps) => {
                 show: { opacity: 1, y: 0 }
               }}
               whileHover={{ y: -4 }}
-              className="bg-zinc-900 border border-white/5 rounded-3xl p-6 flex flex-col justify-between shadow-lg transition-all duration-300 hover:border-primary-500/20 hover:shadow-[0_0_30px_var(--theme-glow)]"
+              className="bg-zinc-900 border border-white/5 rounded-2xl sm:rounded-3xl p-4 sm:p-6 flex flex-col justify-between shadow-lg transition-all duration-300 hover:border-primary-500/20 hover:shadow-[0_0_30px_var(--theme-glow)]"
             >
               <div>
                 <div className="w-12 h-12 bg-primary-500/10 rounded-2xl flex items-center justify-center mb-4 border border-primary-500/20">
                   <Download className="text-primary-500" size={24} />
                 </div>
-                <h3 className="text-xl font-bold text-white mb-2">Exportar Biblioteca</h3>
+                <h3 className="text-lg sm:text-xl font-bold text-white mb-2">Exportar Biblioteca</h3>
                 <p className="text-zinc-400 text-sm mb-6">
                   Crea un archivo de respaldo con todas tus canciones, listas de reproducción y acordes personalizados. Ideal para llevar tu música a otra computadora.
                 </p>
@@ -393,13 +401,13 @@ export const SettingsView = (_props: SettingsViewProps) => {
                 show: { opacity: 1, y: 0 }
               }}
               whileHover={{ y: -4 }}
-              className="bg-zinc-900 border border-white/5 rounded-3xl p-6 flex flex-col justify-between shadow-lg transition-all duration-300 hover:border-primary-500/20 hover:shadow-[0_0_30px_var(--theme-glow)]"
+              className="bg-zinc-900 border border-white/5 rounded-2xl sm:rounded-3xl p-4 sm:p-6 flex flex-col justify-between shadow-lg transition-all duration-300 hover:border-primary-500/20 hover:shadow-[0_0_30px_var(--theme-glow)]"
             >
               <div>
                 <div className="w-12 h-12 bg-indigo-500/10 rounded-2xl flex items-center justify-center mb-4 border border-indigo-500/20">
                   <Upload className="text-indigo-400" size={24} />
                 </div>
-                <h3 className="text-xl font-bold text-white mb-2">Importar Biblioteca</h3>
+                <h3 className="text-lg sm:text-xl font-bold text-white mb-2">Importar Biblioteca</h3>
                 <p className="text-zinc-400 text-sm mb-6">
                   Restaura un archivo de respaldo previamente guardado. Podrás elegir si deseas fusionar los datos con tu biblioteca actual o reemplazarla.
                 </p>
@@ -412,6 +420,7 @@ export const SettingsView = (_props: SettingsViewProps) => {
                   accept=".json"
                   onChange={handleImportClick}
                   disabled={isImporting}
+                  aria-label="Seleccionar archivo de respaldo"
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
                 />
                 <div className="w-full flex items-center justify-center gap-2 py-3 bg-zinc-800 hover:bg-indigo-500 hover:text-white text-white rounded-xl transition-all font-bold">

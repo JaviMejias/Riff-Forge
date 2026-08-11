@@ -14,6 +14,10 @@ interface UiState {
   setTheme: (theme: string) => void;
 }
 
+type SyncAwareWindow = typeof window & {
+  __isSyncing?: boolean;
+};
+
 export const useUiStore = create<UiState>()(
   persist(
     (set) => ({
@@ -60,7 +64,7 @@ export const useUiStore = create<UiState>()(
           html.classList.add(`theme-${theme}`);
         }
         
-        if (state.theme !== theme && !(window as any).__isSyncing) {
+        if (state.theme !== theme && !(window as SyncAwareWindow).__isSyncing) {
           setTimeout(() => window.dispatchEvent(new Event('trigger-auto-sync')), 100);
         }
         return { theme };

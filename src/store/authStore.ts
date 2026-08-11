@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { API_BASE_URL } from '../config'; // FE-1: use central config
+import { db } from '../db';
+import { useUiStore } from './uiStore';
 
 
 interface User {
@@ -92,7 +94,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       set({ user: null, token: null });
 
       // Clear local database to protect privacy
-      const { db } = await import('../db');
       await db.transaction('rw', [db.songs, db.playlists, db.customChords, db.karaokes, db.karaokePlaylists, db.karaokeFiles, db.syncOperations], async () => {
         await db.songs.clear();
         await db.playlists.clear();
@@ -118,7 +119,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         showConfirmButton: false
       });
       
-      const { useUiStore } = await import('../store/uiStore');
       useUiStore.getState().setTheme('amber');
       
       window.dispatchEvent(new Event('auth-logout'));

@@ -32,35 +32,47 @@ export const TrackMixer = ({
   const isAnySolo = Object.values(trackSolos).some(s => s);
 
   return createPortal(
-    <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 transition-opacity duration-300" onClick={onClose}>
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-h-[80vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-300" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[99999] flex items-end justify-center bg-black/70 backdrop-blur-sm transition-opacity duration-300 sm:items-center sm:p-4" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="track-mixer-title"
+        className="flex max-h-[min(88dvh,760px)] w-full max-w-4xl flex-col overflow-hidden rounded-t-3xl border border-slate-700 bg-slate-900 shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300 sm:rounded-3xl sm:zoom-in-95"
+        onClick={(e) => e.stopPropagation()}
+      >
 
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 border-b border-slate-800 bg-slate-900/50 gap-4">
-          <div className="flex items-center gap-3 text-indigo-400">
-            <SlidersHorizontal size={24} />
-            <h2 className="text-xl font-bold text-slate-100">Mezclador de Pistas</h2>
+        <div className="flex items-center justify-between gap-3 border-b border-slate-800 bg-slate-900/80 px-4 py-3 sm:p-5">
+          <div className="flex min-w-0 items-center gap-3 text-indigo-400">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-500/10">
+              <SlidersHorizontal size={20} />
+            </div>
+            <div className="min-w-0">
+              <h2 id="track-mixer-title" className="truncate text-base font-bold text-slate-100 sm:text-xl">Mezclador de pistas</h2>
+              <p className="text-[11px] text-slate-500 sm:text-xs">{tracks.length} {tracks.length === 1 ? 'pista' : 'pistas'}</p>
+            </div>
           </div>
 
-          <div className="flex items-center gap-4 w-full sm:w-auto">
+          <div className="flex shrink-0 items-center gap-2">
             <button
               onClick={onResetMixer}
-              className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-bold bg-slate-800 text-slate-300 hover:bg-indigo-500 hover:text-white rounded-lg transition-all duration-300 shadow-md active:scale-95 flex-1 sm:flex-none"
+              className="flex min-h-10 items-center justify-center gap-2 rounded-xl bg-slate-800 px-3 text-sm font-bold text-slate-300 shadow-md transition-all duration-300 hover:bg-indigo-500 hover:text-white active:scale-95"
               title="Restaurar valores originales"
             >
               <RefreshCw size={16} />
-              <span className="hidden sm:inline">Reset</span>
+              <span className="hidden sm:inline">Restaurar</span>
             </button>
             <button
               onClick={onClose}
-              className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors ml-auto sm:ml-0"
+              className="flex min-h-10 min-w-10 items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
+              aria-label="Cerrar mezclador"
             >
               <X size={20} />
             </button>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-2 sm:p-5 custom-scrollbar">
-          <div className="flex flex-col gap-3">
+        <div className="flex-1 overflow-y-auto p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] custom-scrollbar sm:p-5">
+          <div className="flex flex-col gap-2.5 sm:gap-3">
             {tracks.map((track, i) => {
               const vol = trackVolumes[i] ?? 16;
               const isMuted = trackMutes[i] ?? false;
@@ -71,15 +83,15 @@ export const TrackMixer = ({
               return (
                 <div
                   key={i}
-                  className={`flex flex-col sm:flex-row sm:items-center justify-between bg-slate-800/40 p-4 rounded-xl border transition-all duration-500 gap-4 ${isEffectivelyMuted
-                    ? 'border-slate-800 opacity-40 grayscale scale-[0.98]'
+                  className={`flex flex-col justify-between gap-3 rounded-2xl border bg-slate-800/40 p-3 transition-all duration-300 sm:flex-row sm:items-center sm:gap-4 sm:p-4 ${isEffectivelyMuted
+                    ? 'border-slate-800 bg-slate-950/30'
                     : isSolo
-                      ? 'border-primary-500/50 shadow-lg shadow-primary-500/10 scale-100 bg-slate-800/80'
-                      : 'border-slate-700/50 hover:border-slate-500 scale-100 shadow-md'
+                      ? 'border-primary-500/50 bg-slate-800/80 shadow-lg shadow-primary-500/10'
+                      : 'border-slate-700/50 shadow-md hover:border-slate-500'
                     }`}
                 >
 
-                  <div className="flex items-center gap-3 min-w-[150px] truncate transition-transform duration-300 origin-left">
+                  <div className={`flex min-w-0 items-center gap-3 transition-opacity duration-300 sm:w-52 ${isEffectivelyMuted ? 'opacity-45 grayscale' : ''}`}>
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 font-bold text-sm transition-colors duration-300 ${isSolo ? 'bg-primary-500/20 text-primary-400' : 'bg-indigo-500/20 text-indigo-400'}`}>
                       {i + 1}
                     </div>
@@ -88,32 +100,34 @@ export const TrackMixer = ({
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-4 flex-1 sm:justify-end">
-                    <div className="flex items-center gap-2">
+                  <div className="flex min-w-0 flex-1 items-center gap-2 sm:justify-end sm:gap-4">
+                    <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
                       <button
                         onClick={() => onMuteToggle(i)}
-                        className={`w-10 h-10 rounded-lg font-bold transition-all duration-300 flex items-center justify-center shadow-md active:scale-90 ${isMuted
+                        className={`flex h-11 w-11 items-center justify-center rounded-xl font-bold shadow-md transition-all duration-300 active:scale-90 sm:h-10 sm:w-10 ${isMuted
                           ? 'bg-rose-500 text-white shadow-[0_0_15px_rgba(244,63,94,0.4)] scale-95'
                           : isEffectivelyMuted
                             ? 'bg-rose-500/20 text-rose-400/50 border border-rose-500/20'
                             : 'bg-slate-950 border border-slate-700 text-slate-400 hover:border-rose-500/50 hover:text-rose-200'
                           }`}
                         title="Silenciar pista (Mute)"
+                        aria-pressed={isMuted}
                       >
                         M
                       </button>
                       <button
                         onClick={() => onSoloToggle(i)}
-                        className={`w-10 h-10 rounded-lg font-bold transition-all duration-300 flex items-center justify-center shadow-md active:scale-90 ${isSolo
+                        className={`flex h-11 w-11 items-center justify-center rounded-xl font-bold shadow-md transition-all duration-300 active:scale-90 sm:h-10 sm:w-10 ${isSolo
                           ? 'bg-primary-500 text-slate-950 shadow-[0_0_15px_rgba(245,158,11,0.5)] scale-105'
                           : 'bg-slate-950 border border-slate-700 text-slate-400 hover:border-primary-500/50 hover:text-primary-200'
                           }`}
                         title="Escuchar solo esta pista (Solo)"
+                        aria-pressed={isSolo}
                       >
                         S
                       </button>
                     </div>
-                    <div className="flex items-center gap-2 flex-1 max-w-[200px] bg-slate-950 px-3 py-2 rounded-lg border border-slate-700 transition-colors duration-300">
+                    <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-slate-700 bg-slate-950 px-2.5 py-2 transition-colors duration-300 sm:max-w-xs sm:px-3">
                       {vol === 0 || isEffectivelyMuted ? <VolumeX size={16} className="text-slate-600 transition-colors shrink-0" /> : <Volume2 size={16} className={`${isSolo ? 'text-primary-400' : 'text-indigo-400'} transition-colors shrink-0`} />}
                       <input
                         type="range"

@@ -56,7 +56,7 @@ export const PlayerControls = ({
   const [isVolumeOpen, setIsVolumeOpen] = useState(false);
 
   return (
-    <div className="flex flex-col w-full bg-zinc-950/80 backdrop-blur-md border-t border-white/10 p-2 sm:p-4 mt-auto z-50">
+    <div className="z-50 mt-auto flex w-full flex-col border-t border-white/10 bg-zinc-950/90 p-2 backdrop-blur-md sm:p-4">
       
       {/* Seekbar */}
       <div className="flex items-center gap-2 sm:gap-3 w-full mb-1.5 sm:mb-3 group">
@@ -65,21 +65,23 @@ export const PlayerControls = ({
           type="range"
           min={0}
           max={duration || 100}
-          value={currentTime}
+          value={Math.min(Math.max(currentTime, 0), duration || 100)}
           onChange={(e) => onSeek(parseFloat(e.target.value))}
           className="flex-1 h-1.5 sm:h-2 bg-zinc-800 rounded-full appearance-none cursor-pointer accent-primary-500 focus:outline-none"
+          aria-label="Posición de reproducción"
         />
         <span className="text-[10px] sm:text-xs text-zinc-400 font-mono w-8 sm:w-10">{formatTime(duration)}</span>
       </div>
 
       {/* Controles Principales */}
-      <div className="flex items-center justify-between gap-2 sm:gap-4">
+      <div className="flex items-start justify-between gap-2 sm:items-center sm:gap-4">
         
         {/* Izquierda: Play/Pause y Volumen */}
-        <div className="flex items-center gap-2 sm:gap-4">
+        <div className="flex shrink-0 items-center gap-1 sm:gap-4">
           <button
             onClick={onPlayPause}
-            className="w-8 h-8 sm:w-12 sm:h-12 bg-primary-500 hover:bg-primary-400 text-zinc-950 rounded-full flex items-center justify-center transition-all shadow-[0_0_15px_rgba(245,158,11,0.3)] hover:scale-105 shrink-0"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary-500 text-zinc-950 shadow-[0_0_15px_rgba(245,158,11,0.3)] transition-all hover:scale-105 hover:bg-primary-400 sm:h-12 sm:w-12"
+            aria-label={isPlaying ? 'Pausar karaoke' : 'Reproducir karaoke'}
           >
             {isPlaying ? <Pause size={16} className="fill-current sm:w-5 sm:h-5" /> : <Play size={16} className="fill-current ml-0.5 sm:ml-1 sm:w-5 sm:h-5" />}
           </button>
@@ -94,7 +96,8 @@ export const PlayerControls = ({
                   onMuteToggle();
                 }
               }} 
-              className="text-zinc-400 hover:text-white transition-colors p-1"
+              className="flex h-11 w-10 items-center justify-center text-zinc-400 transition-colors hover:text-white sm:h-auto sm:w-auto sm:p-1"
+              aria-label={isMuted || volume === 0 ? 'Abrir volumen, actualmente silenciado' : 'Abrir control de volumen'}
             >
               {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
             </button>
@@ -108,6 +111,7 @@ export const PlayerControls = ({
                 value={isMuted ? 0 : volume}
                 onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
                 className="w-24 h-1.5 bg-zinc-800 rounded-full appearance-none cursor-pointer accent-primary-500"
+                aria-label="Volumen"
               />
               </div>
             </div>
@@ -115,25 +119,27 @@ export const PlayerControls = ({
         </div>
 
         {/* Centro/Derecha: Pitch, Velocidad, Count-in */}
-        <div className="flex items-center gap-1 sm:gap-6 justify-end flex-1 whitespace-nowrap overflow-x-auto hide-scrollbar sm:overflow-visible">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-1 whitespace-nowrap sm:flex-nowrap sm:gap-6">
           
           {/* Count-in Toggle */}
           {onCountInToggle && (
             <button
               onClick={onCountInToggle}
-              className={`flex items-center justify-center p-1 sm:p-2 rounded-lg sm:rounded-xl transition-all border shrink-0 ${
+              className={`order-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border transition-all sm:order-none sm:h-auto sm:w-auto sm:rounded-xl sm:p-2 ${
                 isCountInEnabled 
                   ? 'bg-primary-500/20 text-primary-400 border-primary-500/50 shadow-inner' 
                   : 'bg-zinc-900/50 text-zinc-500 border-white/5 hover:text-white hover:bg-zinc-800'
               }`}
               title="Cuenta Regresiva (3s)"
+              aria-pressed={isCountInEnabled}
+              aria-label="Cuenta regresiva de tres segundos"
             >
               <Timer size={14} className="sm:w-4 sm:h-4" />
             </button>
           )}
 
           {/* Velocidad */}
-          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          <div className="order-2 flex shrink-0 items-center gap-1 sm:order-none sm:gap-2">
             <span className="hidden sm:inline text-[10px] font-bold text-zinc-500 uppercase">Velocidad</span>
             <CustomSelect
               options={[
@@ -152,14 +158,15 @@ export const PlayerControls = ({
           </div>
 
           {/* Pitch */}
-          <div className="flex items-center bg-zinc-900/50 border border-white/5 rounded-lg sm:rounded-xl px-1 sm:px-2 py-0.5 sm:py-1 gap-0.5 sm:gap-1 shrink-0">
+          <div className="order-4 flex basis-full shrink-0 items-center justify-end gap-0.5 rounded-lg border border-white/5 bg-zinc-900/50 px-1 py-0.5 sm:order-none sm:basis-auto sm:justify-start sm:gap-1 sm:rounded-xl sm:px-2 sm:py-1">
             <span className="hidden sm:inline text-[10px] font-bold text-zinc-500 uppercase px-1">Tono</span>
             <div className="flex items-center gap-0.5">
               <button
                 onClick={() => onPitchChange(Math.max(-12, pitch - 1))}
                 disabled={pitch <= -12}
-                className="w-4 h-4 sm:w-6 sm:h-6 flex items-center justify-center rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-[10px] sm:text-xs font-bold"
+                className="w-8 h-8 sm:w-6 sm:h-6 flex items-center justify-center rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm sm:text-xs font-bold"
                 title="Bajar Medio Tono"
+                aria-label="Bajar medio tono"
               >
                 -
               </button>
@@ -176,8 +183,9 @@ export const PlayerControls = ({
               <button
                 onClick={() => onPitchChange(Math.min(12, pitch + 1))}
                 disabled={pitch >= 12}
-                className="w-4 h-4 sm:w-6 sm:h-6 flex items-center justify-center rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-[10px] sm:text-xs font-bold"
+                className="w-8 h-8 sm:w-6 sm:h-6 flex items-center justify-center rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm sm:text-xs font-bold"
                 title="Subir Medio Tono"
+                aria-label="Subir medio tono"
               >
                 +
               </button>
@@ -187,8 +195,9 @@ export const PlayerControls = ({
           {/* Fullscreen */}
           <button
             onClick={onFullscreenToggle}
-            className="text-zinc-400 hover:text-white transition-colors p-1 sm:p-2 rounded-lg hover:bg-white/5 shrink-0 ml-0.5 sm:ml-1"
+            className="order-3 ml-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-white/5 hover:text-white sm:order-none sm:ml-1 sm:h-auto sm:w-auto sm:p-2"
             title={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
+            aria-label={isFullscreen ? 'Salir de pantalla completa' : 'Abrir pantalla completa'}
           >
             {isFullscreen ? <Minimize size={14} className="sm:w-4 sm:h-4" /> : <Maximize size={14} className="sm:w-4 sm:h-4" />}
           </button>

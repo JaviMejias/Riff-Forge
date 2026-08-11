@@ -55,7 +55,7 @@ export const PlayerToolbar = ({
 
   return (
     <motion.div 
-      className="bg-zinc-900/90 backdrop-blur-xl p-3 sm:p-4 md:p-5 rounded-2xl md:rounded-3xl border flex w-full flex-col md:flex-row gap-4 md:gap-6 items-center min-h-[60px] md:min-h-[80px] relative transition-colors border-white/10 shadow-2xl">
+      className="relative flex min-h-[60px] w-full flex-col items-center gap-2 rounded-2xl border border-white/10 bg-zinc-900/95 p-2 shadow-2xl backdrop-blur-xl transition-colors sm:gap-4 sm:p-4 md:min-h-[80px] md:flex-row md:gap-6 md:rounded-3xl md:p-5">
 
       {errorMsg ? (
         <div className="flex items-center gap-3 text-rose-400 w-full font-medium z-10 justify-center">
@@ -68,15 +68,15 @@ export const PlayerToolbar = ({
           <p>{loadingMsg}</p>
         </div>
       ) : (
-        <div className="flex flex-wrap md:flex-nowrap items-center justify-between gap-3 md:gap-6 w-full z-10">
+        <div className="z-10 flex w-full flex-nowrap items-center justify-between gap-2 sm:flex-wrap sm:gap-3 md:flex-nowrap md:gap-6">
           
           {/* PLAY BUTTON & TRACK SELECTOR */}
-          <div className="flex items-center gap-3 md:gap-6 flex-1 min-w-[200px] md:min-w-0">
+          <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3 md:gap-6">
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={togglePlay}
-              className="flex items-center justify-center w-12 h-12 md:w-14 md:h-14 bg-gradient-to-br from-primary-400 to-primary-600 text-zinc-950 rounded-full shadow-[0_0_20px_var(--theme-glow-strong)] shrink-0 disabled:opacity-50 border border-primary-300/50"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-primary-300/50 bg-gradient-to-br from-primary-400 to-primary-600 text-zinc-950 shadow-[0_0_20px_var(--theme-glow-strong)] disabled:opacity-50 md:h-14 md:w-14"
               disabled={isLoading}
             >
               {isPlaying ? (
@@ -88,8 +88,8 @@ export const PlayerToolbar = ({
 
             <div className="h-10 w-px bg-white/10 hidden md:block"></div>
 
-            <div className="flex flex-col flex-1 max-w-[280px]">
-              <span className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider mb-1 flex items-center gap-1">
+            <div className="flex min-w-0 flex-1 flex-col sm:max-w-[280px]">
+              <span className="mb-1 hidden items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400 sm:flex">
                 <Guitar size={12} className="text-primary-500" /> Pista Visualizada
               </span>
               <div className="relative w-full">
@@ -116,7 +116,7 @@ export const PlayerToolbar = ({
           </div>
 
           {/* MASTER VOLUME */}
-          <div className="flex flex-col flex-1 min-w-[120px] md:max-w-[120px]">
+          <div className="hidden min-w-[120px] flex-1 flex-col sm:flex md:max-w-[120px]">
             <div className="flex justify-between items-center mb-1">
               <span className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider flex items-center gap-1">
                 <Volume2 size={12} className="text-primary-500" /> Volumen
@@ -142,7 +142,7 @@ export const PlayerToolbar = ({
           {/* MIXER */}
           <button
             onClick={toggleMixer}
-            className={`p-2 md:p-3 ml-auto md:ml-0 rounded-xl transition-all flex items-center justify-center shrink-0 ${isMixerOpen ? 'bg-primary-500 text-zinc-950 shadow-[0_0_15px_rgba(245,158,11,0.3)]' : 'bg-zinc-900 border border-white/5 hover:bg-zinc-800 text-zinc-400 hover:text-white'}`}
+            className={`flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl p-2 transition-all md:ml-0 md:p-3 ${isMixerOpen ? 'bg-primary-500 text-zinc-950 shadow-[0_0_15px_rgba(245,158,11,0.3)]' : 'bg-zinc-900 border border-white/5 hover:bg-zinc-800 text-zinc-400 hover:text-white'}`}
             title="Mezclador de Pistas"
           >
             <SlidersHorizontal size={18} className="md:w-5 md:h-5" />
@@ -150,7 +150,7 @@ export const PlayerToolbar = ({
 
           {/* TUNING DISPLAY (POPOVER) */}
           <div 
-            className="relative flex flex-col text-center md:text-right shrink-0 z-50"
+            className="relative z-50 hidden shrink-0 flex-col text-center sm:flex md:text-right"
             onMouseEnter={() => setIsTuningOpen(true)}
             onMouseLeave={() => setIsTuningOpen(false)}
             ref={tuningRef}

@@ -34,7 +34,11 @@ export const ViewModeSelector = ({ animationMode, setAnimationMode }: Props) => 
   return (
     <div className="relative" ref={settingsRef}>
       <button 
+        type="button"
         onClick={() => setShowSettings(!showSettings)}
+        aria-label="Seleccionar modo de visualización"
+        aria-expanded={showSettings}
+        aria-controls="karaoke-view-mode-menu"
         className="flex items-center justify-between sm:justify-start w-full sm:w-auto gap-2 px-3 sm:px-4 py-2 sm:py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl transition-all cursor-pointer font-bold text-sm sm:text-sm border border-transparent"
       >
         <span className="flex items-center gap-2">
@@ -48,6 +52,7 @@ export const ViewModeSelector = ({ animationMode, setAnimationMode }: Props) => 
       <AnimatePresence>
         {showSettings && (
           <motion.div
+            id="karaoke-view-mode-menu"
             initial={{ opacity: 0, y: 10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}

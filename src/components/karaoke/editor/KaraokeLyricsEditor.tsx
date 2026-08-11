@@ -166,7 +166,7 @@ export const KaraokeLyricsEditor = ({
     total: syncLines.length,
   };
 
-  const handleSyncLine = () => {
+  function handleSyncLine() {
     if (syncIndex >= syncLines.length || !isPlaying) return;
     
     setSyncLines(prev => {
@@ -176,7 +176,7 @@ export const KaraokeLyricsEditor = ({
       return newLines;
     });
     setSyncIndex(syncIndex + 1);
-  };
+  }
 
   const handleInsertInstrumental = () => {
     if (syncIndex > syncLines.length || !isPlaying) return;
@@ -409,14 +409,14 @@ export const KaraokeLyricsEditor = ({
             <textarea
               value={textContent}
               onChange={(e) => setTextContent(e.target.value)}
-              className="w-full h-full p-6 sm:p-8 bg-transparent text-zinc-200 font-mono text-sm sm:text-base resize-none focus:outline-none hide-scrollbar leading-relaxed"
+              className="w-full h-full px-4 pt-16 pb-5 sm:p-8 bg-transparent text-zinc-200 font-mono text-sm sm:text-base resize-none focus:outline-none hide-scrollbar leading-relaxed"
               placeholder={"Pega aquí la letra normal de la canción...\n\n💡 Tip: Si hay un solo de guitarra o silencio largo, escribe [Música] o [Instrumental] en una línea sola.\n\nLuego ve a 'Sincronizador' para cuadrarla con el audio."}
               spellCheck={false}
             />
             <button
               onClick={handleFetchLyrics}
               disabled={isFetchingLyrics}
-              className="absolute top-4 right-4 bg-primary-500/20 text-primary-400 border border-primary-500/30 hover:bg-primary-500/40 disabled:opacity-50 rounded-xl px-4 py-2 font-bold text-sm flex items-center gap-2 transition-all shadow-lg"
+              className="absolute top-3 right-3 min-h-10 bg-primary-500/20 text-primary-400 border border-primary-500/30 hover:bg-primary-500/40 disabled:opacity-50 rounded-xl px-3 sm:px-4 py-2 font-bold text-xs sm:text-sm flex items-center gap-2 transition-all shadow-lg"
               title="Buscar letra en internet"
             >
               {isFetchingLyrics ? <Loader2 size={16} className="animate-spin" /> : <Wand2 size={16} />}
@@ -430,7 +430,7 @@ export const KaraokeLyricsEditor = ({
           <div className="w-full h-full flex flex-col relative">
 
             {/* LISTA DE LÍNEAS */}
-            <div ref={syncScrollRef} className="flex-1 overflow-y-auto p-6 sm:p-10 pb-10 hide-scrollbar scroll-smooth">
+            <div ref={syncScrollRef} className="flex-1 overflow-y-auto px-2 pt-3 pb-10 sm:p-10 hide-scrollbar scroll-smooth overscroll-contain">
               
               {(() => {
                 // Determine currently playing line index
@@ -500,17 +500,21 @@ export const KaraokeLyricsEditor = ({
                           </div>
                         ) : (
                           /* Botones flotantes en hover */
-                          <div className="opacity-0 lg:group-hover/insert:opacity-100 absolute left-1/2 -translate-x-1/2 -top-2.5 flex gap-2 z-10 transition-all">
+                          <div className={`${isActive ? 'flex lg:opacity-0' : 'hidden'} lg:flex lg:group-hover/insert:opacity-100 absolute left-1/2 -translate-x-1/2 -top-3 gap-1.5 z-10 transition-all`}>
                             <button 
+                              type="button"
                               onClick={() => handleInsertInstrumentalAt(idx + 1)}
-                              className="bg-primary-500/20 text-primary-400 text-[10px] font-bold px-3 py-1 rounded-full border border-primary-500/30 hover:bg-primary-500/40 transition-all whitespace-nowrap flex items-center gap-1"
+                              aria-label={`Insertar interludio después de la línea ${idx + 1}`}
+                              className="flex min-h-7 items-center gap-1 whitespace-nowrap rounded-full border border-primary-500/30 bg-zinc-900 px-2.5 py-1 text-[10px] font-bold text-primary-400 transition-all hover:bg-primary-500/30 lg:bg-primary-500/20 lg:px-3"
                             >
                               <Music size={10} />
                               Interludio
                             </button>
                             <button
+                              type="button"
                               onClick={() => handleInsertLineAt(idx + 1)}
-                              className="bg-zinc-700/60 text-zinc-300 text-[10px] font-bold px-3 py-1 rounded-full border border-zinc-600/40 hover:bg-zinc-600/60 transition-all whitespace-nowrap flex items-center gap-1"
+                              aria-label={`Insertar texto después de la línea ${idx + 1}`}
+                              className="flex min-h-7 items-center gap-1 whitespace-nowrap rounded-full border border-zinc-600/40 bg-zinc-900 px-2.5 py-1 text-[10px] font-bold text-zinc-300 transition-all hover:bg-zinc-700 lg:bg-zinc-700/60 lg:px-3"
                             >
                               <Plus size={10} />
                               Línea
@@ -538,12 +542,12 @@ export const KaraokeLyricsEditor = ({
             </div>
 
             {/* PANEL DE CONTROL FLOTANTE PREMIUM */}
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-sm z-10 flex bg-zinc-900/90 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl p-1.5 gap-1.5">
+            <div className="absolute bottom-[calc(0.5rem+env(safe-area-inset-bottom))] left-1/2 z-10 grid w-[calc(100%-0.75rem)] max-w-md -translate-x-1/2 grid-cols-4 gap-1 rounded-2xl border border-white/10 bg-zinc-900/95 p-1.5 shadow-2xl backdrop-blur-2xl sm:bottom-6 sm:w-[90%]">
               
               <button
                 onClick={undoSync}
                 disabled={syncIndex === 0}
-                className="flex-1 h-16 bg-black/40 hover:bg-white/10 disabled:opacity-40 text-zinc-400 hover:text-white rounded-xl transition-all active:scale-95 flex flex-col items-center justify-center gap-1 group"
+                className="group flex h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl bg-black/40 text-zinc-400 transition-all hover:bg-white/10 hover:text-white active:scale-95 disabled:opacity-40 sm:h-16 sm:gap-1"
                 title="Deshacer la última frase sincronizada"
               >
                 <RotateCcw size={20} className="group-hover:-rotate-45 transition-transform duration-300" />
@@ -553,7 +557,7 @@ export const KaraokeLyricsEditor = ({
               <button
                 onClick={handleInsertInstrumental}
                 disabled={!isPlaying || syncIndex >= syncLines.length}
-                className="flex-1 h-16 bg-black/40 hover:bg-primary-500/10 disabled:opacity-40 text-primary-400 hover:text-primary-300 rounded-xl transition-all active:scale-95 flex flex-col items-center justify-center gap-1 group"
+                className="group flex h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl bg-black/40 text-primary-400 transition-all hover:bg-primary-500/10 hover:text-primary-300 active:scale-95 disabled:opacity-40 sm:h-16 sm:gap-1"
                 title="Añadir pausa musical (Interludio)"
               >
                 <Music size={20} className="group-hover:scale-110 transition-transform duration-300" />
@@ -561,9 +565,19 @@ export const KaraokeLyricsEditor = ({
               </button>
 
               <button
+                onClick={() => handleInsertLineAt(Math.min(syncIndex + 1, syncLines.length))}
+                disabled={syncLines.length === 0}
+                className="group flex h-14 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl bg-black/40 text-zinc-400 transition-all hover:bg-white/10 hover:text-white active:scale-95 disabled:opacity-40 sm:h-16 sm:gap-1"
+                title="Añadir una línea de letra"
+              >
+                <Plus size={20} className="group-hover:scale-110 transition-transform duration-300" />
+                <span className="text-[10px] font-bold">Línea</span>
+              </button>
+
+              <button
                 onClick={handleSyncLine}
                 disabled={!isPlaying || syncIndex >= syncLines.length}
-                className="flex-1 h-16 bg-primary-500 hover:bg-primary-400 disabled:opacity-40 disabled:bg-zinc-800 disabled:text-zinc-500 text-zinc-950 rounded-xl shadow-[0_0_15px_var(--theme-glow)] transition-all active:scale-95 flex flex-col items-center justify-center gap-1 group relative overflow-hidden"
+                className="group relative flex h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 overflow-hidden rounded-xl bg-primary-500 text-zinc-950 shadow-[0_0_15px_var(--theme-glow)] transition-all hover:bg-primary-400 active:scale-95 disabled:bg-zinc-800 disabled:text-zinc-500 disabled:opacity-40 sm:h-16 sm:gap-1"
                 title="Sincronizar la frase actual"
               >
                 <motion.div

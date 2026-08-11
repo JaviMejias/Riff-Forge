@@ -28,7 +28,7 @@ export const Sidebar = () => {
         x: isMobileMenuOpen ? 0 : (window.innerWidth < 768 ? '-100%' : 0)
       }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className={`fixed md:relative flex-col bg-zinc-950/30 backdrop-blur-xl border-r border-white/5 h-full z-30 shadow-2xl shrink-0 w-64 ${isMobileMenuOpen ? 'flex' : 'hidden md:flex'
+      className={`app-sidebar fixed md:relative flex-col bg-zinc-950/95 md:bg-zinc-950/30 backdrop-blur-xl border-r border-white/5 h-full z-50 md:z-30 shadow-2xl shrink-0 w-72 md:w-64 ${isMobileMenuOpen ? 'flex' : 'hidden md:flex'
         }`}
     >
       {/* HEADER SIDEBAR */}
