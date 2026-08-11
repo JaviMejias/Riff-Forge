@@ -23,25 +23,35 @@ export const GlobalKaraokePlayer = () => {
     }
   }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps -- only route changes should minimize an already-open player
   
-  const karaoke = useLiveQuery(
-    async () => activeKaraokeId ? (await db.karaokes.get(activeKaraokeId) ?? null) : null,
+  const karaokeResult = useLiveQuery(
+    async () => ({
+      requestedId: activeKaraokeId,
+      karaoke: activeKaraokeId === null
+        ? null
+        : (await db.karaokes.get(activeKaraokeId) ?? null),
+    }),
     [activeKaraokeId]
   );
 
   useEffect(() => {
-    if (karaoke !== null || !activeKaraokeId) return;
+    if (
+      activeKaraokeId === null ||
+      karaokeResult?.requestedId !== activeKaraokeId ||
+      karaokeResult.karaoke !== null
+    ) return;
     usePlayerStore.getState().setActiveKaraokeId(null);
     usePlayerStore.getState().setIsKaraokeMiniPlayer(false);
-  }, [activeKaraokeId, karaoke]);
+  }, [activeKaraokeId, karaokeResult]);
 
-  if (!activeKaraokeId) return null;
+  if (activeKaraokeId === null) return null;
 
-  if (karaoke === undefined) return (
+  if (karaokeResult === undefined || karaokeResult.requestedId !== activeKaraokeId) return (
     <div className="global-karaoke-placeholder fixed bottom-[calc(4.25rem+env(safe-area-inset-bottom))] md:bottom-0 left-0 right-0 h-20 bg-zinc-950/90 backdrop-blur-lg flex items-center justify-center z-50 border-t border-white/10">
       <Loader2 className="animate-spin text-primary-500 w-6 h-6" />
     </div>
   );
 
+  const karaoke = karaokeResult.karaoke;
   if (karaoke === null) return null;
 
   return (
