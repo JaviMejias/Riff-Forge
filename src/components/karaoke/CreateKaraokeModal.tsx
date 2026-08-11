@@ -22,12 +22,14 @@ export const CreateKaraokeModal = ({ isOpen, onClose, onSuccess }: CreateKaraoke
   const [isDownloading, setIsDownloading] = useState(false);
   const [isFetchingMetadata, setIsFetchingMetadata] = useState(false);
   const [error, setError] = useState('');
+  const [metadataWarning, setMetadataWarning] = useState('');
   const lastFetchedUrl = useRef('');
 
   useEffect(() => {
     if (isValidYoutubeUrl(url) && url !== lastFetchedUrl.current) {
       const fetchMetadata = async () => {
         setIsFetchingMetadata(true);
+        setMetadataWarning('');
         lastFetchedUrl.current = url;
         try {
           const token = useAuthStore.getState().token;
@@ -64,9 +66,12 @@ export const CreateKaraokeModal = ({ isOpen, onClose, onSuccess }: CreateKaraoke
                  setTitle(cleanTitle);
                }
             }
+          } else {
+            setMetadataWarning('No pudimos obtener el título desde YouTube. Puedes escribir el título y el artista manualmente.');
           }
         } catch(e) {
           console.error(e);
+          setMetadataWarning('No pudimos obtener el título desde YouTube. Puedes escribir el título y el artista manualmente.');
         } finally {
           setIsFetchingMetadata(false);
         }
@@ -83,6 +88,7 @@ export const CreateKaraokeModal = ({ isOpen, onClose, onSuccess }: CreateKaraoke
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
+      setError('Escribe el título de la canción para guardar el karaoke.');
       return;
     }
 
@@ -184,6 +190,8 @@ export const CreateKaraokeModal = ({ isOpen, onClose, onSuccess }: CreateKaraoke
           />
           {isFetchingMetadata ? (
             <p className="text-xs text-primary-400 mt-2 flex items-center gap-1"><Loader2 size={12} className="animate-spin" /> Buscando datos del video...</p>
+          ) : metadataWarning ? (
+            <p className="text-xs text-amber-400 mt-2">{metadataWarning}</p>
           ) : (
             <p className="text-xs text-zinc-500 mt-2">Si ingresas un enlace de YouTube, se descargará automáticamente el audio MP3 y se rellenarán los datos.</p>
           )}
@@ -196,7 +204,10 @@ export const CreateKaraokeModal = ({ isOpen, onClose, onSuccess }: CreateKaraoke
           <input
             type="text"
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => {
+              setTitle(e.target.value);
+              if (error) setError('');
+            }}
             disabled={isDownloading}
             className="w-full bg-zinc-900/50 border border-white/5 rounded-xl px-4 py-3 text-zinc-200 focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/50 transition-all placeholder:text-zinc-600 shadow-inner disabled:opacity-50"
             placeholder="Ej: Bohemian Rhapsody"
