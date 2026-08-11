@@ -7,7 +7,7 @@ import { Modal } from '../Modal';
 interface CreateKaraokeModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (data: { title: string; artist: string; url: string; cloudUrl?: string; textContent?: string }) => void;
+  onSuccess: (data: { title: string; artist: string; url: string; cloudUrl?: string; textContent?: string; audioDownloadFailed?: boolean }) => void;
 }
 
 const isValidYoutubeUrl = (url: string) => {
@@ -89,6 +89,7 @@ export const CreateKaraokeModal = ({ isOpen, onClose, onSuccess }: CreateKaraoke
     setError('');
     let cloudUrl = undefined;
     let fetchedLyrics = undefined;
+    let audioDownloadFailed = false;
 
     if (url.trim()) {
       if (!isValidYoutubeUrl(url.trim())) {
@@ -114,27 +115,26 @@ export const CreateKaraokeModal = ({ isOpen, onClose, onSuccess }: CreateKaraoke
         const data = await res.json();
         cloudUrl = data.cloudUrl;
 
-        // Intentar descargar la letra automáticamente
-        try {
-          const params = new URLSearchParams({ title: title.trim(), artist: artist.trim() || '' });
-          const lyricsRes = await fetch(`${API_BASE_URL}/api/karaokes/lyrics?${params}`, {
-            headers: {
-              ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-            }
-          });
-          if (lyricsRes.ok) {
-            const lyricsData = await lyricsRes.json();
-            fetchedLyrics = lyricsData.lyrics;
-          }
-        } catch (e) {
-          console.error('Error fetching lyrics during creation:', e);
-        }
-
       } catch (err) {
-        console.error(err);
-        setError('Error al descargar el audio. Verifica el enlace.');
-        setIsDownloading(false);
-        return; // Don't save if the user wanted a download and it failed
+        console.warn('Local YouTube audio is unavailable; saving the video link only.', err);
+        audioDownloadFailed = true;
+      }
+
+      // Lyrics are independent from the optional local audio download.
+      try {
+        const token = useAuthStore.getState().token;
+        const params = new URLSearchParams({ title: title.trim(), artist: artist.trim() || '' });
+        const lyricsRes = await fetch(`${API_BASE_URL}/api/karaokes/lyrics?${params}`, {
+          headers: {
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          }
+        });
+        if (lyricsRes.ok) {
+          const lyricsData = await lyricsRes.json();
+          fetchedLyrics = lyricsData.lyrics;
+        }
+      } catch (lyricsError) {
+        console.error('Error fetching lyrics during creation:', lyricsError);
       }
     }
 
@@ -143,7 +143,8 @@ export const CreateKaraokeModal = ({ isOpen, onClose, onSuccess }: CreateKaraoke
       artist: artist.trim() || 'Desconocido',
       url: url.trim(),
       cloudUrl,
-      textContent: fetchedLyrics
+      textContent: fetchedLyrics,
+      audioDownloadFailed
     });
 
     // Reset form

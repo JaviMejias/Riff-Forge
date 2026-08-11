@@ -45,7 +45,7 @@ export const KaraokeLibraryView = ({ karaokes, activeKaraokeId, onPlayKaraoke, i
     setIsCreateModalOpen(true);
   };
 
-  const onKaraokeCreated = async (formValues: { title: string; artist: string; url: string; cloudUrl?: string; textContent?: string }) => {
+  const onKaraokeCreated = async (formValues: { title: string; artist: string; url: string; cloudUrl?: string; textContent?: string; audioDownloadFailed?: boolean }) => {
     const titleNorm = normalizeString(formValues.title);
     const artistNorm = normalizeString(formValues.artist || 'Desconocido');
     
@@ -68,8 +68,8 @@ export const KaraokeLibraryView = ({ karaokes, activeKaraokeId, onPlayKaraoke, i
       });
       targetId = existing.id!;
       Toast.fire({
-        icon: 'success',
-        title: 'Añadido a la versión existente'
+        icon: formValues.audioDownloadFailed ? 'warning' : 'success',
+        title: formValues.audioDownloadFailed ? 'Guardado con YouTube · audio local no disponible' : 'Añadido a la versión existente'
       });
     } else {
       targetId = await db.karaokes.add({
@@ -78,14 +78,14 @@ export const KaraokeLibraryView = ({ karaokes, activeKaraokeId, onPlayKaraoke, i
         youtubeUrl: formValues.url || undefined,
         cloudUrl: formValues.cloudUrl || undefined,
         hasLocalAudio: !!formValues.cloudUrl,
-        localFileDirty: !formValues.cloudUrl, // If no cloudUrl, it means they attached a local file
+        localFileDirty: false,
         dateAdded: Date.now(),
         ...(formValues.textContent ? { textContent: formValues.textContent } : {})
       }) as number;
       
       Toast.fire({
-        icon: 'success',
-        title: 'Karaoke añadido con éxito'
+        icon: formValues.audioDownloadFailed ? 'warning' : 'success',
+        title: formValues.audioDownloadFailed ? 'Guardado con YouTube · audio local no disponible' : 'Karaoke añadido con éxito'
       });
     }
     
