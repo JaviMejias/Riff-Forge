@@ -644,9 +644,15 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
                       onPlay={(e) => {
                         if (!hasStarted) setHasStarted(true);
                         try {
-                          if (e.target && typeof e.target.mute === 'function') e.target.mute(); 
+                          if (hasLocalAudio && activeSource === 'youtube') {
+                            e.target.mute();
+                          } else {
+                            e.target.setVolume(volume * 100);
+                            if (isMuted || volume === 0) e.target.mute();
+                            else e.target.unMute();
+                          }
                         } catch (error) {
-                          console.warn('Error muting YouTube player:', error);
+                          console.warn('Error restoring YouTube volume:', error);
                         }
                         if (hasLocalAudio && activeSource === 'youtube') {
                           try {
