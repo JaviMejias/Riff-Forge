@@ -57,7 +57,7 @@ const ensureSyncResponse = (response: Response, message: string) => {
   throw new Error(`${message}: ${response.status}`);
 };
 
-const emitSyncStatus = (status: 'idle' | 'syncing' | 'attention' | 'error') => {
+const emitSyncStatus = (status: 'idle' | 'syncing' | 'success' | 'attention' | 'error') => {
   window.dispatchEvent(new CustomEvent('sync-status-change', { detail: { status } }));
 };
 
@@ -464,7 +464,7 @@ export const SyncService = {
       }
       await syncSettings(headers);
       onProgress?.('¡Sincronización completada!');
-      emitSyncStatus(operationsNeedingAttention > 0 ? 'attention' : 'idle');
+      emitSyncStatus(operationsNeedingAttention > 0 ? 'attention' : 'success');
     } catch (error) {
       if (error instanceof RateLimitError) {
         emitSyncStatus('idle');

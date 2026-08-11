@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, CloudOff, Loader2, RefreshCw } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, CloudOff, Loader2, RefreshCw } from 'lucide-react';
 
-type SyncStatus = 'idle' | 'syncing' | 'attention' | 'error';
+type SyncStatus = 'idle' | 'syncing' | 'success' | 'attention' | 'error';
 
 export const SyncStatusIndicator = () => {
   const [isOnline, setIsOnline] = useState(() => navigator.onLine);
@@ -22,9 +22,9 @@ export const SyncStatusIndicator = () => {
 
       if (nextStatus === 'syncing') {
         showTimerRef.current = window.setTimeout(() => setStatus('syncing'), 700);
-      } else if (nextStatus === 'error' || nextStatus === 'attention') {
+      } else if (nextStatus === 'error' || nextStatus === 'attention' || nextStatus === 'success') {
         setStatus(nextStatus);
-        hideTimerRef.current = window.setTimeout(() => setStatus('idle'), 6000);
+        hideTimerRef.current = window.setTimeout(() => setStatus('idle'), nextStatus === 'success' ? 2500 : 6000);
       } else {
         setStatus('idle');
       }
@@ -46,6 +46,7 @@ export const SyncStatusIndicator = () => {
   const isOffline = !isOnline;
   const isError = isOnline && status === 'error';
   const needsAttention = isOnline && status === 'attention';
+  const isSuccess = isOnline && status === 'success';
 
   return (
     <div
@@ -58,10 +59,12 @@ export const SyncStatusIndicator = () => {
             ? 'border-red-500/30 bg-zinc-900/95 text-red-300'
             : needsAttention
               ? 'border-amber-500/30 bg-zinc-900/95 text-amber-300'
+              : isSuccess
+                ? 'border-emerald-500/30 bg-zinc-900/95 text-emerald-300'
             : 'border-primary-500/30 bg-zinc-900/95 text-primary-300'
       }`}
     >
-      {isOffline ? <CloudOff size={15} /> : isError ? <RefreshCw size={15} /> : needsAttention ? <AlertTriangle size={15} /> : <Loader2 size={15} className="animate-spin" />}
+      {isOffline ? <CloudOff size={15} /> : isError ? <RefreshCw size={15} /> : needsAttention ? <AlertTriangle size={15} /> : isSuccess ? <CheckCircle2 size={15} /> : <Loader2 size={15} className="animate-spin" />}
       <span className="truncate">
         {isOffline
           ? 'Sin conexión · los cambios quedan pendientes'
@@ -69,6 +72,8 @@ export const SyncStatusIndicator = () => {
             ? 'No se pudo sincronizar · reintentaremos automáticamente'
             : needsAttention
               ? 'Algunos cambios fueron reemplazados por una versión más reciente'
+              : isSuccess
+                ? 'Cambios guardados en la nube'
             : 'Sincronizando cambios…'}
       </span>
     </div>

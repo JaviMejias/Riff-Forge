@@ -308,6 +308,7 @@ tables.forEach(tableName => {
       obj.updatedAt = Date.now();
       obj.createdAt ||= obj.updatedAt;
       obj.syncDirty = true;
+      if (tableName === 'songs' && obj.data && !obj.isTemporary) obj.localFileDirty = true;
       setTimeout(() => enqueueUpsert(tableName, obj.cloudId), 0);
     }
   });
@@ -317,7 +318,13 @@ tables.forEach(tableName => {
     if (tableName !== 'karaokeFiles') {
       if (obj.cloudId) setTimeout(() => enqueueUpsert(tableName, obj.cloudId), 0);
       const clearsRemoteOrder = ['playlists', 'karaokePlaylists'].includes(tableName) && ('songIds' in _mods || 'karaokeIds' in _mods);
-      return { updatedAt: Date.now(), syncDirty: true, ...(clearsRemoteOrder ? { remoteCloudIds: undefined } : {}) };
+      const marksSongFileDirty = tableName === 'songs' && 'data' in _mods && !obj.isTemporary;
+      return {
+        updatedAt: Date.now(),
+        syncDirty: true,
+        ...(marksSongFileDirty ? { localFileDirty: true } : {}),
+        ...(clearsRemoteOrder ? { remoteCloudIds: undefined } : {})
+      };
     }
   });
 
