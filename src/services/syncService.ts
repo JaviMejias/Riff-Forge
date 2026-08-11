@@ -8,6 +8,7 @@ import { API_BASE_URL } from '../config';
 const API_URL = `${API_BASE_URL}/api`;
 const DEVICE_ID_KEY = 'sync_v2_device_id';
 const CURSOR_KEY = 'sync_v2_cursor';
+const SYNC_RETRY_AT_KEY = 'sync_retry_at';
 
 interface RemoteFile {
   url: string;
@@ -43,6 +44,18 @@ interface SyncResponse {
 
 let syncTimeout: ReturnType<typeof setTimeout> | null = null;
 let syncInProgress: Promise<void> | null = null;
+
+class RateLimitError extends Error {}
+
+const ensureSyncResponse = (response: Response, message: string) => {
+  if (response.ok) return;
+  if (response.status === 429) {
+    const retryAfter = parseInt(response.headers.get('Retry-After') || '60', 10);
+    localStorage.setItem(SYNC_RETRY_AT_KEY, String(Date.now() + retryAfter * 1000));
+    throw new RateLimitError(`${message}: 429`);
+  }
+  throw new Error(`${message}: ${response.status}`);
+};
 
 const emitSyncStatus = (status: 'idle' | 'syncing' | 'attention' | 'error') => {
   window.dispatchEvent(new CustomEvent('sync-status-change', { detail: { status } }));
@@ -263,7 +276,7 @@ const uploadDirtyFiles = async (headers: Record<string, string>) => {
     formData.append('id', song.cloudId!);
     const url = song.version ? `${API_URL}/songs/${song.cloudId}` : `${API_URL}/songs`;
     const response = await fetch(url, { method: song.version ? 'PUT' : 'POST', headers, body: formData });
-    if (!response.ok) throw new Error(`Song file upload failed: ${response.status}`);
+    ensureSyncResponse(response, 'Song file upload failed');
     uploaded = true;
     await db.syncOperations.where('entityId').equals(song.cloudId!).delete();
     await runRemoteWrite(() => db.songs.update(song.id!, { localFileDirty: false }));
@@ -283,7 +296,7 @@ const uploadDirtyFiles = async (headers: Record<string, string>) => {
     formData.append('file', new Blob([file.data as BlobPart]), `${karaoke.cloudId}.mp3`);
     const url = karaoke.version ? `${API_URL}/karaokes/${karaoke.cloudId}` : `${API_URL}/karaokes`;
     const response = await fetch(url, { method: karaoke.version ? 'PUT' : 'POST', headers, body: formData });
-    if (!response.ok) throw new Error(`Karaoke file upload failed: ${response.status}`);
+    ensureSyncResponse(response, 'Karaoke file upload failed');
     uploaded = true;
     await db.syncOperations.where('entityId').equals(karaoke.cloudId!).delete();
     await runRemoteWrite(() => db.karaokes.update(karaoke.id!, { localFileDirty: false }));
@@ -315,17 +328,14 @@ const syncSettings = async (headers: Record<string, string>) => {
   const localValue = localStorage.getItem('ui-storage') || '';
   const localSnapshot = JSON.stringify({ 'ui-storage': localValue });
   const lastSnapshot = localStorage.getItem('lastSyncedUiStorage');
-  const verifyResponse = await fetch(`${API_URL}/auth/verify`, { headers });
-  if (!verifyResponse.ok) throw new Error(`Settings download failed: ${verifyResponse.status}`);
-  const authData = await verifyResponse.json();
-  useAuthStore.setState({ user: authData.user });
+  const authUser = useAuthStore.getState().user as any;
 
   let remoteSettings: Record<string, string> = {};
-  if (authData.user?.uiStorage) {
+  if (authUser?.uiStorage) {
     try {
-      remoteSettings = typeof authData.user.uiStorage === 'string'
-        ? JSON.parse(authData.user.uiStorage)
-        : authData.user.uiStorage;
+      remoteSettings = typeof authUser.uiStorage === 'string'
+        ? JSON.parse(authUser.uiStorage)
+        : authUser.uiStorage;
     } catch {
       remoteSettings = {};
     }
@@ -348,7 +358,7 @@ const syncSettings = async (headers: Record<string, string>) => {
       headers: { ...headers, 'Content-Type': 'application/json' },
       body: JSON.stringify({ uiStorage: { 'ui-storage': localValue } })
     });
-    if (!response.ok) throw new Error(`Settings upload failed: ${response.status}`);
+    ensureSyncResponse(response, 'Settings upload failed');
     localStorage.setItem('lastSyncedUiStorage', localSnapshot);
   }
 };
@@ -370,6 +380,9 @@ export const SyncService = {
   async _doSync(onProgress?: (message: string) => void) {
     const token = useAuthStore.getState().token;
     if (!token || !navigator.onLine) return;
+    const retryAt = Number(localStorage.getItem(SYNC_RETRY_AT_KEY) || 0);
+    if (retryAt > Date.now()) return;
+    if (retryAt) localStorage.removeItem(SYNC_RETRY_AT_KEY);
     const headers = { Authorization: `Bearer ${token}` };
 
     emitSyncStatus('syncing');
@@ -410,7 +423,7 @@ export const SyncService = {
             }))
           })
         });
-        if (!response.ok) throw new Error(`Sync v2 failed: ${response.status}`);
+        ensureSyncResponse(response, 'Sync v2 failed');
         const result = await response.json() as SyncResponse;
 
         await applyChanges(result.changes || []);
@@ -440,7 +453,7 @@ export const SyncService = {
               operations: []
             })
           });
-          if (!response.ok) throw new Error(`Sync v2 failed after file upload: ${response.status}`);
+          ensureSyncResponse(response, 'Sync v2 failed after file upload');
           const result = await response.json() as SyncResponse;
           await applyChanges(result.changes || []);
           if (result.nextCursor) localStorage.setItem(CURSOR_KEY, result.nextCursor);
@@ -451,6 +464,11 @@ export const SyncService = {
       onProgress?.('¡Sincronización completada!');
       emitSyncStatus(operationsNeedingAttention > 0 ? 'attention' : 'idle');
     } catch (error) {
+      if (error instanceof RateLimitError) {
+        emitSyncStatus('idle');
+        console.warn('Auto-sync paused by server rate limit');
+        return;
+      }
       emitSyncStatus('error');
       console.error('Auto-sync v2 failed', error);
       throw error;

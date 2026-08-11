@@ -197,40 +197,6 @@ function App() {
   const { token, loading } = useAuthStore();
 
   React.useEffect(() => {
-    if (!token) return;
-
-    let lastRefreshAt = 0;
-    const refreshRemoteState = () => {
-      const now = Date.now();
-      if (now - lastRefreshAt < 15000) return;
-      lastRefreshAt = now;
-
-      serviceWorkerRegistrationRef.current?.update().catch(() => {});
-      import('./services/syncService')
-        .then(({ SyncService }) => SyncService.performAutoSync())
-        .catch(error => console.error('Error refreshing remote state', error));
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') refreshRemoteState();
-    };
-
-    window.addEventListener('focus', refreshRemoteState);
-    window.addEventListener('online', refreshRemoteState);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    const refreshInterval = window.setInterval(() => {
-      if (document.visibilityState === 'visible' && navigator.onLine) refreshRemoteState();
-    }, 30000);
-
-    return () => {
-      window.removeEventListener('focus', refreshRemoteState);
-      window.removeEventListener('online', refreshRemoteState);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.clearInterval(refreshInterval);
-    };
-  }, [token]);
-
-  React.useEffect(() => {
     // Initial theme sync when the app loads
     setTheme(theme);
 

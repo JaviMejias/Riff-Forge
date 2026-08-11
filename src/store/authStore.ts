@@ -1,7 +1,5 @@
 import { create } from 'zustand';
 import { API_BASE_URL } from '../config'; // FE-1: use central config
-import { db } from '../db';
-import { useUiStore } from './uiStore';
 
 
 interface User {
@@ -20,9 +18,23 @@ interface AuthStore {
 }
 
 const API_URL = `${API_BASE_URL}/api`;
+const CACHED_USER_KEY = 'riff_user';
+const SYNC_RETRY_AT_KEY = 'sync_retry_at';
+
+const getCachedUser = (): User | null => {
+  try {
+    const value = localStorage.getItem(CACHED_USER_KEY);
+    return value ? JSON.parse(value) as User : null;
+  } catch {
+    localStorage.removeItem(CACHED_USER_KEY);
+    return null;
+  }
+};
+
+const cacheUser = (user: User) => localStorage.setItem(CACHED_USER_KEY, JSON.stringify(user));
 
 export const useAuthStore = create<AuthStore>((set, get) => ({
-  user: null,
+  user: getCachedUser(),
   token: localStorage.getItem('riff_token'),
   loading: true,
 
@@ -37,21 +49,15 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       const data = await res.json();
       if (res.status === 429) {
         const retryAfter = parseInt(res.headers.get('Retry-After') || '60', 10);
+        localStorage.setItem(SYNC_RETRY_AT_KEY, String(Date.now() + retryAfter * 1000));
         const minutes = Math.max(1, Math.ceil(retryAfter / 60));
         throw new Error(`Demasiadas solicitudes. Intenta nuevamente en ${minutes} minuto${minutes === 1 ? '' : 's'}.`);
       }
       if (!res.ok) throw new Error(data.error || 'Error de autenticación');
 
       localStorage.setItem('riff_token', data.token);
+      cacheUser(data.user);
       set({ user: data.user, token: data.token });
-
-      // Automatically sync down data on successful login
-      try {
-        const { SyncService } = await import('../services/syncService');
-        await SyncService.downloadAllFromCloud();
-      } catch (err) {
-        console.error("Error auto-syncing after login", err);
-      }
   },
 
   logOut: async () => {
@@ -91,35 +97,18 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       }
 
       localStorage.removeItem('riff_token');
+      localStorage.removeItem(CACHED_USER_KEY);
       set({ user: null, token: null });
-
-      // Clear local database to protect privacy
-      await db.transaction('rw', [db.songs, db.playlists, db.customChords, db.karaokes, db.karaokePlaylists, db.karaokeFiles, db.syncOperations], async () => {
-        await db.songs.clear();
-        await db.playlists.clear();
-        await db.customChords.clear();
-        await db.karaokes.clear();
-        await db.karaokePlaylists.clear();
-        await db.karaokeFiles.clear();
-        await db.syncOperations.clear();
-      });
-
-      // FE-7 fix: only remove keys this app owns — localStorage.clear() also wipes
-      // browser extension data and unrelated app data on the same origin.
-      const APP_KEYS = ['riff_token', 'lastSyncAt', 'lastSyncedUiStorage', 'deleted_cloud_ids', 'sync_v2_cursor', 'sync_v2_pending_deletions', 'ui-storage'];
-      APP_KEYS.forEach(key => localStorage.removeItem(key));
 
       await Swal.fire({ 
         icon: 'success', 
         title: 'Sesión cerrada', 
-        text: 'Tus datos se guardaron correctamente.',
+        text: 'Tus datos locales permanecen guardados en este dispositivo.',
         background: '#18181b',
         color: '#f4f4f5',
         timer: 1500,
         showConfirmButton: false
       });
-      
-      useUiStore.getState().setTheme('amber');
       
       window.dispatchEvent(new Event('auth-logout'));
     }
@@ -138,6 +127,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       });
       if (res.ok) {
         const data = await res.json();
+        cacheUser(data.user);
         set({ user: data.user, loading: false });
         
         // Auto sync incremental changes when opening the app
@@ -150,6 +140,10 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       } else if (res.status === 401 || res.status === 403) {
         throw new Error('Token inválido');
       } else {
+        if (res.status === 429) {
+          const retryAfter = parseInt(res.headers.get('Retry-After') || '60', 10);
+          localStorage.setItem(SYNC_RETRY_AT_KEY, String(Date.now() + retryAfter * 1000));
+        }
         // Temporary server/rate-limit errors must not destroy a valid local session.
         set({ loading: false });
         return;
@@ -157,6 +151,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     } catch (error) {
       if (error instanceof Error && error.message === 'Token inválido') {
         localStorage.removeItem('riff_token');
+        localStorage.removeItem(CACHED_USER_KEY);
         set({ user: null, token: null, loading: false });
         window.dispatchEvent(new Event('auth-logout'));
       } else {
