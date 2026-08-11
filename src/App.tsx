@@ -116,10 +116,11 @@ function App() {
   const navigate = useNavigate();
   const location = useLocation();
   const serviceWorkerRegistrationRef = React.useRef<ServiceWorkerRegistration | null>(null);
+  const [isCheckingForUpdates, setIsCheckingForUpdates] = React.useState(false);
 
   // PWA Auto Update Logic
   const {
-    needRefresh: [needRefresh],
+    needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
   } = useRegisterSW({
     onRegistered(registration: ServiceWorkerRegistration | undefined) {
@@ -131,11 +132,17 @@ function App() {
     },
   });
 
-  React.useEffect(() => {
-    if (needRefresh) {
-      updateServiceWorker(true);
+  const checkForUpdates = async () => {
+    if (isCheckingForUpdates) return;
+    setIsCheckingForUpdates(true);
+    try {
+      await serviceWorkerRegistrationRef.current?.update();
+    } catch (error) {
+      console.error('Error checking for app updates', error);
+    } finally {
+      window.setTimeout(() => setIsCheckingForUpdates(false), 700);
     }
-  }, [needRefresh, updateServiceWorker]);
+  };
 
   const { 
     isMobileMenuOpen, 
@@ -365,6 +372,17 @@ function App() {
     <div className={`flex h-screen bg-zinc-950 text-zinc-100 overflow-hidden font-sans ${isImmersiveMode ? 'bg-black' : 'bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-[var(--theme-glow)] via-zinc-950 to-zinc-950'}`}>
         <GlobalAmbilight />
         <SyncStatusIndicator />
+        {needRefresh && (
+          <div role="status" aria-live="polite" className="fixed right-3 top-[calc(0.75rem+env(safe-area-inset-top))] z-[95] flex max-w-[calc(100%-1.5rem)] items-center gap-2 rounded-2xl border border-primary-500/30 bg-zinc-900/95 p-2 pl-3 text-xs text-zinc-200 shadow-2xl backdrop-blur-xl sm:right-5 sm:top-5 sm:text-sm">
+            <span className="font-bold">Nueva versión disponible</span>
+            <button type="button" onClick={() => void updateServiceWorker(true)} className="min-h-9 rounded-xl bg-primary-500 px-3 font-bold text-zinc-950 hover:bg-primary-400">
+              Actualizar
+            </button>
+            <button type="button" onClick={() => setNeedRefresh(false)} className="min-h-9 rounded-xl px-2 font-bold text-zinc-400 hover:bg-white/10 hover:text-white" aria-label="Actualizar más tarde">
+              Luego
+            </button>
+          </div>
+        )}
         {/* OVERLAY MOBILE */}
         <AnimatePresence>
           {isMobileMenuOpen && (
@@ -524,6 +542,11 @@ function App() {
                       <SettingsView 
                         isSidebarOpen={isDesktopSidebarOpen}
                         onToggleSidebar={toggleDesktopSidebar}
+                        appVersion={import.meta.env.VITE_APP_VERSION}
+                        updateAvailable={needRefresh}
+                        isCheckingForUpdates={isCheckingForUpdates}
+                        onCheckForUpdates={checkForUpdates}
+                        onUpdate={() => void updateServiceWorker(true)}
                       />
                     </motion.div>
                   } />

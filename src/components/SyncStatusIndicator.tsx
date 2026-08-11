@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { CloudOff, Loader2, RefreshCw } from 'lucide-react';
+import { AlertTriangle, CloudOff, Loader2, RefreshCw } from 'lucide-react';
 
-type SyncStatus = 'idle' | 'syncing' | 'error';
+type SyncStatus = 'idle' | 'syncing' | 'attention' | 'error';
 
 export const SyncStatusIndicator = () => {
   const [isOnline, setIsOnline] = useState(() => navigator.onLine);
@@ -22,8 +22,8 @@ export const SyncStatusIndicator = () => {
 
       if (nextStatus === 'syncing') {
         showTimerRef.current = window.setTimeout(() => setStatus('syncing'), 700);
-      } else if (nextStatus === 'error') {
-        setStatus('error');
+      } else if (nextStatus === 'error' || nextStatus === 'attention') {
+        setStatus(nextStatus);
         hideTimerRef.current = window.setTimeout(() => setStatus('idle'), 6000);
       } else {
         setStatus('idle');
@@ -45,6 +45,7 @@ export const SyncStatusIndicator = () => {
 
   const isOffline = !isOnline;
   const isError = isOnline && status === 'error';
+  const needsAttention = isOnline && status === 'attention';
 
   return (
     <div
@@ -55,15 +56,19 @@ export const SyncStatusIndicator = () => {
           ? 'border-amber-500/30 bg-zinc-900/95 text-amber-300'
           : isError
             ? 'border-red-500/30 bg-zinc-900/95 text-red-300'
+            : needsAttention
+              ? 'border-amber-500/30 bg-zinc-900/95 text-amber-300'
             : 'border-primary-500/30 bg-zinc-900/95 text-primary-300'
       }`}
     >
-      {isOffline ? <CloudOff size={15} /> : isError ? <RefreshCw size={15} /> : <Loader2 size={15} className="animate-spin" />}
+      {isOffline ? <CloudOff size={15} /> : isError ? <RefreshCw size={15} /> : needsAttention ? <AlertTriangle size={15} /> : <Loader2 size={15} className="animate-spin" />}
       <span className="truncate">
         {isOffline
           ? 'Sin conexión · los cambios quedan pendientes'
           : isError
             ? 'No se pudo sincronizar · reintentaremos automáticamente'
+            : needsAttention
+              ? 'Algunos cambios fueron reemplazados por una versión más reciente'
             : 'Sincronizando cambios…'}
       </span>
     </div>

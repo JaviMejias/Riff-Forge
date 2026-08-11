@@ -44,7 +44,7 @@ interface SyncResponse {
 let syncTimeout: ReturnType<typeof setTimeout> | null = null;
 let syncInProgress: Promise<void> | null = null;
 
-const emitSyncStatus = (status: 'idle' | 'syncing' | 'error') => {
+const emitSyncStatus = (status: 'idle' | 'syncing' | 'attention' | 'error') => {
   window.dispatchEvent(new CustomEvent('sync-status-change', { detail: { status } }));
 };
 
@@ -242,10 +242,11 @@ const applyChanges = async (changes: SyncChange[]) => {
 const applyConflict = async (rejection: RejectedOperation) => {
   if (rejection.reason === 'conflict' && rejection.serverEntity) {
     await applyChanges([rejection.serverEntity]);
-    await db.syncOperations.update(rejection.operationId, { lastError: 'conflict' });
-    return;
+    await db.syncOperations.delete(rejection.operationId);
+    return 'conflict';
   }
   await db.syncOperations.update(rejection.operationId, { lastError: rejection.reason });
+  return 'rejected';
 };
 
 const uploadDirtyFiles = async (headers: Record<string, string>) => {
@@ -373,6 +374,7 @@ export const SyncService = {
 
     emitSyncStatus('syncing');
     try {
+      let operationsNeedingAttention = 0;
       await migrateUnsyncedRecords();
       await recoverPendingSyncOperations();
       let hasMore = true;
@@ -413,7 +415,10 @@ export const SyncService = {
 
         await applyChanges(result.changes || []);
         await db.syncOperations.bulkDelete(result.acknowledgedOperationIds || []);
-        for (const rejection of result.rejectedOperations || []) await applyConflict(rejection);
+        for (const rejection of result.rejectedOperations || []) {
+          await applyConflict(rejection);
+          operationsNeedingAttention++;
+        }
         if (result.nextCursor) localStorage.setItem(CURSOR_KEY, result.nextCursor);
         const pendingCount = await db.syncOperations.filter(operation => !operation.lastError).count();
         sendOperations = !result.hasMore && pendingCount > 0;
@@ -444,7 +449,7 @@ export const SyncService = {
       }
       await syncSettings(headers);
       onProgress?.('¡Sincronización completada!');
-      emitSyncStatus('idle');
+      emitSyncStatus(operationsNeedingAttention > 0 ? 'attention' : 'idle');
     } catch (error) {
       emitSyncStatus('error');
       console.error('Auto-sync v2 failed', error);

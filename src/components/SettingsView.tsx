@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Download, Upload, Palette, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Download, Upload, Palette, CheckCircle2, AlertTriangle, RefreshCw, Smartphone } from 'lucide-react';
 import { db } from '../db';
 import type { KaraokeFile, Song } from '../db';
 import Swal from 'sweetalert2';
@@ -14,9 +14,22 @@ const MySwal = withReactContent(Swal);
 interface SettingsViewProps {
   isSidebarOpen: boolean;
   onToggleSidebar: () => void;
+  appVersion: string;
+  updateAvailable: boolean;
+  isCheckingForUpdates: boolean;
+  onCheckForUpdates: () => Promise<void>;
+  onUpdate: () => void;
 }
 
-export const SettingsView = ({ isSidebarOpen, onToggleSidebar }: SettingsViewProps) => {
+export const SettingsView = ({
+  isSidebarOpen,
+  onToggleSidebar,
+  appVersion,
+  updateAvailable,
+  isCheckingForUpdates,
+  onCheckForUpdates,
+  onUpdate
+}: SettingsViewProps) => {
   const { theme, setTheme } = useUiStore();
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -349,7 +362,33 @@ export const SettingsView = ({ isSidebarOpen, onToggleSidebar }: SettingsViewPro
           </div>
         </div>
 
-
+        <div>
+          <h2 className="mb-4 text-xs font-bold uppercase tracking-widest text-zinc-500 sm:mb-6 sm:text-sm">Aplicación</h2>
+          <div className="flex flex-col gap-5 rounded-2xl border border-white/5 bg-zinc-900/50 p-4 shadow-xl sm:rounded-3xl sm:p-6 md:flex-row md:items-center md:justify-between">
+            <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-primary-500/20 bg-primary-500/10 text-primary-400">
+                <Smartphone size={24} />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-lg font-bold text-white sm:text-xl">Riff Forge</h3>
+                <p className="text-sm text-zinc-400">Versión instalada: <span className="font-mono font-bold text-zinc-200">{appVersion}</span></p>
+                <p className={`mt-1 text-xs font-medium ${updateAvailable ? 'text-primary-400' : 'text-emerald-400'}`}>
+                  {updateAvailable ? 'Hay una nueva versión lista para instalar.' : 'La aplicación no tiene actualizaciones pendientes.'}
+                </p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant={updateAvailable ? 'primary' : 'secondary'}
+              onClick={updateAvailable ? onUpdate : () => void onCheckForUpdates()}
+              disabled={isCheckingForUpdates}
+              icon={<RefreshCw size={18} className={isCheckingForUpdates ? 'animate-spin' : ''} />}
+              className="w-full md:w-auto"
+            >
+              {updateAvailable ? 'Actualizar ahora' : isCheckingForUpdates ? 'Buscando…' : 'Buscar actualizaciones'}
+            </Button>
+          </div>
+        </div>
 
         <div>
           <h2 className="text-xs sm:text-sm font-bold text-zinc-500 uppercase tracking-widest mb-4 sm:mb-6">Portabilidad y Respaldo Local</h2>

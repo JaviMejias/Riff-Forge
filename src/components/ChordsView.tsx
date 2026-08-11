@@ -683,7 +683,28 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
   }
 
   // RENDERING PARA PARTITURAS ALPHATAB
-  if (!track) return null;
+  if (!track) {
+    return (
+      <div className="flex min-h-full flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 bg-zinc-900/30 px-5 py-12 text-center text-zinc-400">
+        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-white/5 bg-zinc-800/60 text-primary-400">
+          <Guitar size={30} />
+        </div>
+        <h2 className="text-xl font-bold text-white">Esta cifra está vacía</h2>
+        <p className="mt-2 max-w-md text-sm leading-relaxed text-zinc-500">
+          Añade la letra, los acordes y los datos de interpretación para verla en este modo.
+        </p>
+        {currentSong && (
+          <button
+            type="button"
+            onClick={handleEditClick}
+            className="mt-5 min-h-11 rounded-xl bg-primary-500 px-5 py-2.5 font-bold text-zinc-950 transition-colors hover:bg-primary-400"
+          >
+            Añadir letra y acordes
+          </button>
+        )}
+      </div>
+    );
+  }
 
   const lines = extractChordsAndLyrics();
   const contentLines = lines.filter(l => l.type === 'content');
