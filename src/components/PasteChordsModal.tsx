@@ -4,6 +4,7 @@ import { Modal } from './Modal';
 import { db } from '../db';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
+import { sanitizeChordText } from '../utils/chordText';
 
 const MySwal = withReactContent(Swal);
 
@@ -38,6 +39,7 @@ export const PasteChordsModal = ({ isOpen, onClose, onSuccess }: PasteChordsModa
 
     const finalName = name.trim();
     const finalArtist = artist.trim() || 'Desconocido';
+    const sanitizedTextContent = sanitizeChordText(textContent);
 
     const existingSongs = await db.songs.toArray();
     const existingSong = existingSongs.find(s => 
@@ -49,7 +51,7 @@ export const PasteChordsModal = ({ isOpen, onClose, onSuccess }: PasteChordsModa
 
     if (existingSong && existingSong.id) {
       await db.songs.update(existingSong.id, {
-        textContent: textContent,
+        textContent: sanitizedTextContent,
         originalKey: originalKey.trim() || existingSong.originalKey,
         tuning: tuning.trim() || existingSong.tuning,
         capo: capo.trim() || existingSong.capo,
@@ -62,7 +64,7 @@ export const PasteChordsModal = ({ isOpen, onClose, onSuccess }: PasteChordsModa
         name: finalName,
         artist: finalArtist,
         type: 'text',
-        textContent: textContent,
+        textContent: sanitizedTextContent,
         originalKey: originalKey.trim() || undefined,
         tuning: tuning.trim() || undefined,
         capo: capo.trim() || undefined,

@@ -17,6 +17,7 @@ import { AfinacionTooltip } from './chords/AfinacionTooltip';
 import { Button } from './ui/Button';
 import { Edit2, CheckCircle2, X } from 'lucide-react';
 import { usePlayerStore } from '../store/playerStore';
+import { sanitizeChordText } from '../utils/chordText';
 
 const CSJS = ChordSheetJS;
 
@@ -149,8 +150,9 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
 
   const handleSaveEdit = async () => {
     if (currentSong?.id) {
+      const sanitizedTextContent = sanitizeChordText(editContent);
       const updates = {
-        textContent: editContent,
+        textContent: sanitizedTextContent,
         originalKey: editOriginalKey.trim() || undefined,
         tuning: editTuning.trim() || undefined,
         capo: editCapo.trim() || undefined,
@@ -159,6 +161,7 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
       
       await db.songs.update(currentSong.id, updates);
       setLocalSongUpdate({ songId: currentSong.id, values: updates });
+      setEditContent(sanitizedTextContent);
       
       setIsEditing(false);
       if (onEditChange) onEditChange(false);
@@ -229,7 +232,7 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
     // Guess from parsed text
     try {
       const parser = new CSJS.UltimateGuitarParser();
-      const tempSong = parser.parse(currentSong?.textContent || '');
+      const tempSong = parser.parse(sanitizeChordText(currentSong?.textContent || ''));
       if (tempSong && tempSong.lines) {
         for (const line of tempSong.lines) {
           for (const item of line.items) {
@@ -266,7 +269,7 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
     let parsedSong;
     try {
       const parser = new CSJS.UltimateGuitarParser();
-      parsedSong = parser.parse(currentSong.textContent || '');
+      parsedSong = parser.parse(sanitizeChordText(currentSong.textContent || ''));
     } catch (e) {
       return (
         <div className="bg-zinc-50 min-h-screen rounded-2xl p-8 md:p-12 shadow-2xl relative border border-white/10 text-zinc-900 font-sans flex flex-col items-center justify-center">
