@@ -12,6 +12,9 @@ export function useAlphaTab(song: Song | null) {
   const rangePointerStartRef = useRef<alphaTab.model.Beat | null>(null);
   const rangeClickStartRef = useRef<alphaTab.model.Beat | null>(null);
   const isRangeDraggingRef = useRef(false);
+  const loopMarkerBeatsRef = useRef<{ start: alphaTab.model.Beat; end?: alphaTab.model.Beat } | null>(null);
+  const notePreviewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastPositionUpdateRef = useRef(0);
   
   const [isPlaying, setIsPlaying] = useState(false);
   const [playerPosition, setPlayerPosition] = useState({ currentTime: 0, endTime: 0, currentTick: 0, endTick: 0 });
@@ -118,6 +121,36 @@ export function useAlphaTab(song: Song | null) {
 
     api.masterVolume = masterVolume;
 
+    const renderLoopMarkers = (startBeat?: alphaTab.model.Beat, endBeat?: alphaTab.model.Beat) => {
+      const markerHost = containerRef.current?.querySelector('.at-cursor-wrapper') ?? containerRef.current;
+      if (!markerHost) return;
+      markerHost.querySelectorAll('.riff-loop-marker').forEach(marker => marker.remove());
+      if (!startBeat) {
+        loopMarkerBeatsRef.current = null;
+        return;
+      }
+
+      loopMarkerBeatsRef.current = { start: startBeat, end: endBeat };
+      const orderedBeats = endBeat && endBeat.absolutePlaybackStart < startBeat.absolutePlaybackStart
+        ? [endBeat, startBeat]
+        : [startBeat, endBeat];
+      const markers = endBeat
+        ? [{ beat: orderedBeats[0], label: 'Inicio', type: 'start' }, { beat: orderedBeats[1], label: 'Fin', type: 'end' }]
+        : [{ beat: startBeat, label: 'Punto', type: 'pending' }];
+
+      markers.forEach(({ beat, label, type }) => {
+        if (!beat) return;
+        const bounds = api.boundsLookup?.findBeat(beat);
+        if (!bounds) return;
+        const marker = document.createElement('div');
+        marker.className = `riff-loop-marker riff-loop-marker-${type}`;
+        marker.textContent = `${label} ⚑`;
+        marker.style.left = `${bounds.onNotesX}px`;
+        marker.style.top = `${Math.max(0, bounds.visualBounds.y - 24)}px`;
+        markerHost.appendChild(marker);
+      });
+    };
+
     api.soundFontLoaded.on(() => {
         setLoadingMsg('Banco de sonidos cargado...');
     });
@@ -168,6 +201,11 @@ export function useAlphaTab(song: Song | null) {
 
     api.beatMouseDown.on((beat) => {
       if (usePlayerStore.getState().isLooping) {
+        if (!rangeClickStartRef.current && api.playbackRange) {
+          api.playbackRange = null;
+          api.clearPlaybackRangeHighlight();
+          renderLoopMarkers();
+        }
         rangePointerStartRef.current = beat;
         isRangeDraggingRef.current = false;
         return;
@@ -180,38 +218,52 @@ export function useAlphaTab(song: Song | null) {
       if (!usePlayerStore.getState().isLooping || !startBeat || startBeat === beat) return;
       isRangeDraggingRef.current = true;
       api.highlightPlaybackRange(startBeat, beat);
+      renderLoopMarkers(startBeat, beat);
     });
 
     api.beatMouseUp.on((beat) => {
-      if (!usePlayerStore.getState().isLooping || !rangePointerStartRef.current) return;
       const pointerStart = rangePointerStartRef.current;
-      rangePointerStartRef.current = null;
-
-      if (isRangeDraggingRef.current && beat) {
-        api.highlightPlaybackRange(pointerStart, beat);
-        api.applyPlaybackRangeFromHighlight();
-        api.isLooping = api.playbackRange !== null;
-        rangeClickStartRef.current = null;
-        return;
+      if (usePlayerStore.getState().isLooping && pointerStart) {
+        rangePointerStartRef.current = null;
+        if (isRangeDraggingRef.current && beat) {
+          api.highlightPlaybackRange(pointerStart, beat);
+          api.applyPlaybackRangeFromHighlight();
+          api.isLooping = api.playbackRange !== null;
+          renderLoopMarkers(pointerStart, beat);
+          rangeClickStartRef.current = null;
+        } else if (!rangeClickStartRef.current) {
+          rangeClickStartRef.current = pointerStart;
+          api.tickPosition = pointerStart.absolutePlaybackStart;
+          renderLoopMarkers(pointerStart);
+        } else {
+          api.highlightPlaybackRange(rangeClickStartRef.current, beat ?? pointerStart);
+          api.applyPlaybackRangeFromHighlight();
+          api.isLooping = api.playbackRange !== null;
+          renderLoopMarkers(rangeClickStartRef.current, beat ?? pointerStart);
+          rangeClickStartRef.current = null;
+        }
       }
 
-      if (!rangeClickStartRef.current) {
-        rangeClickStartRef.current = pointerStart;
-        api.tickPosition = pointerStart.absolutePlaybackStart;
-        return;
+      if (beat && usePlayerStore.getState().isNotePreviewMode) {
+        if (notePreviewTimerRef.current) clearTimeout(notePreviewTimerRef.current);
+        notePreviewTimerRef.current = setTimeout(() => {
+          api.playBeat(beat);
+          notePreviewTimerRef.current = null;
+        }, 0);
       }
-
-      api.highlightPlaybackRange(rangeClickStartRef.current, beat ?? pointerStart);
-      api.applyPlaybackRangeFromHighlight();
-      api.isLooping = api.playbackRange !== null;
-      rangeClickStartRef.current = null;
     });
 
     api.noteMouseUp.on((note) => {
-      if (note && usePlayerStore.getState().isNotePreviewMode) api.playNote(note);
+      if (!note || !usePlayerStore.getState().isNotePreviewMode) return;
+      if (notePreviewTimerRef.current) clearTimeout(notePreviewTimerRef.current);
+      notePreviewTimerRef.current = null;
+      api.playNote(note);
     });
 
     api.playerPositionChanged.on((position) => {
+      const now = performance.now();
+      if (!position.isSeek && now - lastPositionUpdateRef.current < 100) return;
+      lastPositionUpdateRef.current = now;
       setPlayerPosition({
         currentTime: position.currentTime,
         endTime: position.endTime,
@@ -257,6 +309,9 @@ export function useAlphaTab(song: Song | null) {
         renderTimeoutRef.current = null;
       }
       setIsLoading(false);
+      if (loopMarkerBeatsRef.current) {
+        renderLoopMarkers(loopMarkerBeatsRef.current.start, loopMarkerBeatsRef.current.end);
+      }
     });
 
     api.error.on(() => {
@@ -280,6 +335,7 @@ export function useAlphaTab(song: Song | null) {
       if (renderTimeoutRef.current) clearTimeout(renderTimeoutRef.current);
       if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
       if (scoreLoadTimeoutRef.current) clearTimeout(scoreLoadTimeoutRef.current);
+      if (notePreviewTimerRef.current) clearTimeout(notePreviewTimerRef.current);
       api.destroy();
       if (apiRef.current === api) apiRef.current = null;
     };
@@ -295,6 +351,9 @@ export function useAlphaTab(song: Song | null) {
       apiRef.current.isLooping = false;
       apiRef.current.playbackRange = null;
       apiRef.current.clearPlaybackRangeHighlight();
+      const markerHost = containerRef.current?.querySelector('.at-cursor-wrapper') ?? containerRef.current;
+      markerHost?.querySelectorAll('.riff-loop-marker').forEach(marker => marker.remove());
+      loopMarkerBeatsRef.current = null;
     }
   }, [isLooping]);
 

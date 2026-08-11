@@ -9,7 +9,7 @@ import { AdvancedPracticePanel } from './AdvancedPracticePanel';
 import { TrackMixer } from './TrackMixer';
 import { ChordsView } from './ChordsView';
 import { Navbar } from './Navbar';
-import { db, type Song } from '../db';
+import { db, type PracticeLoop, type Song } from '../db';
 import { usePlayerStore } from '../store/playerStore';
 import { useAudioStore } from '../store/audioStore';
 import { useAlphaTab } from '../hooks/useAlphaTab';
@@ -80,7 +80,18 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
   const [isMetronomePreviewing, setIsMetronomePreviewing] = useState(false);
   const [metronomeSound, setMetronomeSound] = useState<MetronomeSound>('classic');
   const [metronomeVolume, setMetronomeVolume] = useState(0.6);
+  const [practiceLoops, setPracticeLoops] = useState<PracticeLoop[]>(song.practiceLoops ?? []);
   const targetBpm = Math.round(originalTempo * playbackSpeed);
+  const masterBars = useMemo(() => tracks[0]?.score.masterBars ?? [], [tracks]);
+  const currentBarIndex = Math.max(0, masterBars.findIndex((bar, index) => {
+    const nextStart = masterBars[index + 1]?.start ?? Number.POSITIVE_INFINITY;
+    return playerPosition.currentTick >= bar.start && playerPosition.currentTick < nextStart;
+  }));
+  const barMarkers = useMemo(() => masterBars.map(bar => ({
+    tick: bar.start,
+    label: bar.section?.text || bar.section?.marker || `Compás ${bar.index + 1}`,
+    isSection: Boolean(bar.section),
+  })), [masterBars]);
   const shouldPlayMetronome = isMetronomePreviewing || (isMetronomeActive && (mainViewMode === 'cifra' || isPlaying));
   useMetronome(targetBpm, shouldPlayMetronome, metronomeSound, metronomeVolume);
 
@@ -373,7 +384,6 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
   const cycleCountIn = useCallback(() => setCountInBars(current => (current + 1) % 3), []);
   const toggleLoop = useCallback(() => {
     const newState = !isLooping;
-    if (newState) setIsNotePreviewMode(false);
     setIsLooping(newState);
     if (apiRef.current) {
       apiRef.current.isLooping = false;
@@ -382,12 +392,36 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
         apiRef.current.clearPlaybackRangeHighlight();
       }
     }
-  }, [apiRef, isLooping, setIsLooping, setIsNotePreviewMode]);
+  }, [apiRef, isLooping, setIsLooping]);
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const vol = parseFloat(e.target.value);
     setMasterVolume(vol);
     if (apiRef.current) apiRef.current.masterVolume = vol;
   };
+  const centerTabCursor = useCallback(() => {
+    const container = containerRef.current;
+    const cursor = container?.querySelector('.at-cursor-beat') as HTMLElement | null;
+    if (!container || !cursor) return;
+    const containerRect = container.getBoundingClientRect();
+    const cursorRect = cursor.getBoundingClientRect();
+    container.scrollLeft += (cursorRect.left + cursorRect.width / 2) - (containerRect.left + containerRect.width / 2);
+    container.scrollTop += (cursorRect.top + cursorRect.height / 2) - (containerRect.top + containerRect.height / 2);
+  }, [containerRef]);
+  const handleSeekTick = useCallback((tick: number) => {
+    const api = apiRef.current;
+    if (!api) return;
+    api.tickPosition = tick;
+    requestAnimationFrame(() => requestAnimationFrame(centerTabCursor));
+    setTimeout(centerTabCursor, 80);
+  }, [apiRef, centerTabCursor]);
+  const handleLoopSelect = useCallback((loop: { startTick: number; endTick: number }) => {
+    const api = apiRef.current;
+    if (!api) return;
+    setIsLooping(true);
+    api.playbackRange = loop;
+    api.isLooping = true;
+    handleSeekTick(loop.startTick);
+  }, [apiRef, handleSeekTick, setIsLooping]);
 
   const toggleMixer = () => setIsMixerOpen(!isMixerOpen);
 
@@ -438,16 +472,42 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
       const nextStart = masterBars[index + 1]?.start ?? Number.POSITIVE_INFINITY;
       return api.tickPosition >= bar.start && api.tickPosition < nextStart;
     });
-    const targetIndex = Math.min(masterBars.length - 1, Math.max(0, currentIndex + direction));
-    api.tickPosition = masterBars[targetIndex].start;
-  }, [apiRef]);
+    const range = api.playbackRange;
+    const firstAllowedIndex = range ? Math.max(0, masterBars.findIndex(bar => bar.start >= range.startTick)) : 0;
+    const lastAllowedIndex = range
+      ? Math.max(firstAllowedIndex, masterBars.findLastIndex(bar => bar.start < range.endTick))
+      : masterBars.length - 1;
+    const targetIndex = Math.min(lastAllowedIndex, Math.max(firstAllowedIndex, currentIndex + direction));
+    handleSeekTick(masterBars[targetIndex].start);
+    if (isNotePreviewMode) {
+      const targetBar = tracks[activeTrackIndex]?.staves[0]?.bars[targetIndex];
+      const beat = targetBar?.voices.flatMap(voice => voice.beats).find(candidate => !candidate.isEmpty);
+      if (beat) api.playBeat(beat);
+    }
+  }, [activeTrackIndex, apiRef, handleSeekTick, isNotePreviewMode, tracks]);
 
-  const seekToSongEdge = useCallback((edge: 'start' | 'end') => {
+  const seekToAdjacentBeat = useCallback((direction: -1 | 1) => {
     const api = apiRef.current;
-    const masterBars = api?.score?.masterBars;
-    if (!api || !masterBars?.length) return;
-    api.tickPosition = edge === 'start' ? masterBars[0].start : masterBars[masterBars.length - 1].start;
-  }, [apiRef]);
+    const track = tracks[activeTrackIndex];
+    if (!api || !track) return;
+    const range = api.playbackRange;
+    const allBeats = track.staves.flatMap(stave => stave.bars.flatMap(bar => bar.voices.flatMap(voice => voice.beats)));
+    const audibleBeats = allBeats.filter(beat => beat.notes.length > 0);
+    const sourceBeats = audibleBeats.length > 0 ? audibleBeats : allBeats;
+    const beats = sourceBeats
+      .filter(beat => !range || (beat.absolutePlaybackStart >= range.startTick && beat.absolutePlaybackStart < range.endTick))
+      .sort((first, second) => first.absolutePlaybackStart - second.absolutePlaybackStart)
+      .filter((beat, index, list) => index === 0 || beat.absolutePlaybackStart !== list[index - 1].absolutePlaybackStart);
+    if (beats.length === 0) return;
+    let currentIndex = 0;
+    beats.forEach((beat, index) => {
+      if (beat.absolutePlaybackStart <= api.tickPosition) currentIndex = index;
+    });
+    const targetIndex = Math.min(beats.length - 1, Math.max(0, currentIndex + direction));
+    const targetBeat = beats[targetIndex];
+    handleSeekTick(targetBeat.absolutePlaybackStart);
+    if (isNotePreviewMode) api.playBeat(targetBeat);
+  }, [activeTrackIndex, apiRef, handleSeekTick, isNotePreviewMode, tracks]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -498,14 +558,14 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
 
         case 'ArrowLeft':
           e.preventDefault();
-          if (e.shiftKey) seekToSongEdge('start');
-          else seekToAdjacentBar(-1);
+          if (e.shiftKey) seekToAdjacentBar(-1);
+          else seekToAdjacentBeat(-1);
           break;
 
         case 'ArrowRight':
           e.preventDefault();
-          if (e.shiftKey) seekToSongEdge('end');
-          else seekToAdjacentBar(1);
+          if (e.shiftKey) seekToAdjacentBar(1);
+          else seekToAdjacentBeat(1);
           break;
 
         case 'KeyR':
@@ -522,7 +582,7 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [apiRef, mainViewMode, activeTrackIndex, trackMutes, trackSolos, tracks, handleTrackMuteToggle, setTrackSolos, togglePlay, seekToAdjacentBar, seekToSongEdge, toggleLoop, cycleCountIn, showKeyboardShortcuts]);
+  }, [apiRef, mainViewMode, activeTrackIndex, trackMutes, trackSolos, tracks, handleTrackMuteToggle, setTrackSolos, togglePlay, seekToAdjacentBar, seekToAdjacentBeat, toggleLoop, cycleCountIn, showKeyboardShortcuts]);
 
   const handleTrackSoloToggle = (index: number) => {
     const newSolo = !trackSolos[index];
@@ -773,20 +833,22 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
               toggleLoop={toggleLoop}
               isHorizontalMode={isHorizontalMode}
               toggleLayoutMode={toggleLayoutMode}
-              />
+              >
               {mainViewMode === 'pro' && tracks.length > 0 && (
                 <AdvancedPracticePanel
                   apiRef={apiRef}
                   song={song}
                   tracks={tracks}
-                  playerPosition={playerPosition}
                   playbackRange={playbackRange}
                   targetBpm={targetBpm}
                   handleBpmChange={handleBpmChange}
                   isNotePreviewMode={isNotePreviewMode}
                   setIsNotePreviewMode={setIsNotePreviewMode}
+                  onPracticeLoopsChange={setPracticeLoops}
+                  onSeekTick={handleSeekTick}
                 />
               )}
+              </PracticeControls>
             </motion.div>
           </>
         )}
@@ -828,7 +890,7 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
                   <p className="font-bold text-lg animate-pulse">{loadingMsg}</p>
                 </div>
               )}
-              <div ref={containerRef} className={`relative h-full w-full flex-1 overflow-x-auto overflow-y-auto p-1 sm:p-4 ${!isHorizontalMode ? 'hide-scrollbar' : 'custom-scrollbar'}`}></div>
+              <div ref={containerRef} className={`relative h-full w-full flex-1 overflow-x-auto overflow-y-auto p-1 sm:p-4 ${isLooping ? 'select-none' : ''} ${!isHorizontalMode ? 'hide-scrollbar' : 'custom-scrollbar'}`}></div>
             </div>
 
           </div>
@@ -933,6 +995,16 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
                 toggleMixer={toggleMixer}
                 masterVolume={masterVolume}
                 handleVolumeChange={handleVolumeChange}
+                currentTime={playerPosition.currentTime}
+                endTime={playerPosition.endTime}
+                currentTick={playerPosition.currentTick}
+                endTick={playerPosition.endTick}
+                currentBar={currentBarIndex + 1}
+                totalBars={masterBars.length}
+                barMarkers={barMarkers}
+                loopMarkers={practiceLoops}
+                onSeekTick={handleSeekTick}
+                onLoopSelect={handleLoopSelect}
               />
             </div>
           </motion.div>

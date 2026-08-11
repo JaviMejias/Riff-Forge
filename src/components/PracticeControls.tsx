@@ -1,9 +1,10 @@
-import { Gauge, Bell, Repeat, LayoutTemplate, Music, Timer, RotateCcw, Play, Square, Volume2 } from 'lucide-react';
+import { Gauge, Bell, Repeat, LayoutTemplate, Music, Timer, RotateCcw, Play, Square, Volume2, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
 import type { MetronomeSound } from '../hooks/useMetronome';
 
 interface PracticeControlsProps {
+  children?: React.ReactNode;
   isLoading: boolean;
   originalBpm: number;
   targetBpm: number;
@@ -27,7 +28,7 @@ interface PracticeControlsProps {
   toggleLayoutMode: () => void;
 }
 
-const Tooltip = ({ text, children }: { text: string; children: React.ReactNode }) => {
+export const Tooltip = ({ text, children }: { text: string; children: React.ReactNode }) => {
   const [isHovered, setIsHovered] = useState(false);
   return (
     <div 
@@ -54,6 +55,7 @@ const Tooltip = ({ text, children }: { text: string; children: React.ReactNode }
 };
 
 export const PracticeControls = ({
+  children,
   isLoading,
   originalBpm,
   targetBpm,
@@ -77,6 +79,7 @@ export const PracticeControls = ({
   toggleLayoutMode,
 }: PracticeControlsProps) => {
   const [bpmInput, setBpmInput] = useState<string | null>(null);
+  const [isMetronomeSettingsOpen, setIsMetronomeSettingsOpen] = useState(false);
   const displayedBpm = bpmInput ?? String(targetBpm);
 
   const commitBpmInput = () => {
@@ -199,21 +202,35 @@ export const PracticeControls = ({
           </motion.button>
         </Tooltip>}
 
-        <Tooltip text="Metrónomo">
+        <div className={`flex overflow-hidden rounded-lg border ${isMetronomeActive || isMetronomeSettingsOpen ? 'border-primary-500/40' : 'border-transparent'}`}>
+        <Tooltip text={isMetronomeActive ? 'Desactivar metrónomo' : 'Activar metrónomo'}>
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             disabled={isLoading}
             onClick={toggleMetronome}
-            className={`flex items-center justify-center w-10 h-10 rounded-lg border transition-all disabled:opacity-50 ${
+            className={`flex h-10 w-10 items-center justify-center transition-all disabled:opacity-50 ${
               isMetronomeActive
-                ? 'bg-primary-500/20 border-primary-500/50 text-primary-400 shadow-[0_0_10px_var(--theme-glow)]'
-                : 'bg-zinc-900 border-transparent text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'
+                ? 'bg-primary-500/20 text-primary-400 shadow-[0_0_10px_var(--theme-glow)]'
+                : 'bg-zinc-900 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'
             }`}
           >
             <Bell size={18} />
           </motion.button>
         </Tooltip>
+
+        <Tooltip text="Configurar metrónomo">
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            type="button"
+            onClick={() => setIsMetronomeSettingsOpen(current => !current)}
+            aria-expanded={isMetronomeSettingsOpen}
+            className={`flex h-10 w-6 items-center justify-center border-l border-white/5 transition-all ${isMetronomeSettingsOpen ? 'bg-primary-500/15 text-primary-400' : 'bg-zinc-900 text-zinc-600 hover:text-zinc-300'}`}
+          >
+            <ChevronDown size={13} className={`transition-transform ${isMetronomeSettingsOpen ? 'rotate-180' : ''}`} />
+          </motion.button>
+        </Tooltip>
+        </div>
 
         {showTabControls && <Tooltip text={isLooping ? 'Bucle activo: arrastra o marca inicio y fin con dos clics' : 'Seleccionar una sección para repetir'}>
           <motion.button
@@ -233,7 +250,15 @@ export const PracticeControls = ({
         </Tooltip>}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-white/5 bg-zinc-950/50 p-1.5">
+      {children}
+
+      <AnimatePresence>
+      {isMetronomeSettingsOpen && <motion.div
+        initial={{ opacity: 0, height: 0 }}
+        animate={{ opacity: 1, height: 'auto' }}
+        exit={{ opacity: 0, height: 0 }}
+        className="flex w-full flex-wrap items-center gap-2 overflow-hidden rounded-xl border border-white/5 bg-zinc-950/50 p-1.5"
+      >
         <button
           type="button"
           onClick={toggleMetronomePreview}
@@ -275,7 +300,8 @@ export const PracticeControls = ({
           />
           <span className="w-8 text-right text-[10px] font-bold">{Math.round(metronomeVolume * 100)}%</span>
         </label>
-      </div>
+      </motion.div>}
+      </AnimatePresence>
 
       {showTabControls && <div className="w-px h-8 bg-white/10 hidden lg:block mx-1"></div>}
 

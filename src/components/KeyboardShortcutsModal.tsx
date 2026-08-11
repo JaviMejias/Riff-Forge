@@ -8,8 +8,8 @@ interface KeyboardShortcutsModalProps {
 
 const shortcuts = [
   { keys: ['Espacio'], description: 'Reproducir o pausar' },
-  { keys: ['←', '→'], description: 'Ir al compás anterior o siguiente' },
-  { keys: ['Shift', '← / →'], description: 'Ir al inicio o al final' },
+  { keys: ['←', '→'], description: 'Ir a la nota o beat anterior/siguiente' },
+  { keys: ['Shift', '← / →'], description: 'Ir al compás anterior o siguiente' },
   { keys: ['M'], description: 'Silenciar la pista actual' },
   { keys: ['S'], description: 'Escuchar solo la pista actual' },
   { keys: ['R'], description: 'Activar o desactivar la selección en bucle' },

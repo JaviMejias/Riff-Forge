@@ -271,6 +271,32 @@ body {
   border-radius: 4px;
 }
 
+.riff-loop-marker {
+  position: absolute;
+  z-index: 20;
+  transform: translateX(-50%);
+  border: 1px solid var(--primary-500);
+  border-radius: 0.375rem;
+  background: var(--color-zinc-950);
+  padding: 0.2rem 0.4rem;
+  color: var(--primary-300);
+  font-size: 0.625rem;
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 0 12px var(--theme-glow);
+}
+
+.riff-loop-marker-end {
+  border-color: var(--color-rose-500);
+  color: var(--color-rose-300);
+}
+
+.riff-loop-marker-pending {
+  border-style: dashed;
+}
+
 /* Permitir desbordamiento horizontal real en Modo Cinta */
 .custom-scrollbar {
   overflow-x: auto !important;
