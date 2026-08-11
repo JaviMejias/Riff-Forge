@@ -311,7 +311,12 @@ const migrateUnsyncedRecords = async () => {
   for (const table of collections) {
     const records = await table.toArray();
     for (const record of records) {
-      if (!record.cloudId) await table.update(record.id, { cloudId: uuidv4(), version: 0, updatedAt: Date.now() });
+      const updates: Record<string, unknown> = {};
+      if (!record.cloudId) Object.assign(updates, { cloudId: uuidv4(), version: 0, updatedAt: Date.now() });
+      if (table.name === 'songs' && record.data && (!record.cloudUrl || !record.fileVersion)) {
+        updates.localFileDirty = true;
+      }
+      if (Object.keys(updates).length > 0) await table.update(record.id, updates);
     }
   }
 };
