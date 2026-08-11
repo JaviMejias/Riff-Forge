@@ -81,9 +81,7 @@ export function useAlphaTab(song: Song | null) {
     const api = new alphaTab.AlphaTabApi(containerRef.current, {
       core: {
         fontDirectory: '/alphatab/font/',
-        // Workers disabled: the UMD bundle uses importScripts() which requires a special server setup.
-        // Running in the main thread is fully functional for our use case.
-        useWorkers: false,
+        useWorkers: true,
       },
       player: {
         enablePlayer: true,
