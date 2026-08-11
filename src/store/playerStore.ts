@@ -14,6 +14,8 @@ interface PlayerState {
   setIsMetronomeActive: (active: boolean) => void;
   isLooping: boolean;
   setIsLooping: (loop: boolean) => void;
+  isNotePreviewMode: boolean;
+  setIsNotePreviewMode: (active: boolean) => void;
   cifraFontSize: number;
   setCifraFontSize: (size: number) => void;
   activeKaraokeId: number | null;
@@ -35,6 +37,8 @@ export const usePlayerStore = create<PlayerState>()(
       setIsMetronomeActive: (active) => set({ isMetronomeActive: active }),
       isLooping: false,
       setIsLooping: (loop) => set({ isLooping: loop }),
+      isNotePreviewMode: false,
+      setIsNotePreviewMode: (active) => set({ isNotePreviewMode: active }),
       cifraFontSize: 16,
       setCifraFontSize: (size) => set({ cifraFontSize: size }),
       activeKaraokeId: null,

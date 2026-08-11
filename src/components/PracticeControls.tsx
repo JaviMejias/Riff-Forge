@@ -1,6 +1,7 @@
-import { Gauge, Bell, Repeat, LayoutTemplate, Music, Timer, RotateCcw } from 'lucide-react';
+import { Gauge, Bell, Repeat, LayoutTemplate, Music, Timer, RotateCcw, Play, Square, Volume2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
+import type { MetronomeSound } from '../hooks/useMetronome';
 
 interface PracticeControlsProps {
   isLoading: boolean;
@@ -14,6 +15,12 @@ interface PracticeControlsProps {
   cycleCountIn: () => void;
   isMetronomeActive: boolean;
   toggleMetronome: () => void;
+  isMetronomePreviewing: boolean;
+  toggleMetronomePreview: () => void;
+  metronomeSound: MetronomeSound;
+  setMetronomeSound: (sound: MetronomeSound) => void;
+  metronomeVolume: number;
+  setMetronomeVolume: (volume: number) => void;
   isLooping: boolean;
   toggleLoop: () => void;
   isHorizontalMode: boolean;
@@ -58,6 +65,12 @@ export const PracticeControls = ({
   cycleCountIn,
   isMetronomeActive,
   toggleMetronome,
+  isMetronomePreviewing,
+  toggleMetronomePreview,
+  metronomeSound,
+  setMetronomeSound,
+  metronomeVolume,
+  setMetronomeVolume,
   isLooping,
   toggleLoop,
   isHorizontalMode,
@@ -202,12 +215,13 @@ export const PracticeControls = ({
           </motion.button>
         </Tooltip>
 
-        {showTabControls && <Tooltip text="Repetir Canción en Bucle">
+        {showTabControls && <Tooltip text={isLooping ? 'Bucle activo: arrastra o marca inicio y fin con dos clics' : 'Seleccionar una sección para repetir'}>
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             disabled={isLoading}
             onClick={toggleLoop}
+            aria-label={isLooping ? 'Desactivar selección en bucle' : 'Activar selección en bucle'}
             className={`flex items-center justify-center w-10 h-10 rounded-lg border transition-all disabled:opacity-50 ${
               isLooping
                 ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.2)]'
@@ -217,6 +231,50 @@ export const PracticeControls = ({
             <Repeat size={18} />
           </motion.button>
         </Tooltip>}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-white/5 bg-zinc-950/50 p-1.5">
+        <button
+          type="button"
+          onClick={toggleMetronomePreview}
+          className={`flex min-h-10 items-center gap-2 rounded-lg border px-3 text-xs font-bold transition-colors ${
+            isMetronomePreviewing
+              ? 'border-primary-500/50 bg-primary-500/20 text-primary-300'
+              : 'border-transparent bg-zinc-900 text-zinc-400 hover:text-zinc-200'
+          }`}
+          aria-label={isMetronomePreviewing ? 'Detener vista previa del metrónomo' : 'Escuchar vista previa del metrónomo'}
+        >
+          {isMetronomePreviewing ? <Square size={14} fill="currentColor" /> : <Play size={15} fill="currentColor" />}
+          {isMetronomePreviewing ? 'Detener' : 'Probar ritmo'}
+        </button>
+
+        <label className="flex min-h-10 items-center gap-2 rounded-lg bg-zinc-900 px-2 text-xs font-bold text-zinc-400">
+          Sonido
+          <select
+            value={metronomeSound}
+            onChange={(event) => setMetronomeSound(event.target.value as MetronomeSound)}
+            className="rounded-md border border-white/10 bg-zinc-800 px-2 py-1.5 text-xs font-bold text-zinc-200 outline-none focus:border-primary-500/60"
+          >
+            <option value="classic">Clásico</option>
+            <option value="wood">Madera</option>
+            <option value="digital">Digital</option>
+          </select>
+        </label>
+
+        <label className="flex min-h-10 min-w-[150px] flex-1 items-center gap-2 rounded-lg bg-zinc-900 px-3 text-zinc-400">
+          <Volume2 size={15} className="shrink-0" />
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={metronomeVolume}
+            onChange={(event) => setMetronomeVolume(Number(event.target.value))}
+            className="h-2 min-w-20 flex-1 cursor-pointer appearance-none rounded-lg bg-zinc-700"
+            aria-label="Volumen del metrónomo"
+          />
+          <span className="w-8 text-right text-[10px] font-bold">{Math.round(metronomeVolume * 100)}%</span>
+        </label>
       </div>
 
       {showTabControls && <div className="w-px h-8 bg-white/10 hidden lg:block mx-1"></div>}

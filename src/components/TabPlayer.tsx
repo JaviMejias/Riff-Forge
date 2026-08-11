@@ -5,6 +5,7 @@ import { Guitar, Loader2, Settings2, Play, Pause, Plus, Minus, Printer, Trash2, 
 import { PlayerToolbar } from './PlayerToolbar';
 import { PracticeControls } from './PracticeControls';
 import { KeyboardShortcutsModal } from './KeyboardShortcutsModal';
+import { AdvancedPracticePanel } from './AdvancedPracticePanel';
 import { TrackMixer } from './TrackMixer';
 import { ChordsView } from './ChordsView';
 import { Navbar } from './Navbar';
@@ -13,7 +14,7 @@ import { usePlayerStore } from '../store/playerStore';
 import { useAudioStore } from '../store/audioStore';
 import { useAlphaTab } from '../hooks/useAlphaTab';
 import { useUiStore } from '../store/uiStore';
-import { useMetronome } from '../hooks/useMetronome';
+import { useMetronome, type MetronomeSound } from '../hooks/useMetronome';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 
@@ -33,13 +34,16 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
     masterVolume, setMasterVolume,
     playbackSpeed, setPlaybackSpeed,
     isMetronomeActive, setIsMetronomeActive,
-    isLooping, setIsLooping
+    isLooping, setIsLooping,
+    isNotePreviewMode, setIsNotePreviewMode
   } = usePlayerStore();
 
   const {
     containerRef,
     apiRef,
     isPlaying,
+    playerPosition,
+    playbackRange,
     tracks,
     activeTrackIndex,
     transposition,
@@ -73,14 +77,18 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
     )) ?? false;
   }, [activeTrackIndex, song.textContent, tracks]);
 
+  const [isMetronomePreviewing, setIsMetronomePreviewing] = useState(false);
+  const [metronomeSound, setMetronomeSound] = useState<MetronomeSound>('classic');
+  const [metronomeVolume, setMetronomeVolume] = useState(0.6);
   const targetBpm = Math.round(originalTempo * playbackSpeed);
-  useMetronome(targetBpm, isMetronomeActive && mainViewMode === 'cifra');
+  const shouldPlayMetronome = isMetronomePreviewing || (isMetronomeActive && (mainViewMode === 'cifra' || isPlaying));
+  useMetronome(targetBpm, shouldPlayMetronome, metronomeSound, metronomeVolume);
 
   useEffect(() => {
     if (apiRef.current) {
-      apiRef.current.metronomeVolume = isMetronomeActive && mainViewMode === 'pro' ? 1 : 0;
+      apiRef.current.metronomeVolume = 0;
     }
-  }, [apiRef, isMetronomeActive, mainViewMode, tracks]);
+  }, [apiRef, tracks]);
 
   useEffect(() => {
     return () => setIsMetronomeActive(false);
@@ -353,21 +361,28 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
     }
   }, [apiRef, cancelCountIn, countInBeat, startCountIn]);
 
-  const handleBpmChange = (bpm: number) => {
+  const handleBpmChange = useCallback((bpm: number) => {
     const targetBpm = Math.min(300, Math.max(20, Math.round(bpm)));
     const speed = targetBpm / originalTempo;
     setPlaybackSpeed(speed);
     if (apiRef.current) apiRef.current.playbackSpeed = speed;
-  };
+  }, [apiRef, originalTempo, setPlaybackSpeed]);
   const toggleMetronome = () => {
     setIsMetronomeActive(!isMetronomeActive);
   };
   const cycleCountIn = useCallback(() => setCountInBars(current => (current + 1) % 3), []);
   const toggleLoop = useCallback(() => {
     const newState = !isLooping;
+    if (newState) setIsNotePreviewMode(false);
     setIsLooping(newState);
-    if (apiRef.current) apiRef.current.isLooping = newState;
-  }, [apiRef, isLooping, setIsLooping]);
+    if (apiRef.current) {
+      apiRef.current.isLooping = false;
+      if (!newState) {
+        apiRef.current.playbackRange = null;
+        apiRef.current.clearPlaybackRangeHighlight();
+      }
+    }
+  }, [apiRef, isLooping, setIsLooping, setIsNotePreviewMode]);
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const vol = parseFloat(e.target.value);
     setMasterVolume(vol);
@@ -746,6 +761,12 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
               handleTranspositionChange={handleTranspositionChange}
               isMetronomeActive={isMetronomeActive}
               toggleMetronome={toggleMetronome}
+              isMetronomePreviewing={isMetronomePreviewing}
+              toggleMetronomePreview={() => setIsMetronomePreviewing(current => !current)}
+              metronomeSound={metronomeSound}
+              setMetronomeSound={setMetronomeSound}
+              metronomeVolume={metronomeVolume}
+              setMetronomeVolume={setMetronomeVolume}
               countInBars={countInBars}
               cycleCountIn={cycleCountIn}
               isLooping={isLooping}
@@ -753,6 +774,19 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
               isHorizontalMode={isHorizontalMode}
               toggleLayoutMode={toggleLayoutMode}
               />
+              {mainViewMode === 'pro' && tracks.length > 0 && (
+                <AdvancedPracticePanel
+                  apiRef={apiRef}
+                  song={song}
+                  tracks={tracks}
+                  playerPosition={playerPosition}
+                  playbackRange={playbackRange}
+                  targetBpm={targetBpm}
+                  handleBpmChange={handleBpmChange}
+                  isNotePreviewMode={isNotePreviewMode}
+                  setIsNotePreviewMode={setIsNotePreviewMode}
+                />
+              )}
             </motion.div>
           </>
         )}

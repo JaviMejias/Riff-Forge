@@ -12,7 +12,7 @@ const shortcuts = [
   { keys: ['Shift', '← / →'], description: 'Ir al inicio o al final' },
   { keys: ['M'], description: 'Silenciar la pista actual' },
   { keys: ['S'], description: 'Escuchar solo la pista actual' },
-  { keys: ['R'], description: 'Activar o desactivar el bucle' },
+  { keys: ['R'], description: 'Activar o desactivar la selección en bucle' },
   { keys: ['C'], description: 'Cambiar cuenta de entrada: no, 1 o 2 compases' },
   { keys: ['?'], description: 'Mostrar u ocultar estos atajos' },
 ];

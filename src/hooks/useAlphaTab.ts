@@ -9,8 +9,13 @@ export function useAlphaTab(song: Song | null) {
   const renderTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scoreLoadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rangePointerStartRef = useRef<alphaTab.model.Beat | null>(null);
+  const rangeClickStartRef = useRef<alphaTab.model.Beat | null>(null);
+  const isRangeDraggingRef = useRef(false);
   
   const [isPlaying, setIsPlaying] = useState(false);
+  const [playerPosition, setPlayerPosition] = useState({ currentTime: 0, endTime: 0, currentTick: 0, endTick: 0 });
+  const [playbackRange, setPlaybackRange] = useState<{ startTick: number; endTick: number } | null>(null);
   const [tracks, setTracks] = useState<alphaTab.model.Track[]>([]);
   const [activeTrackIndex, setActiveTrackIndex] = useState<number>(0);
   const [transposition, setTransposition] = useState<number>(0);
@@ -29,7 +34,7 @@ export function useAlphaTab(song: Song | null) {
   const [trackMutes, setTrackMutes] = useState<Record<number, boolean>>({});
   const [trackSolos, setTrackSolos] = useState<Record<number, boolean>>({});
 
-  const { masterVolume, setPlaybackSpeed, setIsLooping, setMainViewMode } = usePlayerStore();
+  const { masterVolume, isLooping, setPlaybackSpeed, setIsLooping, setMainViewMode } = usePlayerStore();
   const songType = song?.type;
   const songData = useMemo(() => {
     if (!song?.data) return null;
@@ -82,10 +87,12 @@ export function useAlphaTab(song: Song | null) {
       core: {
         fontDirectory: '/alphatab/font/',
         useWorkers: true,
+        includeNoteBounds: true,
       },
       player: {
         enablePlayer: true,
         enableCursor: true,
+        enableUserInteraction: false,
         scrollMode: alphaTab.ScrollMode.Off,
         scrollElement: containerRef.current,
         soundFont: '/alphatab/soundfont/sonivox.sf2'
@@ -160,7 +167,64 @@ export function useAlphaTab(song: Song | null) {
     });
 
     api.beatMouseDown.on((beat) => {
-      api.tickPosition = beat.playbackStart;
+      if (usePlayerStore.getState().isLooping) {
+        rangePointerStartRef.current = beat;
+        isRangeDraggingRef.current = false;
+        return;
+      }
+      api.tickPosition = beat.absolutePlaybackStart;
+    });
+
+    api.beatMouseMove.on((beat) => {
+      const startBeat = rangePointerStartRef.current;
+      if (!usePlayerStore.getState().isLooping || !startBeat || startBeat === beat) return;
+      isRangeDraggingRef.current = true;
+      api.highlightPlaybackRange(startBeat, beat);
+    });
+
+    api.beatMouseUp.on((beat) => {
+      if (!usePlayerStore.getState().isLooping || !rangePointerStartRef.current) return;
+      const pointerStart = rangePointerStartRef.current;
+      rangePointerStartRef.current = null;
+
+      if (isRangeDraggingRef.current && beat) {
+        api.highlightPlaybackRange(pointerStart, beat);
+        api.applyPlaybackRangeFromHighlight();
+        api.isLooping = api.playbackRange !== null;
+        rangeClickStartRef.current = null;
+        return;
+      }
+
+      if (!rangeClickStartRef.current) {
+        rangeClickStartRef.current = pointerStart;
+        api.tickPosition = pointerStart.absolutePlaybackStart;
+        return;
+      }
+
+      api.highlightPlaybackRange(rangeClickStartRef.current, beat ?? pointerStart);
+      api.applyPlaybackRangeFromHighlight();
+      api.isLooping = api.playbackRange !== null;
+      rangeClickStartRef.current = null;
+    });
+
+    api.noteMouseUp.on((note) => {
+      if (note && usePlayerStore.getState().isNotePreviewMode) api.playNote(note);
+    });
+
+    api.playerPositionChanged.on((position) => {
+      setPlayerPosition({
+        currentTime: position.currentTime,
+        endTime: position.endTime,
+        currentTick: position.currentTick,
+        endTick: position.endTick,
+      });
+    });
+
+    api.playbackRangeChanged.on((event) => {
+      setPlaybackRange(event.playbackRange ? {
+        startTick: event.playbackRange.startTick,
+        endTick: event.playbackRange.endTick,
+      } : null);
     });
 
     api.playedBeatChanged.on(() => {
@@ -221,6 +285,18 @@ export function useAlphaTab(song: Song | null) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (isLooping) return;
+    rangePointerStartRef.current = null;
+    rangeClickStartRef.current = null;
+    isRangeDraggingRef.current = false;
+    if (apiRef.current) {
+      apiRef.current.isLooping = false;
+      apiRef.current.playbackRange = null;
+      apiRef.current.clearPlaybackRangeHighlight();
+    }
+  }, [isLooping]);
 
   useEffect(() => {
     if (loadTimeoutRef.current) {
@@ -286,6 +362,8 @@ export function useAlphaTab(song: Song | null) {
     apiRef,
     isPlaying,
     setIsPlaying,
+    playerPosition,
+    playbackRange,
     tracks,
     activeTrackIndex,
     transposition,

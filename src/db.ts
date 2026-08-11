@@ -27,6 +27,13 @@ export interface Karaoke {
   dateAdded: number;
 }
 
+export interface PracticeLoop {
+  id: string;
+  name: string;
+  startTick: number;
+  endTick: number;
+}
+
 export interface KaraokeFile {
   karaokeId: number;
   cloudUrl?: string; // URL for download
@@ -74,6 +81,7 @@ export interface Song {
   fileSize?: number;
   fileMimeType?: string;
   syncDirty?: boolean;
+  practiceLoops?: PracticeLoop[];
   dateAdded: number;
 }
 
@@ -250,7 +258,7 @@ const enqueueUpsert = async (tableName: string, cloudId: string) => {
     };
   } else {
     const allowedFields: Record<string, string[]> = {
-      songs: ['name', 'artist', 'album', 'type', 'textContent', 'originalKey', 'tuning', 'strummingPattern', 'capo', 'isPublic', 'dateAdded'],
+      songs: ['name', 'artist', 'album', 'type', 'textContent', 'originalKey', 'tuning', 'strummingPattern', 'capo', 'practiceLoops', 'isPublic', 'dateAdded'],
       karaokes: ['name', 'artist', 'youtubeUrl', 'hasLocalAudio', 'pitchShift', 'textContent', 'isPublic', 'dateAdded'],
       customChords: ['name', 'root', 'frets', 'fingers', 'baseFret', 'barres', 'isPublic']
     };
