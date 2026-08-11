@@ -16,6 +16,7 @@ export const MobileBottomNav = () => {
   const setMobileMenuOpen = useUiStore(state => state.setMobileMenuOpen);
   const activeKaraokeId = usePlayerStore(state => state.activeKaraokeId);
   const isKaraokeMiniPlayer = usePlayerStore(state => state.isKaraokeMiniPlayer);
+  const isTabPlaybackView = location.pathname.startsWith('/song/');
   const isPlaybackView = location.pathname.startsWith('/song/') || Boolean(activeKaraokeId && !isKaraokeMiniPlayer);
   const collapseContext = `${location.pathname}:${isPlaybackView}`;
   const [collapseOverride, setCollapseOverride] = useState<{ context: string; value: boolean } | null>(null);
@@ -27,7 +28,11 @@ export const MobileBottomNav = () => {
         type="button"
         onClick={() => setCollapseOverride({ context: collapseContext, value: false })}
         aria-label="Mostrar navegación principal"
-        className="fixed bottom-[calc(0.5rem+env(safe-area-inset-bottom))] right-2 z-40 flex min-h-11 min-w-11 items-center justify-center rounded-full border border-white/10 bg-zinc-950/90 text-zinc-300 shadow-2xl backdrop-blur-xl md:hidden"
+        className={`fixed right-2 z-[55] flex min-h-11 min-w-11 items-center justify-center rounded-full border border-white/10 bg-zinc-950/90 text-zinc-300 shadow-2xl backdrop-blur-xl md:hidden ${
+          isTabPlaybackView
+            ? 'bottom-[calc(5.25rem+env(safe-area-inset-bottom))]'
+            : 'bottom-[calc(0.5rem+env(safe-area-inset-bottom))]'
+        }`}
       >
         <ChevronUp size={20} />
       </button>

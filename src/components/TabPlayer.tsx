@@ -445,6 +445,7 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
       if (target?.closest('input, textarea, select, [contenteditable="true"], [role="dialog"]')) return;
 
       if (e.key === '?') {
+        if (window.innerWidth < 640) return;
         e.preventDefault();
         setShowKeyboardShortcuts(current => !current);
         return;
@@ -630,12 +631,6 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
                     className="flex items-center gap-2 w-full text-left p-2.5 hover:bg-zinc-800 rounded-lg text-zinc-300 font-bold text-sm transition-colors"
                   >
                     <Settings2 size={18} className="text-primary-500" /> Herr. Práctica
-                  </button>
-                  <button
-                    onClick={() => { setShowKeyboardShortcuts(true); setIsMobileMoreMenuOpen(false); }}
-                    className="flex items-center gap-2 w-full text-left p-2.5 hover:bg-zinc-800 rounded-lg text-zinc-300 font-bold text-sm transition-colors"
-                  >
-                    <Keyboard size={18} className="text-primary-500" /> Atajos
                   </button>
                   <div className="h-px w-full bg-white/10 my-1"></div>
                   <button 
