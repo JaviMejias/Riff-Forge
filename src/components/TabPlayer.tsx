@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as alphaTab from '@coderline/alphatab';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Guitar, Loader2, Settings2, Play, Pause, Plus, Minus, Printer, Trash2, MoreVertical, Maximize, Download, X } from 'lucide-react';
+import { Guitar, Loader2, Settings2, Play, Pause, Plus, Minus, Printer, Trash2, MoreVertical, Maximize, Download, X, ChevronUp } from 'lucide-react';
 import { PlayerToolbar } from './PlayerToolbar';
 import { PracticeControls } from './PracticeControls';
 import { TrackMixer } from './TrackMixer';
@@ -26,7 +26,7 @@ interface TabPlayerProps {
 }
 
 export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabPlayerProps) => {
-  const { toggleImmersiveMode } = useUiStore();
+  const { toggleImmersiveMode, isImmersiveMode } = useUiStore();
   const {
     mainViewMode, setMainViewMode,
     masterVolume, setMasterVolume,
@@ -189,6 +189,16 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
       document.removeEventListener('touchstart', handleClickOutside);
     };
   }, []);
+
+  useEffect(() => {
+    if (!showPracticeControls) return;
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowPracticeControls(false);
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [showPracticeControls]);
 
   // AUTO-HIDE TOOLBAR LOGIC
   const [showToolbar, setShowToolbar] = useState(true);
@@ -586,14 +596,29 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
 
       <AnimatePresence>
         {!errorMsg && showPracticeControls && (
-          <motion.div
-            initial={{ height: 0, opacity: 0, marginBottom: 0 }}
-            animate={{ height: 'auto', opacity: 1, marginBottom: 16 }}
-            exit={{ height: 0, opacity: 0, marginBottom: 0 }}
-            className="practice-controls-panel fixed inset-x-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-[70] max-h-[60vh] overflow-y-auto rounded-2xl border border-white/10 bg-zinc-950 p-1 shadow-2xl sm:relative sm:inset-auto sm:z-40 sm:max-h-none sm:overflow-visible sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none"
-          >
-            <button type="button" onClick={() => setShowPracticeControls(false)} className="sticky top-1 z-10 ml-auto flex min-h-10 min-w-10 items-center justify-center rounded-xl bg-zinc-800 text-zinc-300 sm:hidden" aria-label="Cerrar herramientas de práctica"><X size={18} /></button>
-            <PracticeControls
+          <>
+            <motion.button
+              type="button"
+              aria-label="Cerrar herramientas de práctica"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowPracticeControls(false)}
+              className={`fixed inset-0 z-[60] cursor-default bg-black/45 ${isImmersiveMode ? '' : 'sm:hidden'}`}
+            />
+            <motion.div
+              role="dialog"
+              aria-label="Herramientas de práctica"
+              initial={{ height: 0, opacity: 0, marginBottom: 0 }}
+              animate={{ height: 'auto', opacity: 1, marginBottom: 16 }}
+              exit={{ height: 0, opacity: 0, marginBottom: 0 }}
+              className={`practice-controls-panel z-[70] rounded-2xl ${isImmersiveMode
+                ? 'fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] max-h-[70dvh] overflow-y-auto border border-white/10 bg-zinc-950 p-1 shadow-2xl'
+                : 'fixed inset-x-3 bottom-[calc(1rem+env(safe-area-inset-bottom))] max-h-[70dvh] overflow-y-auto border border-white/10 bg-zinc-950 p-1 shadow-2xl sm:relative sm:inset-auto sm:z-40 sm:max-h-none sm:overflow-visible sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none'
+              }`}
+            >
+              <button type="button" onClick={() => setShowPracticeControls(false)} className={`sticky top-1 z-10 ml-auto min-h-11 min-w-11 items-center justify-center rounded-xl bg-zinc-800 text-zinc-200 shadow-lg ${isImmersiveMode ? 'flex' : 'flex sm:hidden'}`} aria-label="Cerrar herramientas de práctica"><X size={20} /></button>
+              <PracticeControls
               isLoading={isLoading}
               originalBpm={originalTempo}
               targetBpm={targetBpm}
@@ -609,8 +634,9 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
               toggleLoop={toggleLoop}
               isHorizontalMode={isHorizontalMode}
               toggleLayoutMode={toggleLayoutMode}
-            />
-          </motion.div>
+              />
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
 
@@ -733,6 +759,23 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
               />
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {song.type !== 'text' && mainViewMode === 'pro' && !showToolbar && (
+          <motion.button
+            type="button"
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 20, opacity: 0 }}
+            onClick={() => handleMouseMove()}
+            aria-label="Mostrar controles de reproducción"
+            className="absolute bottom-3 left-1/2 z-50 flex min-h-11 -translate-x-1/2 items-center gap-1.5 rounded-full border border-white/10 bg-zinc-950/90 px-4 text-xs font-bold text-zinc-200 shadow-2xl backdrop-blur-xl sm:hidden"
+          >
+            <ChevronUp size={17} />
+            Controles
+          </motion.button>
         )}
       </AnimatePresence>
 
