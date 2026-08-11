@@ -117,6 +117,7 @@ function App() {
   const location = useLocation();
   const serviceWorkerRegistrationRef = React.useRef<ServiceWorkerRegistration | null>(null);
   const [isCheckingForUpdates, setIsCheckingForUpdates] = React.useState(false);
+  const [isHardRefreshing, setIsHardRefreshing] = React.useState(false);
 
   // PWA Auto Update Logic
   const {
@@ -141,6 +142,45 @@ function App() {
       console.error('Error checking for app updates', error);
     } finally {
       window.setTimeout(() => setIsCheckingForUpdates(false), 700);
+    }
+  };
+
+  const hardRefresh = async () => {
+    if (isHardRefreshing) return;
+    if (!navigator.onLine) {
+      await MySwal.fire({
+        title: 'Sin conexión',
+        text: 'Conéctate a internet antes de realizar una recarga forzada.',
+        icon: 'warning',
+        background: '#18181b',
+        color: '#f4f4f5',
+        confirmButtonColor: '#f59e0b'
+      });
+      return;
+    }
+
+    setIsHardRefreshing(true);
+    try {
+      await serviceWorkerRegistrationRef.current?.update();
+      const cacheNames = await caches.keys();
+      await Promise.all(cacheNames.map(cacheName => caches.delete(cacheName)));
+
+      if (serviceWorkerRegistrationRef.current?.waiting) {
+        await updateServiceWorker(true);
+        return;
+      }
+      window.location.reload();
+    } catch (error) {
+      console.error('Error forcing app refresh', error);
+      setIsHardRefreshing(false);
+      await MySwal.fire({
+        title: 'No se pudo recargar',
+        text: 'Revisa tu conexión e inténtalo nuevamente.',
+        icon: 'error',
+        background: '#18181b',
+        color: '#f4f4f5',
+        confirmButtonColor: '#f59e0b'
+      });
     }
   };
 
@@ -542,11 +582,12 @@ function App() {
                       <SettingsView 
                         isSidebarOpen={isDesktopSidebarOpen}
                         onToggleSidebar={toggleDesktopSidebar}
-                        appVersion={import.meta.env.VITE_APP_VERSION}
                         updateAvailable={needRefresh}
                         isCheckingForUpdates={isCheckingForUpdates}
+                        isHardRefreshing={isHardRefreshing}
                         onCheckForUpdates={checkForUpdates}
                         onUpdate={() => void updateServiceWorker(true)}
+                        onHardRefresh={hardRefresh}
                       />
                     </motion.div>
                   } />
