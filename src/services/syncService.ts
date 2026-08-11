@@ -274,8 +274,10 @@ const uploadDirtyFiles = async (headers: Record<string, string>) => {
       }
     });
     formData.append('id', song.cloudId!);
-    const url = song.version ? `${API_URL}/songs/${song.cloudId}` : `${API_URL}/songs`;
-    const response = await fetch(url, { method: song.version ? 'PUT' : 'POST', headers, body: formData });
+    // The metadata upsert above creates the cloud record before its binary file is uploaded.
+    // Always update that record so a new local song cannot collide with its own cloud ID.
+    const url = `${API_URL}/songs/${song.cloudId}`;
+    const response = await fetch(url, { method: 'PUT', headers, body: formData });
     ensureSyncResponse(response, 'Song file upload failed');
     uploaded = true;
     await db.syncOperations.where('entityId').equals(song.cloudId!).delete();
@@ -294,8 +296,8 @@ const uploadDirtyFiles = async (headers: Record<string, string>) => {
     });
     formData.append('id', karaoke.cloudId!);
     formData.append('file', new Blob([file.data as BlobPart]), `${karaoke.cloudId}.mp3`);
-    const url = karaoke.version ? `${API_URL}/karaokes/${karaoke.cloudId}` : `${API_URL}/karaokes`;
-    const response = await fetch(url, { method: karaoke.version ? 'PUT' : 'POST', headers, body: formData });
+    const url = `${API_URL}/karaokes/${karaoke.cloudId}`;
+    const response = await fetch(url, { method: 'PUT', headers, body: formData });
     ensureSyncResponse(response, 'Karaoke file upload failed');
     uploaded = true;
     await db.syncOperations.where('entityId').equals(karaoke.cloudId!).delete();

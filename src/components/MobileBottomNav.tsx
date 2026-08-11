@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ChevronDown, ChevronUp, Library, ListMusic, Menu, Mic2, Users } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useUiStore } from '../store/uiStore';
@@ -17,17 +17,15 @@ export const MobileBottomNav = () => {
   const activeKaraokeId = usePlayerStore(state => state.activeKaraokeId);
   const isKaraokeMiniPlayer = usePlayerStore(state => state.isKaraokeMiniPlayer);
   const isPlaybackView = location.pathname.startsWith('/song/') || Boolean(activeKaraokeId && !isKaraokeMiniPlayer);
-  const [isCollapsed, setIsCollapsed] = useState(isPlaybackView);
-
-  useEffect(() => {
-    setIsCollapsed(isPlaybackView);
-  }, [isPlaybackView, location.pathname]);
+  const collapseContext = `${location.pathname}:${isPlaybackView}`;
+  const [collapseOverride, setCollapseOverride] = useState<{ context: string; value: boolean } | null>(null);
+  const isCollapsed = collapseOverride?.context === collapseContext ? collapseOverride.value : isPlaybackView;
 
   if (isCollapsed) {
     return (
       <button
         type="button"
-        onClick={() => setIsCollapsed(false)}
+        onClick={() => setCollapseOverride({ context: collapseContext, value: false })}
         aria-label="Mostrar navegación principal"
         className="fixed bottom-[calc(0.5rem+env(safe-area-inset-bottom))] right-2 z-40 flex min-h-11 min-w-11 items-center justify-center rounded-full border border-white/10 bg-zinc-950/90 text-zinc-300 shadow-2xl backdrop-blur-xl md:hidden"
       >
@@ -43,7 +41,7 @@ export const MobileBottomNav = () => {
     >
       <button
         type="button"
-        onClick={() => setIsCollapsed(true)}
+        onClick={() => setCollapseOverride({ context: collapseContext, value: true })}
         aria-label="Ocultar navegación principal"
         className="absolute -top-5 right-2 flex min-h-10 min-w-10 items-center justify-center rounded-full border border-white/10 bg-zinc-950 text-zinc-400 shadow-xl"
       >

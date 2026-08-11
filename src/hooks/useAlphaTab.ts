@@ -299,7 +299,11 @@ export function useAlphaTab(song: Song | null) {
     setIsLoading,
     loadingMsg,
     setLoadingMsg,
-    errorMsg: song?.type === 'text' ? null : errorMsg,
+    errorMsg: song?.type === 'text'
+      ? null
+      : song?.type && !songData
+        ? 'El archivo de esta tab todavía no está disponible en este dispositivo. Recarga después de sincronizarla desde el dispositivo donde fue creada.'
+        : errorMsg,
     setErrorMsg,
     trackVolumes,
     setTrackVolumes,
