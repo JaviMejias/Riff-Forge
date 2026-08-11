@@ -3,6 +3,7 @@ import { motion, useMotionValue, useMotionTemplate } from 'framer-motion';
 import type { Karaoke } from '../../db';
 import { useCoverArt } from '../../hooks/useCoverArt';
 import { downloadKaraokeMp3 } from '../../utils/download';
+import { KaraokeAudioUploadButton } from './KaraokeAudioUploadButton';
 
 interface KaraokeCardProps {
   karaoke: Karaoke;
@@ -70,6 +71,12 @@ export const KaraokeCard = ({ karaoke, index, isActive, onPlay, onDelete, onTogg
           {onEditMetadata && <button onClick={onEditMetadata} className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-left text-zinc-200 active:bg-zinc-800"><Edit3 size={17} />Editar información</button>}
           {(karaoke.hasLocalAudio || karaoke.cloudUrl) && (
             <button onClick={event => { event.stopPropagation(); downloadKaraokeMp3(karaoke); }} className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-left text-zinc-200 active:bg-zinc-800"><Download size={17} />Descargar audio</button>
+          )}
+          {!karaoke.hasLocalAudio && !karaoke.cloudUrl && (
+            <KaraokeAudioUploadButton
+              karaoke={karaoke}
+              className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-left text-zinc-200 active:bg-zinc-800 disabled:opacity-50"
+            />
           )}
           <button onClick={onDelete} className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-left text-rose-400 active:bg-rose-500/10"><Trash2 size={17} />Eliminar</button>
         </div>
@@ -141,6 +148,13 @@ export const KaraokeCard = ({ karaoke, index, isActive, onPlay, onDelete, onTogg
           >
             <Download size={16} />
           </button>
+        )}
+        {!karaoke.hasLocalAudio && !karaoke.cloudUrl && (
+          <KaraokeAudioUploadButton
+            karaoke={karaoke}
+            iconOnly
+            className="p-2 bg-primary-500/90 text-zinc-900 rounded-xl shadow-lg hover:bg-primary-500 hover:scale-110 transition-all backdrop-blur-md disabled:opacity-50"
+          />
         )}
       </div>
 

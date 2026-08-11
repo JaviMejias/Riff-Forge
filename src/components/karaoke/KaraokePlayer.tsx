@@ -18,6 +18,7 @@ import { parseLrc } from '../../utils/lrcParser';
 import { PlayerControls } from './player/PlayerControls';
 import { useCoverArt } from '../../hooks/useCoverArt';
 import { usePlayerStore } from '../../store/playerStore';
+import { KaraokeAudioUploadButton } from './KaraokeAudioUploadButton';
 
 interface KaraokePlayerProps {
   karaoke: Karaoke;
@@ -506,6 +507,14 @@ export const KaraokePlayer = ({ karaoke, onBack, isSidebarOpen, onToggleSidebar 
                 <Download size={16} className="sm:w-5 sm:h-5" /> 
                 <span className="sm:hidden">Descargar MP3</span>
               </button>
+            )}
+
+            {!isEditing && !karaoke.hasLocalAudio && !karaoke.cloudUrl && (
+              <KaraokeAudioUploadButton
+                karaoke={karaoke}
+                onUploaded={() => setIsMobileMenuOpen(false)}
+                className="flex items-center gap-3 sm:gap-2 px-4 py-3 sm:py-2 bg-zinc-800 hover:bg-primary-500/20 text-zinc-300 hover:text-primary-400 rounded-xl transition-all text-sm sm:text-base font-bold whitespace-nowrap w-full sm:w-auto disabled:opacity-50"
+              />
             )}
 
             {!isEditing && (
