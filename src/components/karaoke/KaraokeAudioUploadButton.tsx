@@ -2,6 +2,8 @@ import { useRef, useState } from 'react';
 import { Loader2, Upload } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { db, type Karaoke } from '../../db';
+import { API_BASE_URL } from '../../config';
+import { useAuthStore } from '../../store/authStore';
 
 interface KaraokeAudioUploadButtonProps {
   karaoke: Karaoke;
@@ -19,9 +21,110 @@ export const KaraokeAudioUploadButton = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  const selectFile = (event: React.MouseEvent<HTMLButtonElement>) => {
+  const saveAudio = async (data: Uint8Array) => {
+    if (karaoke.id === undefined) throw new Error('Karaoke has no local ID');
+    await db.transaction('rw', [db.karaokes, db.karaokeFiles], async () => {
+      await db.karaokeFiles.put({ karaokeId: karaoke.id!, data });
+      await db.karaokes.update(karaoke.id!, {
+        hasLocalAudio: true,
+        localFileDirty: true,
+        updatedAt: Date.now(),
+      });
+    });
+    onUploaded?.();
+    await Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon: 'success',
+      title: 'MP3 añadido y pendiente de sincronización',
+      showConfirmButton: false,
+      timer: 2200,
+      background: '#18181b',
+      color: '#f4f4f5',
+    });
+  };
+
+  const downloadFromYoutube = async () => {
+    if (!karaoke.youtubeUrl) {
+      inputRef.current?.click();
+      return;
+    }
+
+    setIsUploading(true);
+    Swal.fire({
+      title: 'Descargando desde YouTube...',
+      text: 'Esto puede tardar un momento.',
+      allowOutsideClick: false,
+      showConfirmButton: false,
+      background: '#18181b',
+      color: '#f4f4f5',
+      didOpen: () => Swal.showLoading(),
+    });
+
+    try {
+      const token = useAuthStore.getState().token;
+      const response = await fetch(`${API_BASE_URL}/api/karaokes/download-audio`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ url: karaoke.youtubeUrl }),
+      });
+      if (!response.ok) throw new Error(`YouTube download failed: ${response.status}`);
+
+      const result = await response.json() as { cloudUrl?: string };
+      if (!result.cloudUrl) throw new Error('YouTube download returned no file');
+      const fileUrl = /^https?:\/\//.test(result.cloudUrl)
+        ? result.cloudUrl
+        : `${API_BASE_URL}${result.cloudUrl.startsWith('/') ? '' : '/'}${result.cloudUrl}`;
+      const fileResponse = await fetch(fileUrl, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        cache: 'no-store',
+      });
+      if (!fileResponse.ok) throw new Error(`Downloaded MP3 could not be read: ${fileResponse.status}`);
+
+      Swal.close();
+      await saveAudio(new Uint8Array(await fileResponse.arrayBuffer()));
+    } catch (error) {
+      console.warn('Failed to download karaoke MP3 from YouTube:', error);
+      const fallback = await Swal.fire({
+        icon: 'warning',
+        title: 'YouTube no permitió la descarga',
+        text: 'El karaoke sigue intacto. Puedes añadir un MP3 guardado en este dispositivo.',
+        confirmButtonText: 'Subir MP3',
+        showCancelButton: true,
+        cancelButtonText: 'Cerrar',
+        background: '#18181b',
+        color: '#f4f4f5',
+      });
+      if (fallback.isConfirmed) inputRef.current?.click();
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const chooseSource = async (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
-    inputRef.current?.click();
+    if (!karaoke.youtubeUrl) {
+      inputRef.current?.click();
+      return;
+    }
+
+    const choice = await Swal.fire({
+      icon: 'question',
+      title: 'Añadir MP3',
+      text: '¿De dónde quieres obtener el audio?',
+      confirmButtonText: 'Descargar desde YouTube',
+      denyButtonText: 'Subir desde dispositivo',
+      showDenyButton: true,
+      showCancelButton: true,
+      cancelButtonText: 'Cancelar',
+      background: '#18181b',
+      color: '#f4f4f5',
+    });
+    if (choice.isConfirmed) await downloadFromYoutube();
+    if (choice.isDenied) inputRef.current?.click();
   };
 
   const uploadFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -42,26 +145,7 @@ export const KaraokeAudioUploadButton = ({
 
     setIsUploading(true);
     try {
-      const data = new Uint8Array(await file.arrayBuffer());
-      await db.transaction('rw', [db.karaokes, db.karaokeFiles], async () => {
-        await db.karaokeFiles.put({ karaokeId: karaoke.id!, data });
-        await db.karaokes.update(karaoke.id!, {
-          hasLocalAudio: true,
-          localFileDirty: true,
-          updatedAt: Date.now(),
-        });
-      });
-      onUploaded?.();
-      await Swal.fire({
-        toast: true,
-        position: 'top-end',
-        icon: 'success',
-        title: 'MP3 añadido y pendiente de sincronización',
-        showConfirmButton: false,
-        timer: 2200,
-        background: '#18181b',
-        color: '#f4f4f5',
-      });
+      await saveAudio(new Uint8Array(await file.arrayBuffer()));
     } catch (error) {
       console.error('Failed to attach karaoke MP3:', error);
       await Swal.fire({
@@ -88,7 +172,7 @@ export const KaraokeAudioUploadButton = ({
       <button
         type="button"
         className={className}
-        onClick={selectFile}
+        onClick={chooseSource}
         disabled={isUploading}
         title="Añadir MP3"
       >
