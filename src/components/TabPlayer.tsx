@@ -230,17 +230,17 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
     setShowToolbar(true);
     if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
     hideTimeoutRef.current = setTimeout(() => {
-      if (!trainerStatus.enabled && apiRef.current && apiRef.current.playerState === alphaTab.synth.PlayerState.Playing) {
+      if (apiRef.current && apiRef.current.playerState === alphaTab.synth.PlayerState.Playing) {
         setShowToolbar(false);
       }
     }, 2500);
-  }, [apiRef, trainerStatus.enabled]);
+  }, [apiRef]);
 
   useEffect(() => {
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('touchstart', handleMouseMove);
     hideTimeoutRef.current = setTimeout(() => {
-      if (!trainerStatus.enabled && apiRef.current && apiRef.current.playerState === alphaTab.synth.PlayerState.Playing) {
+      if (apiRef.current && apiRef.current.playerState === alphaTab.synth.PlayerState.Playing) {
         setShowToolbar(false);
       }
     }, 2500);
@@ -250,7 +250,7 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
       window.removeEventListener('touchstart', handleMouseMove);
       if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
     };
-  }, [apiRef, handleMouseMove, trainerStatus.enabled]);
+  }, [apiRef, handleMouseMove]);
 
   const [isHorizontalMode, setIsHorizontalMode] = useState<boolean>(false);
   const [countInBars, setCountInBars] = useState(0);
@@ -978,7 +978,7 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
       </AnimatePresence>
 
       <AnimatePresence>
-        {song.type !== 'text' && mainViewMode === 'pro' && (showToolbar || trainerStatus.enabled) && (
+        {song.type !== 'text' && mainViewMode === 'pro' && showToolbar && (
           <motion.div
             initial={{ y: 100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -1019,7 +1019,7 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
       </AnimatePresence>
 
       <AnimatePresence>
-        {song.type !== 'text' && mainViewMode === 'pro' && !showToolbar && !trainerStatus.enabled && (
+        {song.type !== 'text' && mainViewMode === 'pro' && !showToolbar && (
           <motion.button
             type="button"
             initial={{ y: 20, opacity: 0 }}
