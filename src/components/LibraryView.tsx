@@ -18,6 +18,9 @@ import { Toast } from '../utils/toast';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { importCifraClubPdf, type PdfChordImportResult } from '../services/pdfChordImportService';
 import { ImportPdfSongModal } from './ImportPdfSongModal';
+import { normalizeSongMetadata } from '../services/songMetadataService';
+import { synchronizeChordProMetadata } from '../services/chordProService';
+import { findDuplicateSong } from '../services/songDuplicateService';
 
 const MySwal = withReactContent(Swal);
 const getCurrentTimestamp = () => Date.now();
@@ -270,16 +273,47 @@ export const LibraryView = ({ songs, activeSongId, onPlaySong, onImport, isSideb
 
   const handleSaveMetadata = async (newTitle: string, newArtist: string) => {
     if (!editingSong) return;
+    const normalized = normalizeSongMetadata({ title: newTitle, artist: newArtist });
 
-      if (!newTitle) {
+      if (!normalized.title) {
         Toast.fire({ icon: 'error', title: 'El título es obligatorio' });
         return;
       }
 
+      const finalArtist = normalized.artist || 'Desconocido';
+      const duplicate = findDuplicateSong(
+        await db.songs.toArray(),
+        normalized.title,
+        finalArtist,
+        editingSong.id
+      );
+      if (duplicate) {
+        const confirmation = await MySwal.fire({
+          icon: 'warning',
+          title: 'Encontramos una canción similar',
+          text: `Ya existe “${duplicate.name}” de ${duplicate.artist || 'Desconocido'}.`,
+          showCancelButton: true,
+          confirmButtonText: 'Mantener ambas versiones',
+          cancelButtonText: 'Volver a editar'
+        });
+        if (!confirmation.isConfirmed) return;
+      }
+
       await db.songs.update(editingSong.id!, {
-        name: newTitle,
-        artist: newArtist,
-        updatedAt: Date.now()
+        name: normalized.title,
+        artist: finalArtist,
+        textContent: editingSong.textContent
+          ? synchronizeChordProMetadata(editingSong.textContent, {
+            title: normalized.title,
+            artist: finalArtist,
+            key: editingSong.originalKey,
+            tuning: editingSong.tuning,
+            capo: editingSong.capo,
+            strummingPattern: editingSong.strummingPattern
+          })
+          : editingSong.textContent,
+        updatedAt: Date.now(),
+        syncDirty: true
       });
 
       const { SyncService } = await import('../services/syncService');

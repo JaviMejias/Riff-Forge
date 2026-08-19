@@ -20,6 +20,11 @@ export interface ChordProExportOptions extends ChordProMetadata {
   artist?: string;
 }
 
+export interface ChordProDocumentMetadata extends ChordProMetadata {
+  title?: string;
+  artist?: string;
+}
+
 const firstMetadataValue = (value: string | string[] | null | undefined) => {
   if (Array.isArray(value)) return value[0];
   return value || undefined;
@@ -67,24 +72,34 @@ export const importChordPro = (content: string): ChordProImport => {
   };
 };
 
+export const synchronizeChordProMetadata = (content: string, metadata: ChordProDocumentMetadata) => {
+  if (!content.trim()) return '';
+
+  let synchronizedBody = normalizeChordPro(content);
+  const directives: Array<[keyof ChordProDocumentMetadata, string]> = [
+    ['title', 'title'],
+    ['artist', 'artist'],
+    ['key', 'key'],
+    ['capo', 'capo'],
+    ['tuning', 'tuning'],
+    ['strummingPattern', 'strumming']
+  ];
+  const synchronizedDirectives: string[] = [];
+
+  directives.forEach(([property, directive]) => {
+    if (!(property in metadata)) return;
+    const directivePattern = new RegExp(`^\\s*\\{${directive}(?:_of_song)?:[^}]*}\\s*\\n?`, 'gmi');
+    synchronizedBody = synchronizedBody.replace(directivePattern, '');
+    const value = metadata[property];
+    if (value?.trim()) synchronizedDirectives.push(`{${directive}: ${safeDirectiveValue(value)}}`);
+  });
+
+  return [...synchronizedDirectives, synchronizedBody.trim()].filter(Boolean).join('\n');
+};
+
 export const exportChordPro = (content: string, options: ChordProExportOptions) => {
   if (!content.trim()) throw new Error('EMPTY_CHORD_PRO');
-
-  const body = normalizeChordPro(content);
-  const directives: Array<[string, string | undefined]> = [
-    ['title', options.title],
-    ['artist', options.artist],
-    ['key', options.key],
-    ['capo', options.capo],
-    ['tuning', options.tuning],
-    ['strumming', options.strummingPattern]
-  ];
-
-  const missingDirectives = directives
-    .filter(([name, value]) => value?.trim() && !new RegExp(`^\\s*\\{${name}(?:_of_song)?:`, 'mi').test(body))
-    .map(([name, value]) => `{${name}: ${safeDirectiveValue(value!)}}`);
-
-  return [...missingDirectives, body].filter(Boolean).join('\n');
+  return synchronizeChordProMetadata(content, options);
 };
 
 export const chordProFilename = (title: string, artist?: string) => {

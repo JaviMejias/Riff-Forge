@@ -4,6 +4,8 @@ import { Modal } from './Modal';
 import { db } from '../db';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
+import { normalizeSongMetadata } from '../services/songMetadataService';
+import { findDuplicateSong } from '../services/songDuplicateService';
 
 const MySwal = withReactContent(Swal);
 
@@ -31,8 +33,21 @@ export const CreateSongModal = ({ isOpen, onClose, onSuccess }: CreateSongModalP
       return;
     }
 
-    const finalTitle = title.trim();
-    const finalArtist = artist.trim() || 'Desconocido';
+    const normalized = normalizeSongMetadata({ title, artist });
+    const finalTitle = normalized.title || '';
+    const finalArtist = normalized.artist || 'Desconocido';
+    const duplicate = findDuplicateSong(await db.songs.toArray(), finalTitle, finalArtist);
+    if (duplicate) {
+      const confirmation = await MySwal.fire({
+        icon: 'warning',
+        title: 'Encontramos una canción similar',
+        text: `Ya existe “${duplicate.name}” de ${duplicate.artist || 'Desconocido'}.`,
+        showCancelButton: true,
+        confirmButtonText: 'Crear otra versión',
+        cancelButtonText: 'Cancelar'
+      });
+      if (!confirmation.isConfirmed) return;
+    }
 
     const newId = await db.songs.add({
       name: finalTitle,

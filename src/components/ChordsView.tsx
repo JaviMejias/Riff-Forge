@@ -18,11 +18,21 @@ import { Button } from './ui/Button';
 import { Edit2, CheckCircle2, X } from 'lucide-react';
 import { usePlayerStore } from '../store/playerStore';
 import { sanitizeChordText } from '../utils/chordText';
-import { chordProFilename, exportChordPro, importChordPro, normalizeChordPro, parseChordContent } from '../services/chordProService';
+import { chordProFilename, exportChordPro, importChordPro, normalizeChordPro, parseChordContent, synchronizeChordProMetadata } from '../services/chordProService';
 import Swal from 'sweetalert2';
 import { ChordProEditor } from './chords/ChordProEditor';
 import { importCifraClubPdf } from '../services/pdfChordImportService';
+import { normalizeSongMetadata } from '../services/songMetadataService';
+import { buildChordTabBlockLayout } from '../services/chordTabBlockService';
+import { CollapsibleTabBlock } from './chords/CollapsibleTabBlock';
 import { createPortal } from 'react-dom';
+import {
+  clearChordDraft,
+  isSameChordDraftContent,
+  loadChordDraft,
+  saveChordDraft,
+  type ChordDraftContent
+} from '../services/chordDraftService';
 
 const CSJS = ChordSheetJS;
 const METADATA_TAG_NAMES = new Set([
@@ -135,6 +145,8 @@ export const ChordsView = ({ track, songTitle, song, onEditChange, originalBpm, 
   const [editTuning, setEditTuning] = useState('');
   const [editCapo, setEditCapo] = useState('');
   const [editStrummingPattern, setEditStrummingPattern] = useState('');
+  const [draftStatus, setDraftStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const editBaseRef = useRef<ChordDraftContent | null>(null);
   const [bpmInput, setBpmInput] = useState<string | null>(null);
   const chordProInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
@@ -183,13 +195,41 @@ export const ChordsView = ({ track, songTitle, song, onEditChange, originalBpm, 
     setBpmInput(null);
   };
 
-  const populateEditState = useCallback(() => {
+  const populateEditState = useCallback(async () => {
     if (!currentSong) return;
-    setEditContent(normalizeChordPro(currentSong.textContent || ''));
-    setEditOriginalKey(currentSong.originalKey || '');
-    setEditTuning(currentSong.tuning || '');
-    setEditCapo(currentSong.capo || '');
-    setEditStrummingPattern(currentSong.strummingPattern || '');
+    const songIdentity = currentSong.cloudId || currentSong.id;
+    const savedContent: ChordDraftContent = {
+      content: normalizeChordPro(currentSong.textContent || ''),
+      originalKey: currentSong.originalKey || '',
+      tuning: currentSong.tuning || '',
+      capo: currentSong.capo || '',
+      strummingPattern: currentSong.strummingPattern || ''
+    };
+    let contentToEdit = savedContent;
+    const draft = songIdentity ? loadChordDraft(songIdentity) : null;
+    if (draft && !isSameChordDraftContent(draft, savedContent)) {
+      const result = await Swal.fire({
+        icon: 'info',
+        title: 'Hay un borrador sin guardar',
+        text: `Fue guardado ${new Date(draft.updatedAt).toLocaleString()}. ¿Quieres recuperar esos cambios?`,
+        showCancelButton: true,
+        showDenyButton: true,
+        confirmButtonText: 'Recuperar borrador',
+        denyButtonText: 'Descartar borrador',
+        cancelButtonText: 'Cancelar'
+      });
+      if (result.isDismissed) return;
+      if (result.isConfirmed) contentToEdit = draft;
+      if (result.isDenied) clearChordDraft(songIdentity!);
+    }
+
+    editBaseRef.current = savedContent;
+    setEditContent(contentToEdit.content);
+    setEditOriginalKey(contentToEdit.originalKey);
+    setEditTuning(contentToEdit.tuning);
+    setEditCapo(contentToEdit.capo);
+    setEditStrummingPattern(contentToEdit.strummingPattern);
+    setDraftStatus(draft && contentToEdit === draft ? 'saved' : 'idle');
     setIsEditing(true);
     if (onEditChange) onEditChange(true);
   }, [currentSong, onEditChange]);
@@ -198,7 +238,7 @@ export const ChordsView = ({ track, songTitle, song, onEditChange, originalBpm, 
   useEffect(() => {
     if (location.state?.autoEdit && song) {
       const editTimer = setTimeout(() => {
-        populateEditState();
+        void populateEditState();
         window.history.replaceState({}, document.title);
       }, 0);
 
@@ -207,16 +247,69 @@ export const ChordsView = ({ track, songTitle, song, onEditChange, originalBpm, 
   }, [location.state, song, populateEditState]);
 
   const handleEditClick = () => {
-    populateEditState();
+    void populateEditState();
   };
+
+  const currentEditContent = useCallback((): ChordDraftContent => ({
+    content: editContent,
+    originalKey: editOriginalKey,
+    tuning: editTuning,
+    capo: editCapo,
+    strummingPattern: editStrummingPattern
+  }), [editCapo, editContent, editOriginalKey, editStrummingPattern, editTuning]);
+
+  const hasUnsavedEditChanges = useCallback(() => (
+    Boolean(editBaseRef.current) && !isSameChordDraftContent(currentEditContent(), editBaseRef.current!)
+  ), [currentEditContent]);
+
+  useEffect(() => {
+    const songIdentity = currentSong?.cloudId || currentSong?.id;
+    if (!isEditing || !songIdentity || !editBaseRef.current) return;
+    const editableContent = currentEditContent();
+    if (isSameChordDraftContent(editableContent, editBaseRef.current)) {
+      clearChordDraft(songIdentity);
+      setDraftStatus('idle');
+      return;
+    }
+
+    setDraftStatus('saving');
+    const timer = window.setTimeout(() => {
+      try {
+        saveChordDraft(songIdentity, editableContent, currentSong?.updatedAt);
+        setDraftStatus('saved');
+      } catch {
+        setDraftStatus('idle');
+      }
+    }, 800);
+    return () => window.clearTimeout(timer);
+  }, [currentEditContent, currentSong?.cloudId, currentSong?.id, currentSong?.updatedAt, isEditing]);
+
+  useEffect(() => {
+    if (!isEditing) return;
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!hasUnsavedEditChanges()) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedEditChanges, isEditing]);
 
   const handleSaveEdit = async () => {
     if (currentSong?.id) {
-      const sanitizedTextContent = sanitizeChordText(editContent);
+      const normalized = normalizeSongMetadata({ key: editOriginalKey, tuning: editTuning });
+      const sanitizedTextContent = sanitizeChordText(synchronizeChordProMetadata(editContent, {
+        title: currentSong.name,
+        artist: currentSong.artist,
+        key: normalized.key,
+        tuning: normalized.tuning,
+        capo: editCapo.trim() || undefined,
+        strummingPattern: editStrummingPattern.trim() || undefined
+      }));
       const updates = {
         textContent: sanitizedTextContent,
-        originalKey: editOriginalKey.trim() || undefined,
-        tuning: editTuning.trim() || undefined,
+        originalKey: normalized.key,
+        tuning: normalized.tuning,
         capo: editCapo.trim() || undefined,
         strummingPattern: editStrummingPattern.trim() || undefined
       };
@@ -224,13 +317,31 @@ export const ChordsView = ({ track, songTitle, song, onEditChange, originalBpm, 
       await db.songs.update(currentSong.id, updates);
       setLocalSongUpdate({ songId: currentSong.id, values: updates });
       setEditContent(sanitizedTextContent);
+      clearChordDraft(currentSong.cloudId || currentSong.id);
+      editBaseRef.current = null;
+      setDraftStatus('idle');
       
       setIsEditing(false);
       if (onEditChange) onEditChange(false);
     }
   };
 
-  const handleCancelEdit = () => {
+  const handleCancelEdit = async () => {
+    if (hasUnsavedEditChanges()) {
+      const result = await Swal.fire({
+        icon: 'warning',
+        title: '¿Descartar los cambios?',
+        text: 'También se eliminará el borrador guardado automáticamente.',
+        showCancelButton: true,
+        confirmButtonText: 'Descartar cambios',
+        cancelButtonText: 'Seguir editando'
+      });
+      if (!result.isConfirmed) return;
+    }
+    const songIdentity = currentSong?.cloudId || currentSong?.id;
+    if (songIdentity) clearChordDraft(songIdentity);
+    editBaseRef.current = null;
+    setDraftStatus('idle');
     setIsEditing(false);
     if (onEditChange) onEditChange(false);
   };
@@ -499,7 +610,7 @@ export const ChordsView = ({ track, songTitle, song, onEditChange, originalBpm, 
       const tags = line.items.filter((item) => item instanceof CSJS.Tag);
       if (tags.length === 0) return items;
 
-      const sectionTags = tags.filter((item) => !METADATA_TAG_NAMES.has(item.name));
+      const sectionTags = tags.filter((item) => !METADATA_TAG_NAMES.has(item.name) && !['start_of_tab', 'end_of_tab'].includes(item.name));
       if (sectionTags.length === 0) return items;
 
       const tagNames = sectionTags.map((item) => item.name || '').join(' ');
@@ -516,6 +627,7 @@ export const ChordsView = ({ track, songTitle, song, onEditChange, originalBpm, 
       if (label) items.push({ lineIndex: targetLineIndex, label });
       return items;
     }, []);
+    const { blocksByStart: tabBlocksByStart, blockLineIndices: tabBlockLineIndices } = buildChordTabBlockLayout(displaySong.lines);
     const firstMetadataValue = (name: string) => {
       const value = parsedSong.metadata.get(name);
       return Array.isArray(value) ? value[0] : value;
@@ -551,6 +663,11 @@ export const ChordsView = ({ track, songTitle, song, onEditChange, originalBpm, 
                 const label = visibleTags.map((tag) => tag.value || tag.name.replace('start_of_', '')).join(' ');
                 return <h2 key={lineIndex}>{label}</h2>;
               }
+              const literalText = line.items
+                .filter((item) => item instanceof CSJS.Literal)
+                .map((item) => item instanceof CSJS.Literal ? item.string : '')
+                .join('');
+              if (literalText) return <div key={lineIndex} className="print-sheet-tab-line">{literalText}</div>;
               const hasLyrics = line.items.some((item) => item instanceof CSJS.ChordLyricsPair && Boolean(item.lyrics?.trim()));
               if (!hasLyrics) {
                 const chords = line.items
@@ -596,6 +713,11 @@ export const ChordsView = ({ track, songTitle, song, onEditChange, originalBpm, 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <h3 className="text-primary-500 font-bold uppercase tracking-widest text-sm flex items-center gap-2">
                 <Edit2 size={16} /> Modo Edición
+                {draftStatus !== 'idle' && (
+                  <span className="normal-case tracking-normal text-[10px] font-medium text-zinc-500">
+                    {draftStatus === 'saving' ? 'Guardando borrador…' : 'Borrador guardado'}
+                  </span>
+                )}
               </h3>
               <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                 <input ref={chordProInputRef} type="file" accept=".cho,.crd,.chopro,.pro,text/plain" className="hidden" onChange={handleChordProImport} />
@@ -925,6 +1047,11 @@ export const ChordsView = ({ track, songTitle, song, onEditChange, originalBpm, 
             )}
             
             {displaySong.lines.map((line, i: number) => {
+              const tabBlock = tabBlocksByStart.get(i);
+              if (tabBlock) {
+                return <CollapsibleTabBlock key={i} label={tabBlock.label} lines={tabBlock.lines} />;
+              }
+              if (tabBlockLineIndices.has(i)) return null;
               if (line.items.length === 0) return <div key={i} className="h-4"></div>;
 
               const isCommentOrTag = line.items.some((item) => item instanceof CSJS.Tag);
@@ -938,7 +1065,7 @@ export const ChordsView = ({ track, songTitle, song, onEditChange, originalBpm, 
                 const tagStr = line.items.map((item) => {
                   if (!(item instanceof CSJS.Tag)) return '';
                   if (item.name && item.name.startsWith('start_of_')) {
-                    return item.name.replace('start_of_', '');
+                    return item.value || item.name.replace('start_of_', '');
                   }
                   if (item.name === 'soc') return 'chorus';
                   if (item.name === 'sob') return 'bridge';
@@ -972,6 +1099,9 @@ export const ChordsView = ({ track, songTitle, song, onEditChange, originalBpm, 
               if (isTabLine) {
                 return (
                   <div key={i} className="mb-0 whitespace-pre flex flex-col font-mono text-zinc-500 tracking-wide">
+                    {line.items.some((item) => item instanceof CSJS.Literal) && (
+                      <div>{line.items.map((item) => item instanceof CSJS.Literal ? item.string : '').join('')}</div>
+                    )}
                     {line.items.some((item) => item instanceof CSJS.ChordLyricsPair && item.chords) && (
                       <div className="flex">
                         {line.items.map((item, idx: number) => {

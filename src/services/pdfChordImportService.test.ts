@@ -36,13 +36,37 @@ describe('convertPdfTextToChordPro', () => {
       artist: 'Peter, Paul & Mary',
       composer: 'Hedy West',
       key: 'D',
-      tuning: 'E A D G B E'
+      tuning: 'Estándar'
     });
+    expect(result.content).toContain('{tuning: Estándar}');
     expect(result.content).toContain('{start_of_intro: Intro}');
     expect(result.content).toContain('[D] [Bm]');
     expect(result.content).toContain('[D] [Bm]\n{end_of_intro}\n\nIf you');
     expect(result.content).toContain('If you [D]miss the train[Bm]');
     expect(result.importedPages).toBe(1);
     expect(result.skippedPages).toBe(2);
+  });
+
+  it('preserves guitar tablature as a ChordPro tab block', () => {
+    const pages: PdfTextPage[] = [{
+      pageNumber: 1,
+      items: [
+        item('Solo Song', 28, 739, 15),
+        item('Test Artist', 28, 715, 15),
+        item('Tono:', 28, 652), item('Em', 58, 652),
+        item('[Solo - Parte 1 de 2]', 28, 600),
+        item('E|---0---3---|', 28, 570),
+        item('B|---0---0---|', 28, 554),
+        item('Em', 28, 520),
+        item('Final lyric', 28, 504)
+      ]
+    }];
+
+    const result = convertPdfTextToChordPro(pages);
+
+    expect(result.content).toContain('{start_of_tab: Solo - Parte 1 de 2}');
+    expect(result.content).toContain('E|---0---3---|\nB|---0---0---|');
+    expect(result.content).toContain('{end_of_tab}');
+    expect(result.content).toContain('[Em]Final lyric');
   });
 });

@@ -549,6 +549,12 @@ body {
     font-weight: 700;
   }
 
+  .print-sheet-tab-line {
+    break-inside: avoid;
+    color: #3f3f46;
+    white-space: pre;
+  }
+
   .print-sheet-chord-line {
     break-inside: avoid;
     margin-bottom: 2mm;

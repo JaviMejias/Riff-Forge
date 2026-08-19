@@ -1,3 +1,5 @@
+import { normalizeSongMetadata } from './songMetadataService';
+
 const CHORD_PATTERN = /^[A-G](?:#|b)?(?:m|maj|min|dim|aug|sus|add|M|\d|[#()+/,-])*$/;
 const SECTION_PATTERN = /^\[(.+)]$/;
 const Y_TOLERANCE = 2;
@@ -65,12 +67,18 @@ const isChord = (value: string) => CHORD_PATTERN.test(value.trim());
 
 const isSectionItem = (value: string) => SECTION_PATTERN.test(value.trim());
 
+const sectionLabelFromRow = (row: TextRow) => rowText(row).match(/^\[([^\]]+)]/)?.[1].trim() || null;
+
 const isChordRow = (row: TextRow) => {
   const musicalItems = row.items.filter((item) => !isSectionItem(item.text));
   return musicalItems.length > 0 && musicalItems.every((item) => isChord(item.text));
 };
 
-const hasSection = (row: TextRow) => row.items.some((item) => isSectionItem(item.text));
+const hasSection = (row: TextRow) => Boolean(sectionLabelFromRow(row));
+
+const isTabRow = (row: TextRow) => /^[A-Ga-g](?:#|b)?\|/.test(rowText(row));
+
+const isTabAnnotationRow = (row: TextRow) => /^(?:H\.M\.|P\.M\.|x\d+|\(?harm(?:onic)?s?\)?)$/i.test(rowText(row));
 
 const sectionName = (value: string) => {
   const label = value.match(SECTION_PATTERN)?.[1].trim() || 'Parte';
@@ -136,19 +144,29 @@ const metadataFromRows = (rows: TextRow[]) => {
     if (artistCandidate) metadata.artist = rowText(artistCandidate);
   }
 
-  rows.forEach((row) => {
+  rows.forEach((row, rowIndex) => {
     const text = rowText(row);
     const composerMatch = text.match(/^Composici[oó]n de:\s*(.+)$/i);
-    if (composerMatch) metadata.composer = composerMatch[1].trim();
+    if (composerMatch) {
+      const continuation = rows[rowIndex + 1];
+      const continuationText = continuation ? rowText(continuation) : '';
+      const isContinuation = continuation
+        && row.y - continuation.y < 20
+        && !/^Tono:|^Afinaci[oó]n:|^\[/.test(continuationText);
+      metadata.composer = normalizeText(`${composerMatch[1]}${isContinuation ? ` ${continuationText}` : ''}`);
+    }
     if (/^Tono:/i.test(text)) metadata.key = normalizeText(text.replace(/^Tono:/i, ''));
     if (/^Afinaci[oó]n:/i.test(text)) metadata.tuning = normalizeText(text.replace(/^Afinaci[oó]n:/i, ''));
   });
-  return metadata;
+  return normalizeSongMetadata(metadata);
 };
 
 const isMetadataRow = (row: TextRow, metadata: PdfChordMetadata) => {
   const text = rowText(row);
-  return text === metadata.title || text === metadata.artist || /^Composici[oó]n de:|^Tono:|^Afinaci[oó]n:/i.test(text);
+  return text === metadata.title
+    || text === metadata.artist
+    || Boolean(metadata.composer?.endsWith(text))
+    || /^Composici[oó]n de:|^Tono:|^Afinaci[oó]n:/i.test(text);
 };
 
 export const convertPdfTextToChordPro = (pages: PdfTextPage[]): PdfChordImportResult => {
@@ -159,6 +177,7 @@ export const convertPdfTextToChordPro = (pages: PdfTextPage[]): PdfChordImportRe
   )));
   const lines: string[] = [];
   let openSection: string | null = null;
+  let isTabBlockOpen = false;
 
   contentPages.forEach(({ rows }) => {
     const musicalRows = rows.filter((row) => !isMetadataRow(row, metadata));
@@ -167,10 +186,30 @@ export const convertPdfTextToChordPro = (pages: PdfTextPage[]): PdfChordImportRe
 
     for (let index = 0; index < musicalRows.length; index += 1) {
       const row = musicalRows[index];
-      const sectionItem = row.items.find((item) => isSectionItem(item.text));
-      if (sectionItem) {
+      const nextRow = musicalRows[index + 1];
+      if (isTabBlockOpen && (isTabRow(row) || isTabAnnotationRow(row))) {
+        lines.push(composeLyric(row, leftEdge, characterWidth));
+        continue;
+      }
+      if (isTabBlockOpen && isChordRow(row) && nextRow && isTabRow(nextRow)) {
+        lines.push(composeLyric(row, leftEdge, characterWidth));
+        continue;
+      }
+      if (isTabBlockOpen) {
+        lines.push('{end_of_tab}', '');
+        isTabBlockOpen = false;
+      }
+
+      const sectionLabel = sectionLabelFromRow(row);
+      if (sectionLabel) {
+        const startsTabBlock = musicalRows.slice(index + 1, index + 3).some((candidate) => isTabRow(candidate));
+        if (startsTabBlock) {
+          lines.push(`{start_of_tab: ${safeDirectiveValue(sectionLabel)}}`);
+          isTabBlockOpen = true;
+          continue;
+        }
         if (openSection) lines.push(`{end_of_${openSection}}`, '');
-        const section = sectionName(sectionItem.text);
+        const section = sectionName(`[${sectionLabel}]`);
         openSection = section.name;
         lines.push(`{start_of_${section.name}: ${section.label}}`);
         const chords = chordOnlyLine(row);
@@ -178,9 +217,14 @@ export const convertPdfTextToChordPro = (pages: PdfTextPage[]): PdfChordImportRe
         continue;
       }
 
+      if (isTabRow(row)) {
+        lines.push('{start_of_tab}', composeLyric(row, leftEdge, characterWidth));
+        isTabBlockOpen = true;
+        continue;
+      }
+
       if (isChordRow(row)) {
-        const nextRow = musicalRows[index + 1];
-        if (nextRow && !isChordRow(nextRow) && !hasSection(nextRow) && row.y - nextRow.y <= CHORD_TO_LYRIC_DISTANCE) {
+        if (nextRow && !isChordRow(nextRow) && !hasSection(nextRow) && !isTabRow(nextRow) && row.y - nextRow.y <= CHORD_TO_LYRIC_DISTANCE) {
           if (openSection === 'intro') {
             lines.push(`{end_of_${openSection}}`, '');
             openSection = null;
@@ -201,6 +245,7 @@ export const convertPdfTextToChordPro = (pages: PdfTextPage[]): PdfChordImportRe
     }
   });
 
+  if (isTabBlockOpen) lines.push('{end_of_tab}');
   if (openSection) lines.push(`{end_of_${openSection}}`);
   const directives = [
     metadata.title && `{title: ${safeDirectiveValue(metadata.title)}}`,

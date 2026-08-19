@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Download, Upload, Palette, CheckCircle2, AlertTriangle, RefreshCcw, RefreshCw, Smartphone } from 'lucide-react';
+import { Download, Upload, Palette, CheckCircle2, AlertTriangle, RefreshCcw, RefreshCw, Smartphone, WandSparkles } from 'lucide-react';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 import { useUiStore } from '../store/uiStore';
@@ -8,6 +8,8 @@ import { useAuthStore } from '../store/authStore';
 import { BackupAccountMismatchError, createLibraryBackup, parseLibraryBackup, restoreLibraryBackup } from '../services/backupService';
 import { Navbar } from './Navbar';
 import { Button } from './ui/Button';
+import { db } from '../db';
+import { buildLibraryNormalizationPlan } from '../services/libraryNormalizationService';
 
 const MySwal = withReactContent(Swal);
 
@@ -37,6 +39,7 @@ export const SettingsView = ({
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isNormalizing, setIsNormalizing] = useState(false);
   const [lastSyncAt, setLastSyncAt] = useState(() => Number(localStorage.getItem('sync_v2_last_success_at') || 0));
 
   const handleExport = async () => {
@@ -161,6 +164,72 @@ export const SettingsView = ({
       });
     } finally {
       setIsSyncing(false);
+    }
+  };
+
+  const handleNormalizeLibrary = async () => {
+    setIsNormalizing(true);
+    try {
+      const plan = buildLibraryNormalizationPlan(await db.songs.toArray());
+      if (!plan.length) {
+        await MySwal.fire({
+          icon: 'success',
+          title: 'Biblioteca ordenada',
+          text: 'Todas las canciones ya tienen metadatos consistentes.',
+          confirmButtonColor: 'var(--primary-500)'
+        });
+        return;
+      }
+
+      const preview = plan.slice(0, 8);
+      const result = await MySwal.fire({
+        icon: 'info',
+        title: `${plan.length} canción(es) pueden normalizarse`,
+        html: (
+          <div className="max-h-72 overflow-y-auto text-left text-sm custom-scrollbar">
+            {preview.map(({ song, updates, changedFields }) => (
+              <div key={song.id} className="mb-2 rounded-lg bg-zinc-800/80 p-3">
+                <div className="font-bold text-zinc-100">{song.name}</div>
+                <div className="mt-1 text-xs text-zinc-400">
+                  {[updates.name, updates.artist, updates.originalKey, updates.tuning].filter(Boolean).join(' · ')
+                    || (changedFields.includes('chordPro') ? 'Sincronizar metadatos ChordPro' : '')}
+                </div>
+              </div>
+            ))}
+            {plan.length > preview.length && <p className="mt-2 text-center text-xs text-zinc-500">Y {plan.length - preview.length} canción(es) más.</p>}
+          </div>
+        ),
+        showCancelButton: true,
+        confirmButtonText: 'Aplicar cambios',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: 'var(--primary-500)'
+      });
+      if (!result.isConfirmed) return;
+
+      const changedAt = Date.now();
+      await db.transaction('rw', db.songs, async () => {
+        for (const change of plan) {
+          if (!change.song.id) continue;
+          await db.songs.update(change.song.id, {
+            ...change.updates,
+            updatedAt: changedAt,
+            syncDirty: true
+          });
+        }
+      });
+      const { SyncService } = await import('../services/syncService');
+      SyncService.scheduleAutoSync();
+      await MySwal.fire({
+        icon: 'success',
+        title: 'Biblioteca normalizada',
+        text: `Se actualizaron ${plan.length} canción(es).`,
+        confirmButtonColor: 'var(--primary-500)'
+      });
+    } catch (error) {
+      console.error(error);
+      await MySwal.fire({ icon: 'error', title: 'No se pudo normalizar la biblioteca' });
+    } finally {
+      setIsNormalizing(false);
     }
   };
 
@@ -314,6 +383,31 @@ export const SettingsView = ({
               className="w-full md:w-auto"
             >
               {isSyncing ? 'Sincronizando…' : 'Sincronizar ahora'}
+            </Button>
+          </div>
+        </div>
+
+        <div>
+          <h2 className="mb-4 text-xs font-bold uppercase tracking-widest text-zinc-500 sm:mb-6 sm:text-sm">Biblioteca</h2>
+          <div className="flex flex-col gap-5 rounded-2xl border border-white/5 bg-zinc-900/50 p-4 shadow-xl sm:rounded-3xl sm:p-6 md:flex-row md:items-center md:justify-between">
+            <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-primary-500/20 bg-primary-500/10 text-primary-400">
+                <WandSparkles size={24} />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-lg font-bold text-white sm:text-xl">Normalizar metadatos</h3>
+                <p className="mt-1 text-sm text-zinc-400">Revisa títulos, artistas, tonos, afinaciones y directivas ChordPro antes de aplicar cambios.</p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => void handleNormalizeLibrary()}
+              disabled={isNormalizing}
+              icon={<WandSparkles size={18} className={isNormalizing ? 'animate-pulse' : ''} />}
+              className="w-full md:w-auto"
+            >
+              {isNormalizing ? 'Analizando…' : 'Revisar biblioteca'}
             </Button>
           </div>
         </div>

@@ -1,9 +1,14 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, Braces, Code2, Eye, ListPlus, Redo2, Rows3, Undo2 } from 'lucide-react';
+import { AlertTriangle, Braces, Check, ChevronLeft, ChevronRight, Code2, Eye, ListPlus, Redo2, Rows3, Undo2 } from 'lucide-react';
 import ChordSheetJS from 'chordsheetjs';
 import { parseChordContent } from '../../services/chordProService';
 import { ChordSearchInput } from './ChordSearchInput';
 import { InsertionCombobox } from './InsertionCombobox';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '../../db';
+import { validateChordProChords } from '../../services/chordValidationService';
+import { buildChordTabBlockLayout } from '../../services/chordTabBlockService';
+import { CollapsibleTabBlock } from './CollapsibleTabBlock';
 
 const CSJS = ChordSheetJS;
 const METADATA_TAG_NAMES = new Set([
@@ -68,6 +73,8 @@ export const ChordProEditor = ({ value, onChange }: ChordProEditorProps) => {
   const [historyState, setHistoryState] = useState({ canUndo: false, canRedo: false });
   const [mobileView, setMobileView] = useState<'code' | 'preview'>('code');
   const [hasInsertionPoint, setHasInsertionPoint] = useState(false);
+  const [activeChordIssueIndex, setActiveChordIssueIndex] = useState(0);
+  const customChords = useLiveQuery(() => db.customChords.toArray());
 
   const parsedSong = useMemo(() => {
     try {
@@ -77,6 +84,15 @@ export const ChordProEditor = ({ value, onChange }: ChordProEditorProps) => {
       return { song: null, error: 'Hay una etiqueta o un acorde incompleto.', location };
     }
   }, [value]);
+  const chordIssues = useMemo(
+    () => validateChordProChords(value, (customChords || []).map((chord) => chord.name)),
+    [customChords, value]
+  );
+  const activeChordIssue = chordIssues[Math.min(activeChordIssueIndex, Math.max(0, chordIssues.length - 1))];
+  const previewTabLayout = useMemo(
+    () => buildChordTabBlockLayout(parsedSong.song?.lines || []),
+    [parsedSong.song]
+  );
 
   useEffect(() => {
     if (value === lastValueRef.current) return;
@@ -212,6 +228,34 @@ export const ChordProEditor = ({ value, onChange }: ChordProEditorProps) => {
     });
   };
 
+  const focusChordIssue = (issueIndex = 0) => {
+    const issue = chordIssues[issueIndex];
+    if (!issue) return;
+    setMobileView('code');
+    window.requestAnimationFrame(() => {
+      const textarea = textareaRef.current;
+      if (!textarea) return;
+      textarea.focus();
+      textarea.setSelectionRange(issue.offset, issue.offset + issue.chord.length + 2);
+      const lineHeight = Number.parseFloat(window.getComputedStyle(textarea).lineHeight) || 24;
+      if (codeScrollRef.current) codeScrollRef.current.scrollTop = Math.max(0, (issue.line - 3) * lineHeight);
+    });
+  };
+
+  const goToChordIssue = (issueIndex: number) => {
+    const normalizedIndex = (issueIndex + chordIssues.length) % chordIssues.length;
+    setActiveChordIssueIndex(normalizedIndex);
+    focusChordIssue(normalizedIndex);
+  };
+
+  const applyChordSuggestion = () => {
+    if (!activeChordIssue?.suggestion) return;
+    const chordStart = activeChordIssue.offset + 1;
+    const chordEnd = chordStart + activeChordIssue.chord.length;
+    commitContentChange(`${value.slice(0, chordStart)}${activeChordIssue.suggestion}${value.slice(chordEnd)}`);
+    setActiveChordIssueIndex(0);
+  };
+
   return (
     <div className="overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/70" onKeyDown={handleEditorShortcut}>
       <div className="flex flex-col gap-2 border-b border-white/10 bg-zinc-900/80 p-2 sm:p-3">
@@ -248,6 +292,26 @@ export const ChordProEditor = ({ value, onChange }: ChordProEditorProps) => {
         </div>
       )}
 
+      {!parsedSong.error && chordIssues.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 border-b border-amber-500/20 bg-amber-500/10 px-3 py-2 text-sm text-amber-200 sm:gap-3">
+          <AlertTriangle size={16} className="shrink-0" />
+          <span className="min-w-0 flex-1">
+            {chordIssues.length === 1 ? 'Hay un acorde que necesita revisión.' : `Hay ${chordIssues.length} acordes que necesitan revisión.`}
+            {' '}Línea {activeChordIssue.line}: [{activeChordIssue.chord}]
+            {activeChordIssue.suggestion ? ` ¿Quisiste escribir ${activeChordIssue.suggestion}?` : ''}
+          </span>
+          {chordIssues.length > 1 && (
+            <div className="flex shrink-0 items-center rounded-lg border border-amber-400/20">
+              <button type="button" onClick={() => goToChordIssue(activeChordIssueIndex - 1)} className="flex h-9 w-8 items-center justify-center" aria-label="Acorde anterior"><ChevronLeft size={14} /></button>
+              <span className="text-[10px] font-bold">{Math.min(activeChordIssueIndex + 1, chordIssues.length)}/{chordIssues.length}</span>
+              <button type="button" onClick={() => goToChordIssue(activeChordIssueIndex + 1)} className="flex h-9 w-8 items-center justify-center" aria-label="Acorde siguiente"><ChevronRight size={14} /></button>
+            </div>
+          )}
+          {activeChordIssue.suggestion && <button type="button" onClick={applyChordSuggestion} className="flex min-h-9 shrink-0 items-center gap-1 rounded-lg border border-amber-400/20 px-3 text-xs font-bold transition-colors hover:bg-amber-500/10"><Check size={14} /> Corregir</button>}
+          <button type="button" onClick={() => focusChordIssue(Math.min(activeChordIssueIndex, chordIssues.length - 1))} className="min-h-9 shrink-0 rounded-lg border border-amber-400/20 px-3 text-xs font-bold transition-colors hover:bg-amber-500/10">Revisar</button>
+        </div>
+      )}
+
       <div className="lg:grid lg:grid-cols-2">
         <div className={`${mobileView === 'code' ? 'block' : 'hidden'} relative min-h-80 lg:block lg:border-r lg:border-white/10`}>
           <div className="hidden h-10 items-center gap-2 border-b border-white/5 px-4 text-[10px] font-bold uppercase tracking-widest text-zinc-500 lg:flex"><Code2 size={14} /> Código ChordPro</div>
@@ -255,7 +319,7 @@ export const ChordProEditor = ({ value, onChange }: ChordProEditorProps) => {
           <div className="flex min-w-0 bg-zinc-950">
           <div aria-hidden="true" className="min-h-[52dvh] shrink-0 select-none border-r border-white/5 bg-zinc-900/70 px-2 py-3 text-right font-mono text-sm leading-6 text-zinc-600 sm:min-w-12 sm:px-3 sm:py-5 sm:text-base lg:min-h-[600px]">
             {value.split('\n').map((_, lineIndex) => (
-              <div key={lineIndex} className={parsedSong.location?.line === lineIndex + 1 ? 'font-bold text-red-400' : ''}>{lineIndex + 1}</div>
+              <div key={lineIndex} className={parsedSong.location?.line === lineIndex + 1 ? 'font-bold text-red-400' : chordIssues.some((issue) => issue.line === lineIndex + 1) ? 'font-bold text-amber-400' : ''}>{lineIndex + 1}</div>
             ))}
           </div>
           <textarea
@@ -292,6 +356,9 @@ export const ChordProEditor = ({ value, onChange }: ChordProEditorProps) => {
           <div ref={previewScrollRef} className="h-[52dvh] min-h-80 overflow-y-auto p-4 font-mono custom-scrollbar sm:p-6 lg:h-[560px] lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden">
             {!value.trim() && <p className="py-20 text-center font-sans text-sm text-zinc-500">Escribe una letra o añade una sección para comenzar.</p>}
             {parsedSong.song?.lines.map((line, lineIndex) => {
+              const tabBlock = previewTabLayout.blocksByStart.get(lineIndex);
+              if (tabBlock) return <CollapsibleTabBlock key={lineIndex} label={tabBlock.label} lines={tabBlock.lines} compact />;
+              if (previewTabLayout.blockLineIndices.has(lineIndex)) return null;
               const tags = line.items.filter((item) => item instanceof CSJS.Tag);
               if (tags.length > 0) {
                 const visibleTags = tags.filter((tag) => !tag.name.startsWith('end_of_') && !METADATA_TAG_NAMES.has(tag.name));
@@ -299,6 +366,13 @@ export const ChordProEditor = ({ value, onChange }: ChordProEditorProps) => {
                 return <div key={lineIndex} className="mb-2 mt-3"><span className="rounded-full border border-primary-500/20 bg-primary-500/10 px-3 py-1 font-sans text-[10px] font-bold uppercase tracking-widest text-primary-300">{visibleTags.map((tag) => tag.value || tag.name.replace('start_of_', '')).join(' ')}</span></div>;
               }
               if (line.items.length === 0) return <div key={lineIndex} className="h-2" />;
+              const literalText = line.items
+                .filter((item) => item instanceof CSJS.Literal)
+                .map((item) => item instanceof CSJS.Literal ? item.string : '')
+                .join('');
+              if (literalText) {
+                return <div key={lineIndex} className="whitespace-pre font-mono text-zinc-400">{literalText}</div>;
+              }
               const hasLyrics = line.items.some((item) => item instanceof CSJS.ChordLyricsPair && Boolean(item.lyrics?.trim()));
               if (!hasLyrics) {
                 const chordLine = line.items
