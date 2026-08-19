@@ -9,6 +9,7 @@ const API_URL = `${API_BASE_URL}/api`;
 const DEVICE_ID_KEY = 'sync_v2_device_id';
 const CURSOR_KEY = 'sync_v2_cursor';
 const SYNC_RETRY_AT_KEY = 'sync_retry_at';
+export const LAST_SYNC_SUCCESS_AT_KEY = 'sync_v2_last_success_at';
 
 interface RemoteFile {
   url: string;
@@ -480,6 +481,7 @@ export const SyncService = {
         }
       }
       await syncSettings(headers);
+      localStorage.setItem(LAST_SYNC_SUCCESS_AT_KEY, String(Date.now()));
       onProgress?.('¡Sincronización completada!');
       emitSyncStatus(operationsNeedingAttention > 0 ? 'attention' : 'success');
     } catch (error) {
