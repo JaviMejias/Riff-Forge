@@ -416,38 +416,169 @@ body {
   }
 }
 
-/* Estilos de Impresión (PDF) */
+.print-sheet {
+  display: none;
+}
+
+/* Printable chord sheet */
 @media print {
-  /* Ocultar elementos innecesarios */
-  aside, nav, .print-hide, button {
-    display: none !important;
+  @page {
+    size: auto;
+    margin: 14mm;
   }
 
-  /* Fondo blanco y texto negro para ahorrar tinta */
-  body, main, div {
-    background-color: white !important;
-    background: white !important;
-    color: black !important;
+  body * {
+    visibility: hidden !important;
   }
 
-  /* Evitar cortes a la mitad de una línea o bloque */
-  .cifra-content pre {
-    page-break-inside: avoid;
-    break-inside: avoid;
-    white-space: pre-wrap !important;
-  }
-
-  /* Reiniciar scrollbars y tamaños para que la página completa se imprima */
-  .overflow-y-auto, .overflow-hidden, .custom-scrollbar, .h-full, .h-screen {
-    overflow: visible !important;
+  html,
+  body {
     height: auto !important;
-    max-height: none !important;
+    overflow: visible !important;
+    background: white !important;
   }
 
-  /* Los acordes (que originalmente son amber-500) se oscurecerán para mejor lectura */
-  .cifra-content .text-amber-500 {
-    color: #000 !important;
-    font-weight: 900 !important;
-    border-bottom: 1px solid #000;
+  .print-sheet,
+  .print-sheet * {
+    visibility: visible !important;
+  }
+
+  .print-sheet {
+    display: block !important;
+    position: static !important;
+    width: 100%;
+    min-height: 100%;
+    background: white;
+    color: #18181b;
+    font-family: Arial, sans-serif;
+    font-size: 10pt;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .print-sheet-header {
+    border-top: 4px solid var(--primary-600);
+    border-bottom: 1px solid var(--primary-200);
+    background: linear-gradient(135deg, var(--primary-50) 0%, #ffffff 65%);
+    margin-bottom: 7mm;
+    padding: 4mm 5mm;
+  }
+
+  .print-sheet-header h1 {
+    margin: 0;
+    font-size: 22pt;
+    line-height: 1.1;
+    color: var(--primary-950);
+  }
+
+  .print-sheet-artist {
+    margin: 1.5mm 0 0;
+    font-size: 14pt;
+    font-weight: 700;
+    color: var(--primary-600);
+  }
+
+  .print-sheet-composer {
+    margin: 1mm 0 0;
+    color: #52525b;
+    font-size: 8.5pt;
+  }
+
+  .print-sheet-metadata {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2mm 7mm;
+    margin: 4mm 0 0;
+  }
+
+  .print-sheet-metadata div {
+    display: flex;
+    gap: 1.5mm;
+    border: 1px solid var(--primary-200);
+    border-radius: 999px;
+    background: #ffffff;
+    padding: 1mm 2.5mm;
+  }
+
+  .print-sheet-metadata dt {
+    color: #71717a;
+    font-weight: 700;
+  }
+
+  .print-sheet-metadata dd {
+    margin: 0;
+    font-weight: 700;
+  }
+
+  .print-sheet-song {
+    font-family: "Courier New", monospace;
+  }
+
+  .print-sheet-song h2,
+  .print-sheet-chords h2 {
+    break-after: avoid;
+    margin: 5mm 0 2mm;
+    font-family: Arial, sans-serif;
+    font-size: 10pt;
+    text-transform: uppercase;
+    color: var(--primary-800);
+  }
+
+  .print-sheet-song h2 {
+    border-left: 3px solid var(--primary-500);
+    padding-left: 2mm;
+  }
+
+  .print-sheet-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    break-inside: avoid;
+    margin-bottom: 1.5mm;
+  }
+
+  .print-sheet-pair {
+    display: flex;
+    flex-direction: column;
+    white-space: pre;
+  }
+
+  .print-sheet-pair strong,
+  .print-sheet-chord-line {
+    color: var(--primary-700);
+    font-weight: 700;
+  }
+
+  .print-sheet-chord-line {
+    break-inside: avoid;
+    margin-bottom: 2mm;
+    word-spacing: 3mm;
+  }
+
+  .print-sheet-spacer {
+    height: 2mm;
+  }
+
+  .print-sheet-chords {
+    break-before: page;
+    border-top: 4px solid var(--primary-600);
+    padding-top: 4mm;
+  }
+
+  .print-sheet-chords > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5mm;
+  }
+
+  .print-sheet-chords figure {
+    break-inside: avoid;
+    margin: 0;
+    text-align: center;
+  }
+
+  .print-sheet-chords figcaption {
+    margin-top: 1mm;
+    font-weight: 700;
   }
 }

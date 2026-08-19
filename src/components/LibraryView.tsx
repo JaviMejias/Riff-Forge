@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { SongCard } from './SongCard';
 import { SongSkeleton } from './SongSkeleton';
 import { CreatePlaylistModal } from './CreatePlaylistModal';
-import { PasteChordsModal } from './PasteChordsModal';
 import { ManagePlaylistsModal } from './ManagePlaylistsModal';
 import { CreateSongModal } from './CreateSongModal';
 import { AddSongOptionsModal } from './AddSongOptionsModal';
@@ -17,6 +16,8 @@ import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 import { Toast } from '../utils/toast';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
+import { importCifraClubPdf, type PdfChordImportResult } from '../services/pdfChordImportService';
+import { ImportPdfSongModal } from './ImportPdfSongModal';
 
 const MySwal = withReactContent(Swal);
 const getCurrentTimestamp = () => Date.now();
@@ -36,9 +37,9 @@ export const LibraryView = ({ songs, activeSongId, onPlaySong, onImport, isSideb
   const [songToAddToPlaylist, setSongToAddToPlaylist] = useState<number | null>(null);
   const [songForNewPlaylist, setSongForNewPlaylist] = useState<number | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isPasteModalOpen, setIsPasteModalOpen] = useState(false);
   const [isCreateSongModalOpen, setIsCreateSongModalOpen] = useState(false);
   const [isAddOptionsModalOpen, setIsAddOptionsModalOpen] = useState(false);
+  const [pdfImport, setPdfImport] = useState<PdfChordImportResult | null>(null);
   const [songForManagePlaylists, setSongForManagePlaylists] = useState<number | null>(null);
   const [editingSong, setEditingSong] = useState<Song | null>(null);
   const playlists = useLiveQuery(() => db.playlists.toArray()) || [];
@@ -101,6 +102,41 @@ export const LibraryView = ({ songs, activeSongId, onPlaySong, onImport, isSideb
     if (newSong) {
       onPlaySong(newSong, true); // true for autoEdit
     }
+  };
+
+  const handlePdfImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      await MySwal.fire({ icon: 'error', title: 'Archivo no compatible', text: 'Selecciona un documento PDF.' });
+      return;
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      await MySwal.fire({ icon: 'error', title: 'Archivo demasiado grande', text: 'El PDF no puede superar los 15 MB.' });
+      return;
+    }
+
+    MySwal.fire({ title: 'Leyendo la cifra…', text: 'El archivo se procesa localmente.', allowOutsideClick: false, didOpen: () => MySwal.showLoading() });
+    try {
+      const imported = await importCifraClubPdf(file);
+      MySwal.close();
+      setPdfImport(imported);
+    } catch (error) {
+      const isWithoutText = error instanceof Error && error.message === 'PDF_WITHOUT_TEXT';
+      await MySwal.fire({
+        icon: 'error',
+        title: 'No se pudo leer la cifra',
+        text: isWithoutText
+          ? 'Este PDF parece ser una imagen. Se necesita un PDF con texto seleccionable.'
+          : 'No se detectó una cifra compatible. Usa un PDF generado desde Imprimir en Cifra Club.'
+      });
+    }
+  };
+
+  const handlePdfSongCreated = async (songId: number) => {
+    const newSong = await db.songs.get(songId);
+    if (newSong) onPlaySong(newSong);
   };
 
   const deleteSong = async (id: number, e: React.MouseEvent) => {
@@ -491,29 +527,22 @@ export const LibraryView = ({ songs, activeSongId, onPlaySong, onImport, isSideb
         isOpen={isAddOptionsModalOpen}
         onClose={() => setIsAddOptionsModalOpen(false)}
         onCreateNew={handleCreateNewSong}
-        onPaste={() => setIsPasteModalOpen(true)}
         onImport={onImport}
+        onPdfImport={handlePdfImport}
       />
+
+      {pdfImport && (
+        <ImportPdfSongModal
+          imported={pdfImport}
+          onClose={() => setPdfImport(null)}
+          onSuccess={handlePdfSongCreated}
+        />
+      )}
 
       <CreatePlaylistModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onCreate={executeCreatePlaylist}
-      />
-      <PasteChordsModal
-        isOpen={isPasteModalOpen}
-        onClose={() => setIsPasteModalOpen(false)}
-        onSuccess={() => {
-          // Play the newly pasted song immediately if desired, or just show alert
-          MySwal.fire({
-            title: '¡Canción Guardada!',
-            icon: 'success',
-            background: '#18181b',
-            color: '#f4f4f5',
-            timer: 1500,
-            showConfirmButton: false
-          });
-        }}
       />
       <EditMetadataModal
         isOpen={!!editingSong}

@@ -1,5 +1,5 @@
 import * as alphaTab from '@coderline/alphatab';
-import { ArrowUp, ArrowDown, RotateCcw, Guitar, Volume2 } from 'lucide-react';
+import { ArrowUp, ArrowDown, RotateCcw, Guitar, Volume2, Gauge, Bell, ListMusic, SkipBack, SkipForward, Upload, Download, FileText } from 'lucide-react';
 import { useCallback, useMemo, useState, useRef, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
@@ -18,17 +18,32 @@ import { Button } from './ui/Button';
 import { Edit2, CheckCircle2, X } from 'lucide-react';
 import { usePlayerStore } from '../store/playerStore';
 import { sanitizeChordText } from '../utils/chordText';
+import { chordProFilename, exportChordPro, importChordPro, normalizeChordPro, parseChordContent } from '../services/chordProService';
+import Swal from 'sweetalert2';
+import { ChordProEditor } from './chords/ChordProEditor';
+import { importCifraClubPdf } from '../services/pdfChordImportService';
+import { createPortal } from 'react-dom';
 
 const CSJS = ChordSheetJS;
+const METADATA_TAG_NAMES = new Set([
+  'title', 'subtitle', 'artist', 'composer', 'lyricist', 'copyright', 'album', 'year',
+  'key', 'capo', 'tempo', 'time', 'duration', 'tuning', 'strumming'
+]);
 
 interface ChordsViewProps {
   track: alphaTab.model.Track | null;
   songTitle: string;
   song?: Song;
   onEditChange?: (isEditing: boolean) => void;
+  originalBpm: number;
+  targetBpm: number;
+  onBpmChange: (bpm: number) => void;
+  isMetronomeActive: boolean;
+  onToggleMetronome: () => void;
+  includeChordDiagramsInPrint: boolean;
 }
 
-export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewProps) => {
+export const ChordsView = ({ track, songTitle, song, onEditChange, originalBpm, targetBpm, onBpmChange, isMetronomeActive, onToggleMetronome, includeChordDiagramsInPrint }: ChordsViewProps) => {
   const { cifraFontSize, setCifraFontSize } = usePlayerStore();
   const [localSongUpdate, setLocalSongUpdate] = useState<{ songId: number; values: Partial<Song> } | null>(null);
   const currentSong = useMemo(
@@ -120,10 +135,57 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
   const [editTuning, setEditTuning] = useState('');
   const [editCapo, setEditCapo] = useState('');
   const [editStrummingPattern, setEditStrummingPattern] = useState('');
+  const [bpmInput, setBpmInput] = useState<string | null>(null);
+  const chordProInputRef = useRef<HTMLInputElement>(null);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
+  const [performanceSelection, setPerformanceSelection] = useState<{ songId?: number; lineIndex: number } | null>(null);
+  const lineRefs = useRef(new Map<number, HTMLDivElement>());
+  const performanceLineRefs = useRef(new Map<number, HTMLDivElement>());
+  const activeLineIndex = performanceSelection && performanceSelection.songId === currentSong?.id
+    ? performanceSelection.lineIndex
+    : null;
+
+  const selectPerformanceLine = useCallback((lineIndex: number) => {
+    setPerformanceSelection({ songId: currentSong?.id, lineIndex });
+    lineRefs.current.get(lineIndex)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [currentSong?.id]);
+
+  const movePerformanceLine = useCallback((direction: -1 | 1) => {
+    const lineIndices = Array.from(performanceLineRefs.current.keys()).sort((left, right) => left - right);
+    if (lineIndices.length === 0) return;
+    const currentPosition = activeLineIndex === null ? -1 : lineIndices.indexOf(activeLineIndex);
+    const fallbackPosition = direction === 1 ? 0 : lineIndices.length - 1;
+    const nextPosition = currentPosition === -1
+      ? fallbackPosition
+      : Math.min(lineIndices.length - 1, Math.max(0, currentPosition + direction));
+    selectPerformanceLine(lineIndices[nextPosition]);
+  }, [activeLineIndex, selectPerformanceLine]);
+
+  useEffect(() => {
+    const handleGuideShortcut = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+      if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('input, textarea, select, button, a, [contenteditable="true"], [role="dialog"]')) return;
+
+      event.preventDefault();
+      movePerformanceLine(event.key === 'ArrowLeft' ? -1 : 1);
+    };
+
+    document.addEventListener('keydown', handleGuideShortcut);
+    return () => document.removeEventListener('keydown', handleGuideShortcut);
+  }, [movePerformanceLine]);
+
+  const commitBpmInput = () => {
+    const bpm = Number(bpmInput ?? targetBpm);
+    if (Number.isFinite(bpm)) onBpmChange(bpm);
+    setBpmInput(null);
+  };
 
   const populateEditState = useCallback(() => {
     if (!currentSong) return;
-    setEditContent(currentSong.textContent || '');
+    setEditContent(normalizeChordPro(currentSong.textContent || ''));
     setEditOriginalKey(currentSong.originalKey || '');
     setEditTuning(currentSong.tuning || '');
     setEditCapo(currentSong.capo || '');
@@ -173,6 +235,116 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
     if (onEditChange) onEditChange(false);
   };
 
+  const handleChordProImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    if (!/\.(?:cho|crd|chopro|pro)$/i.test(file.name)) {
+      await Swal.fire({ icon: 'error', title: 'Archivo no compatible', text: 'Selecciona un archivo .cho, .crd, .chopro o .pro.' });
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      await Swal.fire({ icon: 'error', title: 'Archivo demasiado grande', text: 'El archivo ChordPro no puede superar los 2 MB.' });
+      return;
+    }
+
+    if (editContent.trim()) {
+      const confirmation = await Swal.fire({
+        icon: 'warning',
+        title: '¿Reemplazar la cifra actual?',
+        text: 'El contenido del archivo reemplazará el texto que está en el editor. Podrás cancelar la edición para recuperar la versión guardada.',
+        showCancelButton: true,
+        confirmButtonText: 'Importar y reemplazar',
+        cancelButtonText: 'Cancelar'
+      });
+      if (!confirmation.isConfirmed) return;
+    }
+
+    try {
+      const imported = importChordPro(await file.text());
+      setEditContent(imported.content);
+      if (imported.metadata.key) setEditOriginalKey(imported.metadata.key);
+      if (imported.metadata.capo) setEditCapo(imported.metadata.capo);
+      if (imported.metadata.tuning) setEditTuning(imported.metadata.tuning);
+      if (imported.metadata.strummingPattern) setEditStrummingPattern(imported.metadata.strummingPattern);
+      await Swal.fire({ icon: 'success', title: 'Cifra importada', text: 'Revisa el contenido y presiona Guardar cambios cuando estés conforme.', timer: 2200, showConfirmButton: false });
+    } catch {
+      await Swal.fire({ icon: 'error', title: 'No se pudo importar', text: 'El archivo está vacío o no contiene una cifra ChordPro válida.' });
+    }
+  };
+
+  const handleChordProExport = async () => {
+    try {
+      const content = exportChordPro(editContent, {
+        title: currentSong?.name || songTitle,
+        artist: currentSong?.artist,
+        key: editOriginalKey,
+        capo: editCapo,
+        tuning: editTuning,
+        strummingPattern: editStrummingPattern
+      });
+      const url = URL.createObjectURL(new Blob([content], { type: 'text/plain;charset=utf-8' }));
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = chordProFilename(currentSong?.name || songTitle, currentSong?.artist);
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      await Swal.fire({ icon: 'info', title: 'No hay contenido para exportar', text: 'Añade letra o acordes antes de exportar la cifra.' });
+    }
+  };
+
+  const handlePdfImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      await Swal.fire({ icon: 'error', title: 'Archivo no compatible', text: 'Selecciona un documento PDF.' });
+      return;
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      await Swal.fire({ icon: 'error', title: 'Archivo demasiado grande', text: 'El PDF no puede superar los 15 MB.' });
+      return;
+    }
+
+    Swal.fire({ title: 'Leyendo la cifra…', text: 'El PDF se procesa localmente en este dispositivo.', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    try {
+      const imported = await importCifraClubPdf(file);
+      const details = [
+        imported.metadata.title && `Título: ${imported.metadata.title}`,
+        imported.metadata.artist && `Artista: ${imported.metadata.artist}`,
+        imported.metadata.composer && `Compositor: ${imported.metadata.composer}`,
+        imported.metadata.key && `Tono: ${imported.metadata.key}`,
+        imported.metadata.tuning && `Afinación: ${imported.metadata.tuning}`
+      ].filter(Boolean).join('\n');
+      const confirmation = await Swal.fire({
+        icon: 'question',
+        title: 'Revisar importación PDF',
+        text: `${details}\n\nSe importaron ${imported.importedPages} página(s) de contenido y se omitieron ${imported.skippedPages} página(s) vacías o de resumen.`,
+        showCancelButton: true,
+        confirmButtonText: editContent.trim() ? 'Importar y reemplazar' : 'Importar',
+        cancelButtonText: 'Cancelar'
+      });
+      if (!confirmation.isConfirmed) return;
+
+      setEditContent(imported.content);
+      if (imported.metadata.key) setEditOriginalKey(imported.metadata.key);
+      if (imported.metadata.tuning) setEditTuning(imported.metadata.tuning);
+      await Swal.fire({ icon: 'success', title: 'PDF convertido', text: 'Revisa la alineación en la vista previa y guarda los cambios cuando estés conforme.', timer: 2600, showConfirmButton: false });
+    } catch (error) {
+      const isWithoutText = error instanceof Error && error.message === 'PDF_WITHOUT_TEXT';
+      await Swal.fire({
+        icon: 'error',
+        title: 'No se pudo leer la cifra',
+        text: isWithoutText
+          ? 'Este PDF parece ser una imagen escaneada. Por ahora se necesita un PDF con texto seleccionable.'
+          : 'No se detectó una cifra compatible. Prueba con un PDF generado desde Imprimir en Cifra Club.'
+      });
+    }
+  };
+
   const [isTransposeMenuOpen, setIsTransposeMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   
@@ -210,7 +382,7 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isTransposeMenuOpen]);
-  const [showChordsSummary, setShowChordsSummary] = useState(true);
+  const [showChordsSummary, setShowChordsSummary] = useState(false);
 
   // CHROMATIC LOGIC
   const CHROMATIC_SCALE = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
@@ -231,8 +403,7 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
     
     // Guess from parsed text
     try {
-      const parser = new CSJS.UltimateGuitarParser();
-      const tempSong = parser.parse(sanitizeChordText(currentSong?.textContent || ''));
+      const tempSong = parseChordContent(sanitizeChordText(currentSong?.textContent || ''));
       if (tempSong && tempSong.lines) {
         for (const line of tempSong.lines) {
           for (const item of line.items) {
@@ -268,8 +439,7 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
   if (currentSong && (currentSong.type === 'text' || currentSong.textContent)) {
     let parsedSong;
     try {
-      const parser = new CSJS.UltimateGuitarParser();
-      parsedSong = parser.parse(sanitizeChordText(currentSong.textContent || ''));
+      parsedSong = parseChordContent(sanitizeChordText(currentSong.textContent || ''));
     } catch (e) {
       return (
         <div className="bg-zinc-50 min-h-screen rounded-2xl p-8 md:p-12 shadow-2xl relative border border-white/10 text-zinc-900 font-sans flex flex-col items-center justify-center">
@@ -320,8 +490,105 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
       });
     }
 
+    const performanceLineIndices = displaySong.lines.reduce<number[]>((indices, line, index) => {
+      const hasLyricsOrChords = line.items.some((item) => item instanceof CSJS.ChordLyricsPair && Boolean(item.chords || item.lyrics));
+      if (hasLyricsOrChords) indices.push(index);
+      return indices;
+    }, []);
+    const sections = displaySong.lines.reduce<Array<{ lineIndex: number; label: string }>>((items, line, lineIndex) => {
+      const tags = line.items.filter((item) => item instanceof CSJS.Tag);
+      if (tags.length === 0) return items;
+
+      const sectionTags = tags.filter((item) => !METADATA_TAG_NAMES.has(item.name));
+      if (sectionTags.length === 0) return items;
+
+      const tagNames = sectionTags.map((item) => item.name || '').join(' ');
+      if (tagNames.includes('end_of_') || tagNames.includes('eoc') || tagNames.includes('eob')) return items;
+
+      const label = sectionTags.map((item) => {
+        if (item.name?.startsWith('start_of_')) return item.name.replace('start_of_', '');
+        if (item.name === 'soc') return 'Coro';
+        if (item.name === 'sob') return 'Puente';
+        return item.value || item.name;
+      }).filter(Boolean).join(' ').trim();
+
+      const targetLineIndex = performanceLineIndices.find((index) => index > lineIndex) ?? lineIndex;
+      if (label) items.push({ lineIndex: targetLineIndex, label });
+      return items;
+    }, []);
+    const firstMetadataValue = (name: string) => {
+      const value = parsedSong.metadata.get(name);
+      return Array.isArray(value) ? value[0] : value;
+    };
+    const printComposer = firstMetadataValue('composer');
+    const printKey = transposeDelta === 0
+      ? currentSong.originalKey || firstMetadataValue('key') || originalRoot
+      : currentRoot;
+
     return (
       <div className="mt-2 flex w-full flex-col gap-3 sm:mt-6 sm:gap-6">
+        {createPortal(<article className="print-sheet" aria-hidden="true">
+          <header className="print-sheet-header">
+            <h1>{currentSong.name || songTitle}</h1>
+            {currentSong.artist && <p className="print-sheet-artist">{currentSong.artist}</p>}
+            {printComposer && <p className="print-sheet-composer">Composición: {printComposer}</p>}
+            <dl className="print-sheet-metadata">
+              {printKey && <div><dt>Tono actual</dt><dd>{printKey}</dd></div>}
+              {currentSong.tuning && <div><dt>Afinación</dt><dd>{currentSong.tuning}</dd></div>}
+              {currentSong.capo && <div><dt>Capo</dt><dd>{currentSong.capo}</dd></div>}
+              {currentSong.strummingPattern && <div><dt>Rasgueo</dt><dd>{currentSong.strummingPattern}</dd></div>}
+              {targetBpm > 0 && <div><dt>BPM</dt><dd>{targetBpm}</dd></div>}
+            </dl>
+          </header>
+
+          <section className="print-sheet-song">
+            {displaySong.lines.map((line, lineIndex) => {
+              if (line.items.length === 0) return <div key={lineIndex} className="print-sheet-spacer" />;
+              const tags = line.items.filter((item) => item instanceof CSJS.Tag);
+              if (tags.length > 0) {
+                const visibleTags = tags.filter((tag) => !METADATA_TAG_NAMES.has(tag.name) && !tag.name.startsWith('end_of_'));
+                if (visibleTags.length === 0) return null;
+                const label = visibleTags.map((tag) => tag.value || tag.name.replace('start_of_', '')).join(' ');
+                return <h2 key={lineIndex}>{label}</h2>;
+              }
+              const hasLyrics = line.items.some((item) => item instanceof CSJS.ChordLyricsPair && Boolean(item.lyrics?.trim()));
+              if (!hasLyrics) {
+                const chords = line.items
+                  .filter((item) => item instanceof CSJS.ChordLyricsPair && item.chords)
+                  .map((item) => item instanceof CSJS.ChordLyricsPair ? item.chords : '')
+                  .join(' ');
+                return <div key={lineIndex} className="print-sheet-chord-line">{chords}</div>;
+              }
+              return (
+                <div key={lineIndex} className="print-sheet-line">
+                  {line.items.map((item, itemIndex) => item instanceof CSJS.ChordLyricsPair ? (
+                    <span key={itemIndex} className="print-sheet-pair">
+                      <strong>{item.chords || '\u00a0'}</strong>
+                      <span>{item.lyrics || '\u00a0'}</span>
+                    </span>
+                  ) : null)}
+                </div>
+              );
+            })}
+          </section>
+
+          {includeChordDiagramsInPrint && uniqueChords.size > 0 && (
+            <section className="print-sheet-chords">
+              <h2>Acordes utilizados</h2>
+              <div>
+                {Array.from(uniqueChords).map((chordText) => {
+                  const chord = getChord(chordText);
+                  return chord ? (
+                    <figure key={chordText}>
+                      <ChordBox chord={chord} width={82} height={112} hideName={true} />
+                      <figcaption>{chordText}</figcaption>
+                    </figure>
+                  ) : null;
+                })}
+              </div>
+            </section>
+          )}
+        </article>, document.body)}
         {/* Botón de edición movido a la barra de metadatos inferior */}
 
         {isEditing && (
@@ -330,7 +597,18 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
               <h3 className="text-primary-500 font-bold uppercase tracking-widest text-sm flex items-center gap-2">
                 <Edit2 size={16} /> Modo Edición
               </h3>
-              <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+                <input ref={chordProInputRef} type="file" accept=".cho,.crd,.chopro,.pro,text/plain" className="hidden" onChange={handleChordProImport} />
+                <input ref={pdfInputRef} type="file" accept=".pdf,application/pdf" className="hidden" onChange={handlePdfImport} />
+                <Button variant="ghost" className="flex-1 justify-center sm:flex-none" size="sm" icon={<Upload size={16} />} onClick={() => chordProInputRef.current?.click()}>
+                  ChordPro
+                </Button>
+                <Button variant="ghost" className="flex-1 justify-center sm:flex-none" size="sm" icon={<FileText size={16} />} onClick={() => pdfInputRef.current?.click()}>
+                  PDF
+                </Button>
+                <Button variant="ghost" className="flex-1 justify-center sm:flex-none" size="sm" icon={<Download size={16} />} onClick={handleChordProExport}>
+                  Exportar
+                </Button>
                 <Button variant="ghost" className="flex-1 sm:flex-none justify-center" size="sm" icon={<X size={16} />} onClick={handleCancelEdit}>
                   Cancelar
                 </Button>
@@ -361,12 +639,7 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
             </div>
 
             <div className="flex flex-col gap-2">
-              <textarea
-                className="chords-source-editor h-[52dvh] min-h-80 w-full resize-y whitespace-pre rounded-xl border border-white/10 bg-zinc-950 p-3 font-mono text-sm text-zinc-100 custom-scrollbar focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/50 sm:h-[600px] sm:p-6 sm:text-base"
-                value={editContent}
-                onChange={(e) => setEditContent(e.target.value)}
-                spellCheck={false}
-              />
+              <ChordProEditor value={editContent} onChange={setEditContent} />
               <p className="text-zinc-500 text-xs">Asegúrate de encerrar los acordes entre corchetes [C] para que el sistema los detecte correctamente.</p>
             </div>
           </div>
@@ -428,25 +701,25 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
         )}
 
         {!isEditing && (
-          <div className="relative min-h-[360px] rounded-2xl border border-white/5 bg-zinc-900/30 p-3 font-sans text-zinc-100 shadow-xl sm:min-h-[500px] sm:rounded-3xl sm:p-10 md:px-16">
+          <div className="relative min-h-[360px] rounded-2xl border border-white/5 bg-zinc-900/30 p-3 font-sans text-zinc-100 shadow-xl sm:min-h-[500px] sm:rounded-3xl sm:p-6 lg:p-8">
           
-          <div className="w-full relative">
+          <div className="relative w-full lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start lg:gap-8">
             {(currentSong.originalKey || currentSong.tuning || currentSong.capo || currentSong.strummingPattern || !isEditing) && (
-              <div className="relative top-0 z-[60] -mx-2 -mt-1 mb-4 flex flex-wrap items-center gap-2 rounded-t-xl border-b border-white/10 bg-zinc-950/90 px-2 py-2.5 shadow-lg backdrop-blur-xl sm:sticky sm:-top-10 sm:-mx-10 sm:-mt-10 sm:mb-8 sm:gap-4 sm:rounded-t-3xl sm:bg-zinc-950/80 sm:px-10 sm:py-4 md:-mx-16 md:px-16">
+              <aside className="relative top-0 z-[60] -mx-2 -mt-1 mb-4 flex items-center gap-2 overflow-x-auto rounded-t-xl border-b border-white/10 bg-zinc-950/90 px-2 py-2.5 shadow-lg backdrop-blur-xl custom-scrollbar sm:sticky sm:-top-6 sm:-mx-6 sm:-mt-6 sm:mb-6 sm:px-6 sm:py-3 lg:top-4 lg:m-0 lg:flex lg:flex-col lg:items-stretch lg:gap-3 lg:overflow-visible lg:rounded-2xl lg:border lg:border-white/5 lg:bg-zinc-950/60 lg:p-3">
                 {currentSong.originalKey && (
-                  <TonalidadTooltip tonalidad={currentSong.originalKey} />
+                  <div className="shrink-0"><TonalidadTooltip tonalidad={currentSong.originalKey} /></div>
                 )}
                 {currentSong.tuning && (
-                  <AfinacionTooltip afinacion={currentSong.tuning} />
+                  <div className="shrink-0"><AfinacionTooltip afinacion={currentSong.tuning} /></div>
                 )}
                 {currentSong.capo && (
-                  <div className="flex items-center gap-2 bg-zinc-900 border border-white/5 px-4 py-2 rounded-xl shadow-sm text-sm">
+                  <div className="flex shrink-0 items-center gap-2 rounded-xl border border-white/5 bg-zinc-900 px-3 py-2 text-sm shadow-sm">
                     <span className="text-zinc-500 font-bold">Capo:</span>
                     <span className="text-primary-400 font-bold">{currentSong.capo}</span>
                   </div>
                 )}
                 {currentSong.strummingPattern && (
-                  <div className="flex items-center gap-2 bg-zinc-900 border border-white/5 px-4 py-2 rounded-xl shadow-sm text-sm">
+                  <div className="flex shrink-0 items-center gap-2 rounded-xl border border-white/5 bg-zinc-900 px-3 py-2 text-sm shadow-sm">
                     <span className="text-zinc-500 font-bold">Rasgueo:</span>
                     <div className="flex items-center gap-0.5">
                       {currentSong.strummingPattern.split('').map((char, idx) => {
@@ -458,18 +731,89 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
                     </div>
                   </div>
                 )}
+
+                {performanceLineIndices.length > 0 && (
+                  <div className="flex shrink-0 items-center gap-1 rounded-xl border border-white/5 bg-zinc-900 p-1 shadow-sm lg:flex-col lg:items-stretch">
+                    <div className="hidden items-center gap-2 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-zinc-500 lg:flex">
+                      <ListMusic size={13} className="text-primary-400" /> Modo guía
+                      <span className="ml-auto rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-[9px] text-zinc-400">← →</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button type="button" onClick={() => movePerformanceLine(-1)} className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white" title="Línea anterior (flecha izquierda)" aria-label="Ir a la línea anterior"><SkipBack size={15} /></button>
+                      <span className="min-w-12 text-center text-[10px] font-bold text-zinc-500">
+                        {activeLineIndex === null ? 'Elegir' : `${performanceLineIndices.indexOf(activeLineIndex) + 1}/${performanceLineIndices.length}`}
+                      </span>
+                      <button type="button" onClick={() => movePerformanceLine(1)} className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white" title="Línea siguiente (flecha derecha)" aria-label="Ir a la línea siguiente"><SkipForward size={15} /></button>
+                    </div>
+                  </div>
+                )}
+
+                {sections.length > 0 && (
+                  <nav className="flex shrink-0 items-center gap-1 overflow-x-auto rounded-xl border border-white/5 bg-zinc-900 p-1 custom-scrollbar lg:max-h-52 lg:flex-col lg:items-stretch lg:overflow-y-auto" aria-label="Secciones de la canción">
+                    {sections.map((section, sectionIndex) => (
+                      <button
+                        key={`${section.lineIndex}-${section.label}`}
+                        type="button"
+                        onClick={() => selectPerformanceLine(section.lineIndex)}
+                        className={`min-h-9 shrink-0 rounded-lg px-3 text-left text-xs font-bold transition-colors ${activeLineIndex === section.lineIndex ? 'bg-primary-500/20 text-primary-300' : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'}`}
+                      >
+                        {section.label || `Sección ${sectionIndex + 1}`}
+                      </button>
+                    ))}
+                  </nav>
+                )}
                 
                 {!isEditing && (
-                  <div className="ml-auto flex flex-wrap items-center justify-end gap-2 sm:gap-3">
+                  <div className="ml-auto flex shrink-0 items-center justify-end gap-2 lg:ml-0 lg:flex-col lg:items-stretch lg:border-t lg:border-white/5 lg:pt-3">
+                    <div className="flex items-center justify-center gap-1 rounded-xl border border-white/5 bg-zinc-900 p-0.5 shadow-sm">
+                      <Gauge size={15} className="ml-1.5 shrink-0 text-sky-400" />
+                      <button type="button" onClick={() => { setBpmInput(null); onBpmChange(targetBpm - 1); }} className="flex h-8 w-7 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white" aria-label="Disminuir un BPM">−</button>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={bpmInput ?? String(targetBpm)}
+                        onChange={(event) => {
+                          if (/^\d*$/.test(event.target.value)) setBpmInput(event.target.value);
+                        }}
+                        onBlur={commitBpmInput}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') event.currentTarget.blur();
+                          if (event.key === 'Escape') {
+                            setBpmInput(null);
+                            event.currentTarget.blur();
+                          }
+                        }}
+                        className="w-10 bg-transparent text-center text-sm font-bold text-sky-300 outline-none"
+                        aria-label="BPM del metrónomo"
+                      />
+                      <span className="mr-0.5 text-[9px] font-bold text-zinc-500">BPM</span>
+                      <button type="button" onClick={() => { setBpmInput(null); onBpmChange(targetBpm + 1); }} className="flex h-8 w-7 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white" aria-label="Aumentar un BPM">+</button>
+                      <button type="button" onClick={() => { setBpmInput(null); onBpmChange(originalBpm); }} disabled={targetBpm === originalBpm} className="flex h-8 w-7 items-center justify-center rounded-lg border-l border-white/5 text-zinc-500 transition-colors hover:text-sky-300 disabled:opacity-30" title={`Restaurar ${originalBpm} BPM`} aria-label="Restaurar BPM original"><RotateCcw size={13} /></button>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={onToggleMetronome}
+                      aria-pressed={isMetronomeActive}
+                      className={`flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border px-3 text-xs font-bold transition-all ${isMetronomeActive
+                        ? 'border-primary-500/50 bg-primary-500/20 text-primary-300 shadow-[0_0_10px_var(--theme-glow)]'
+                        : 'border-white/5 bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white'
+                      }`}
+                      title={isMetronomeActive ? 'Desactivar metrónomo' : 'Activar metrónomo'}
+                    >
+                      <Bell size={16} />
+                      <span className="hidden lg:inline">{isMetronomeActive ? 'Metrónomo activo' : 'Metrónomo'}</span>
+                    </button>
+
                     {/* CONTROLES DE ZOOM DE LETRA */}
-                    <div className="flex items-center gap-1 bg-zinc-900 border border-white/5 rounded-xl shadow-sm text-sm p-0.5">
+                    <div className="flex items-center justify-center gap-1 rounded-xl border border-white/5 bg-zinc-900 p-0.5 text-sm shadow-sm">
                       <button onClick={() => setCifraFontSize(Math.max(10, cifraFontSize - 2))} className="p-1.5 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-lg transition-colors font-bold" title="Reducir letra">A-</button>
                       <span className="text-zinc-500 font-bold px-1 text-xs min-w-[32px] text-center">{cifraFontSize}</span>
                       <button onClick={() => setCifraFontSize(Math.min(48, cifraFontSize + 2))} className="p-1.5 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-lg transition-colors font-bold" title="Aumentar letra">A+</button>
                     </div>
 
                     {/* CONTROLES DE TRANSPOSICIÓN INTEGRADOs */}
-                    <div className="relative flex items-center bg-zinc-900 border border-white/5 rounded-xl shadow-sm text-sm p-0.5" ref={menuRef}>
+                    <div className="relative flex items-center justify-center rounded-xl border border-white/5 bg-zinc-900 p-0.5 text-sm shadow-sm" ref={menuRef}>
                       <button 
                         onClick={() => setTransposeDelta(prev => prev - 1)}
                         className="p-1.5 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-lg transition-colors"
@@ -515,7 +859,7 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: 10, scale: 0.95 }}
                             transition={{ duration: 0.15 }}
-                            className="absolute z-[100] top-full right-0 mt-2 bg-zinc-900 border border-white/10 p-4 rounded-2xl shadow-2xl w-[260px]"
+                            className="absolute right-0 top-full z-[100] mt-2 w-[260px] rounded-2xl border border-white/10 bg-zinc-900 p-4 shadow-2xl lg:left-full lg:right-auto lg:top-0 lg:ml-3 lg:mt-0"
                           >
                             <div className="grid grid-cols-4 gap-2">
                               {CHROMATIC_SCALE.map((note, index) => {
@@ -550,7 +894,7 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
 
                     <button 
                       onClick={handleEditClick}
-                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/5 bg-zinc-900 text-sm font-medium text-zinc-300 shadow-sm transition-colors hover:border-white/20 hover:text-white sm:h-10 sm:w-auto sm:px-4 sm:py-2.5"
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/5 bg-zinc-900 text-sm font-medium text-zinc-300 shadow-sm transition-colors hover:border-white/20 hover:text-white sm:h-10 sm:w-auto sm:px-4 sm:py-2.5 lg:h-10 lg:w-full"
                       title="Editar Letra/Acordes"
                     >
                       <Edit2 size={16} className="text-primary-500" />
@@ -558,10 +902,10 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
                     </button>
                   </div>
                 )}
-              </div>
+              </aside>
             )}
 
-          <div className="font-mono leading-snug tracking-wide whitespace-pre-wrap overflow-x-auto custom-scrollbar pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 lg:px-12 xl:px-24 w-[calc(100%+2rem)] sm:w-full" style={{ fontSize: `${cifraFontSize}px` }}>
+          <div className="-mx-4 w-[calc(100%+2rem)] min-w-0 overflow-x-auto whitespace-pre-wrap px-4 pb-4 font-mono leading-snug tracking-wide custom-scrollbar sm:mx-0 sm:w-full sm:px-2 lg:border-l lg:border-white/5 lg:px-8 xl:px-12" style={{ fontSize: `${cifraFontSize}px` }}>
             {(!currentSong.textContent || currentSong.textContent.trim() === '') && (
               <div className="flex flex-col items-center justify-center py-20 text-center opacity-70">
                 <div className="bg-zinc-800/50 p-6 rounded-full mb-6 border border-white/5">
@@ -586,6 +930,7 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
               const isCommentOrTag = line.items.some((item) => item instanceof CSJS.Tag);
               if (isCommentOrTag) {
                 const tagNames = line.items.map((item) => item instanceof CSJS.Tag ? item.name : '').join(' ');
+                if (line.items.every((item) => item instanceof CSJS.Tag && METADATA_TAG_NAMES.has(item.name))) return null;
                 if (tagNames.includes('end_of_') || tagNames.includes('eoc') || tagNames.includes('eob')) {
                   return null;
                 }
@@ -603,7 +948,11 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
                 if (!tagStr) return null;
 
                 return (
-                  <div key={i} className="mt-8 mb-4">
+                  <div
+                    key={i}
+                    ref={(element) => { if (element) lineRefs.current.set(i, element); else lineRefs.current.delete(i); }}
+                    className={`mt-8 mb-4 scroll-mt-28 rounded-xl transition-colors ${activeLineIndex === i ? 'bg-primary-500/10 px-3 py-2' : ''}`}
+                  >
                     <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-zinc-800/80 text-primary-500/80 border border-primary-500/10 uppercase tracking-widest shadow-sm">
                       {tagStr}
                     </span>
@@ -653,22 +1002,48 @@ export const ChordsView = ({ track, songTitle, song, onEditChange }: ChordsViewP
               }
 
               // Normal lyric/chord line
+              const lineHasLyrics = line.items.some((item) => item instanceof CSJS.ChordLyricsPair && Boolean(item.lyrics?.trim()));
               return (
-                <div key={i} className="mb-2 hover:bg-white/[0.02] py-1 px-3 -mx-3 rounded-xl transition-colors flex flex-wrap items-end gap-y-2 w-fit max-w-full">
+                <div
+                  key={i}
+                  ref={(element) => {
+                    if (element) {
+                      lineRefs.current.set(i, element);
+                      performanceLineRefs.current.set(i, element);
+                    } else {
+                      lineRefs.current.delete(i);
+                      performanceLineRefs.current.delete(i);
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={activeLineIndex === i}
+                  aria-label={`Seleccionar línea ${performanceLineIndices.indexOf(i) + 1}`}
+                  onClick={() => selectPerformanceLine(i)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      selectPerformanceLine(i);
+                    }
+                  }}
+                  className={`mb-2 scroll-mt-28 py-1 px-3 -mx-3 rounded-xl transition-all flex flex-wrap items-end gap-y-2 w-fit max-w-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500/40 ${activeLineIndex === i ? 'bg-primary-500/15 shadow-[inset_3px_0_0_var(--theme-primary)]' : 'hover:bg-white/[0.02]'}`}
+                >
                   {line.items.map((item, idx: number) => {
                     if (item instanceof CSJS.ChordLyricsPair) {
                       const chordText = item.chords || ' ';
                       const lyricText = item.lyrics || ' ';
                       return (
-                        <div key={idx} className="flex flex-col">
+                        <div key={idx} className={`flex flex-col ${!lineHasLyrics || (!item.lyrics?.trim() && item.chords) ? 'mr-5' : ''}`}>
                           <div className="whitespace-pre min-h-[1.5rem] flex items-end">
                             <InteractiveChord text={chordText} onClick={(c) => {
                               openEditChordModal(c, handleChordReplace);
                             }} />
                           </div>
-                          <div className="text-zinc-200 whitespace-pre tracking-wide min-h-[1.5rem] flex items-start">
-                            {lyricText}
-                          </div>
+                          {lineHasLyrics && (
+                            <div className="text-zinc-200 whitespace-pre tracking-wide min-h-[1.5rem] flex items-start">
+                              {lyricText}
+                            </div>
+                          )}
                         </div>
                       );
                     }

@@ -83,6 +83,7 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
   const [practiceLoops, setPracticeLoops] = useState<PracticeLoop[]>(song.practiceLoops ?? []);
   const [trainerStatus, setTrainerStatus] = useState<TrainerStatus>({ enabled: false, completed: false, bpm: 0, repetition: 1, repetitions: 1, progress: 0, scope: 'song' });
   const [trainerReplayRequest, setTrainerReplayRequest] = useState(0);
+  const [includeChordDiagramsInPrint, setIncludeChordDiagramsInPrint] = useState(false);
   const targetBpm = Math.round(originalTempo * playbackSpeed);
   const masterBars = useMemo(() => tracks[0]?.score.masterBars ?? [], [tracks]);
   const currentBarIndex = Math.max(0, masterBars.findIndex((bar, index) => {
@@ -916,6 +917,12 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
                 songTitle={songTitle}
                 song={song}
                 onEditChange={setIsChordsEditing}
+                originalBpm={originalTempo}
+                targetBpm={targetBpm}
+                onBpmChange={handleBpmChange}
+                isMetronomeActive={isMetronomeActive}
+                onToggleMetronome={toggleMetronome}
+                includeChordDiagramsInPrint={includeChordDiagramsInPrint}
               />
             </motion.div>
           )}
@@ -966,7 +973,22 @@ export const TabPlayer = ({ song, onBack, isSidebarOpen, onToggleSidebar }: TabP
             <div className="w-px h-8 bg-white/10 hidden sm:block"></div>
 
             <button
-              onClick={() => window.print()}
+              onClick={async () => {
+                const result = await MySwal.fire({
+                  icon: 'question',
+                  title: 'Preparar impresión',
+                  text: 'Se imprimirá una hoja limpia con los metadatos y la cifra completa.',
+                  input: 'checkbox',
+                  inputValue: includeChordDiagramsInPrint ? 1 : 0,
+                  inputPlaceholder: 'Incluir resumen con diagramas de acordes',
+                  showCancelButton: true,
+                  confirmButtonText: 'Imprimir / Guardar PDF',
+                  cancelButtonText: 'Cancelar'
+                });
+                if (!result.isConfirmed) return;
+                setIncludeChordDiagramsInPrint(Boolean(result.value));
+                window.requestAnimationFrame(() => window.requestAnimationFrame(() => window.print()));
+              }}
               className="hidden sm:flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded-xl transition-colors border border-white/5"
               title="Imprimir o Guardar como PDF"
             >

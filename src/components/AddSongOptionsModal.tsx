@@ -5,11 +5,11 @@ interface AddSongOptionsModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCreateNew: () => void;
-  onPaste: () => void;
   onImport: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onPdfImport: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
-export const AddSongOptionsModal = ({ isOpen, onClose, onCreateNew, onPaste, onImport }: AddSongOptionsModalProps) => {
+export const AddSongOptionsModal = ({ isOpen, onClose, onCreateNew, onImport, onPdfImport }: AddSongOptionsModalProps) => {
   return (
     <Modal
       isOpen={isOpen}
@@ -30,16 +30,19 @@ export const AddSongOptionsModal = ({ isOpen, onClose, onCreateNew, onPaste, onI
           Escribir desde cero
         </button>
         
-        <button
-          onClick={() => {
-            onClose();
-            onPaste();
-          }}
-          className="min-h-14 flex items-center justify-center gap-3 px-4 py-4 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-white font-bold transition-colors"
-        >
+        <label className="flex min-h-14 cursor-pointer items-center justify-center gap-3 rounded-2xl border border-sky-500/20 bg-sky-500/10 px-4 py-4 font-bold text-sky-300 transition-colors hover:border-sky-500/40 hover:bg-sky-500/20">
           <FileText size={20} />
-          Pegar Letra / Acordes
-        </button>
+          Importar PDF de Cifra Club
+          <input
+            type="file"
+            accept=".pdf,application/pdf"
+            onChange={(e) => {
+              onClose();
+              onPdfImport(e);
+            }}
+            className="hidden"
+          />
+        </label>
         
         <label className="min-h-14 flex items-center justify-center gap-3 px-4 py-4 bg-primary-500 hover:bg-primary-400 rounded-2xl text-zinc-950 font-bold transition-colors cursor-pointer shadow-[0_0_15px_var(--theme-glow)] mt-1 sm:mt-2">
           <Upload size={20} />

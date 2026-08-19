@@ -10,9 +10,10 @@ interface ModalProps {
   subtitle?: string;
   icon?: ReactNode;
   children: ReactNode;
+  size?: 'default' | 'wide';
 }
 
-export const Modal = ({ isOpen, onClose, title, subtitle, icon, children }: ModalProps) => {
+export const Modal = ({ isOpen, onClose, title, subtitle, icon, children, size = 'default' }: ModalProps) => {
   const modalRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const onCloseRef = useRef(onClose);
@@ -96,7 +97,7 @@ export const Modal = ({ isOpen, onClose, title, subtitle, icon, children }: Moda
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="app-modal relative w-full max-w-md bg-zinc-900 border border-white/10 border-t-primary-500/30 rounded-t-3xl sm:rounded-3xl shadow-[0_10px_40px_var(--theme-glow)] overflow-hidden flex flex-col max-h-[calc(100dvh-0.75rem)] sm:max-h-[85vh] pb-[env(safe-area-inset-bottom)] sm:pb-0"
+          className={`app-modal relative w-full ${size === 'wide' ? 'h-[calc(100dvh-0.75rem)] max-w-6xl sm:h-[92vh]' : 'max-w-md'} bg-zinc-900 border border-white/10 border-t-primary-500/30 rounded-t-3xl sm:rounded-3xl shadow-[0_10px_40px_var(--theme-glow)] overflow-hidden flex flex-col max-h-[calc(100dvh-0.75rem)] sm:max-h-[92vh] pb-[env(safe-area-inset-bottom)] sm:pb-0`}
         >
           {/* Header */}
           <div className="flex items-center justify-between gap-3 p-4 sm:p-6 sm:pb-4 border-b border-white/5 shrink-0">

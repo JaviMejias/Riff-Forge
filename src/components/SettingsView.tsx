@@ -1,29 +1,15 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Download, Upload, Palette, CheckCircle2, AlertTriangle, RefreshCcw, RefreshCw, Smartphone } from 'lucide-react';
-import { db } from '../db';
-import type { Karaoke, KaraokeFile, KaraokePlaylist, Playlist, Song } from '../db';
-import type { ChordDef } from '../chords';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 import { useUiStore } from '../store/uiStore';
 import { useAuthStore } from '../store/authStore';
+import { BackupAccountMismatchError, createLibraryBackup, parseLibraryBackup, restoreLibraryBackup } from '../services/backupService';
 import { Navbar } from './Navbar';
 import { Button } from './ui/Button';
 
 const MySwal = withReactContent(Swal);
-const BACKUP_VERSION = 3;
-const SAFE_SETTING_KEYS = ['ui-storage', 'riff-forge-player-storage'];
-const DELETION_BACKUP_KEY = 'sync_v2_pending_deletions';
-const SYNC_CURSOR_KEY = 'sync_v2_cursor';
-
-const withoutLocalId = <T extends { id?: number }>(record: T): Omit<T, 'id'> => {
-  const copy = { ...record };
-  delete copy.id;
-  return copy as Omit<T, 'id'>;
-};
-
-const validBackupCollection = (value: unknown) => Array.isArray(value) && value.every(item => item && typeof item === 'object' && !Array.isArray(item));
 
 interface SettingsViewProps {
   isSidebarOpen: boolean;
@@ -53,89 +39,11 @@ export const SettingsView = ({
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncAt, setLastSyncAt] = useState(() => Number(localStorage.getItem('sync_v2_last_success_at') || 0));
 
-  // Convert Uint8Array to Base64 for JSON serialization
-  const uint8ToBase64 = (u8Arr: Uint8Array) => {
-    const chunks: string[] = [];
-    const chunkSize = 0x8000;
-    for (let offset = 0; offset < u8Arr.length; offset += chunkSize) {
-      chunks.push(String.fromCharCode(...u8Arr.subarray(offset, offset + chunkSize)));
-    }
-    return btoa(chunks.join(''));
-  };
-
-  // Convert Base64 back to Uint8Array
-  const base64ToUint8 = (base64: string) => {
-    const binaryString = atob(base64);
-    const len = binaryString.length;
-    const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-    return bytes;
-  };
-
   const handleExport = async () => {
     setIsExporting(true);
     try {
-      const songs = (await db.songs.toArray()).filter(song => !song.isTemporary && !song.deletedAt);
-      const songIds = new Set(songs.map(song => song.id).filter((id): id is number => typeof id === 'number'));
-      const playlists = (await db.playlists.toArray()).filter(playlist => !playlist.deletedAt).map(playlist => ({
-        ...playlist,
-        songIds: playlist.songIds.filter(id => songIds.has(id))
-      }));
-      const customChords = (await db.customChords.toArray()).filter(chord => !chord.deletedAt);
-      const karaokes = (await db.karaokes.toArray()).filter(karaoke => !karaoke.deletedAt);
-      const karaokeIds = new Set(karaokes.map(karaoke => karaoke.id).filter((id): id is number => typeof id === 'number'));
-      const karaokePlaylists = (await db.karaokePlaylists.toArray()).filter(playlist => !playlist.deletedAt).map(playlist => ({
-        ...playlist,
-        karaokeIds: playlist.karaokeIds.filter(id => karaokeIds.has(id))
-      }));
-      const karaokeFiles = (await db.karaokeFiles.toArray()).filter(file => karaokeIds.has(file.karaokeId));
-
-      const settings: Record<string, string> = {};
-      for (const key of SAFE_SETTING_KEYS) {
-        const value = localStorage.getItem(key);
-        if (value !== null) settings[key] = value;
-      }
-
-      // Optimize JSON: Convert Uint8Array data to base64
-      const optimizedSongs = songs.map(s => {
-        if (s.data) {
-          return { ...s, dataBase64: uint8ToBase64(s.data), data: undefined };
-        }
-        return s;
-      });
-
-      const optimizedKaraokeFiles = karaokeFiles.map(f => {
-        if (f.data) {
-          return { ...f, dataBase64: uint8ToBase64(f.data), data: undefined };
-        }
-        return f;
-      });
-
-      const backupData = {
-        version: BACKUP_VERSION,
-        timestamp: Date.now(),
-        ownerId: user?.id || null,
-        manifest: {
-          songs: songs.length,
-          songFiles: songs.filter(song => !!song.data).length,
-          karaokes: karaokes.length,
-          karaokeFiles: karaokeFiles.length
-        },
-        data: {
-          songs: optimizedSongs,
-          playlists,
-          customChords,
-          karaokes,
-          karaokePlaylists,
-          karaokeFiles: optimizedKaraokeFiles,
-          settings
-        }
-      };
-
-      const jsonStr = JSON.stringify(backupData);
-      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const backup = await createLibraryBackup(user?.id || null);
+      const blob = new Blob([backup.json], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -145,12 +53,10 @@ export const SettingsView = ({
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      const missingSongFiles = songs.filter(song => song.type !== 'text' && !song.data).length;
-      const missingKaraokeFiles = karaokes.length - karaokeFiles.length;
       MySwal.fire({
         title: 'Exportación Exitosa',
-        text: missingSongFiles || missingKaraokeFiles
-          ? `El respaldo se creó. ${missingSongFiles + missingKaraokeFiles} archivo(s) están solo en la nube y no pudieron incluirse localmente.`
+        text: backup.missingFileCount
+          ? `El respaldo se creó. ${backup.missingFileCount} archivo(s) están solo en la nube y no pudieron incluirse localmente.`
           : 'Tu biblioteca y todos sus archivos locales fueron guardados.',
         icon: 'success',
         background: '#18181b',
@@ -173,50 +79,7 @@ export const SettingsView = ({
 
   const processImport = async (jsonStr: string) => {
     try {
-      const backupData = JSON.parse(jsonStr) as {
-        version: number;
-        ownerId?: string | null;
-        data?: {
-          songs?: Array<Song & { dataBase64?: string }>;
-          playlists?: Playlist[];
-          customChords?: ChordDef[];
-          karaokes?: Karaoke[];
-          karaokePlaylists?: KaraokePlaylist[];
-          karaokeFiles?: Array<KaraokeFile & { dataBase64?: string }>;
-          settings?: Record<string, unknown>;
-        };
-      };
-      if (![2, BACKUP_VERSION].includes(backupData.version) || !backupData.data) {
-        throw new Error("Formato de archivo inválido");
-      }
-
-      const { songs = [], playlists = [], customChords = [], karaokes = [], karaokePlaylists = [], karaokeFiles = [], settings = {} } = backupData.data;
-      const collections = [songs, playlists, customChords, karaokes, karaokePlaylists, karaokeFiles];
-      if (!collections.every(validBackupCollection) || !settings || typeof settings !== 'object' || Array.isArray(settings)) {
-        throw new Error('Estructura de respaldo inválida');
-      }
-      if (backupData.version === BACKUP_VERSION && backupData.ownerId && user?.id && backupData.ownerId !== user.id) {
-        throw new Error('Este respaldo pertenece a otra cuenta');
-      }
-
-      // Reconstruct Uint8Array from base64
-      const restoredSongs = songs.map((s: Song & { dataBase64?: string }) => {
-        if (s.dataBase64) {
-          const data = base64ToUint8(s.dataBase64);
-          delete s.dataBase64;
-          return { ...s, data };
-        }
-        return s;
-      });
-
-      const restoredKaraokeFiles = karaokeFiles.map((f: KaraokeFile & { dataBase64?: string }) => {
-        if (f.dataBase64) {
-          const data = base64ToUint8(f.dataBase64);
-          delete f.dataBase64;
-          return { ...f, data };
-        }
-        return f;
-      });
+      const backup = parseLibraryBackup(jsonStr, user?.id || null);
 
       const result = await MySwal.fire({
         title: 'Opciones de Restauración',
@@ -237,86 +100,7 @@ export const SettingsView = ({
       if (result.isDismissed) return;
 
       setIsImporting(true);
-      const safeSettings = Object.fromEntries(
-        SAFE_SETTING_KEYS
-          .filter(key => typeof settings[key] === 'string')
-          .map(key => [key, settings[key]])
-      ) as Record<string, string>;
-      const syncAwareWindow = window as typeof window & { __isSyncing?: boolean };
-      syncAwareWindow.__isSyncing = true;
-
-      try {
-        if (result.isConfirmed) {
-          await db.transaction('rw', [db.songs, db.playlists, db.customChords, db.karaokes, db.karaokePlaylists, db.karaokeFiles, db.syncOperations], async () => {
-            await db.songs.clear();
-            await db.playlists.clear();
-            await db.customChords.clear();
-            await db.karaokes.clear();
-            await db.karaokePlaylists.clear();
-            await db.karaokeFiles.clear();
-            await db.syncOperations.clear();
-
-            if (restoredSongs.length > 0) await db.songs.bulkAdd(restoredSongs);
-            if (playlists.length > 0) await db.playlists.bulkAdd(playlists);
-            if (customChords.length > 0) await db.customChords.bulkAdd(customChords);
-            if (karaokes.length > 0) await db.karaokes.bulkAdd(karaokes);
-            if (karaokePlaylists.length > 0) await db.karaokePlaylists.bulkAdd(karaokePlaylists);
-            if (restoredKaraokeFiles.length > 0) await db.karaokeFiles.bulkAdd(restoredKaraokeFiles);
-          });
-          localStorage.removeItem(DELETION_BACKUP_KEY);
-        } else if (result.isDenied) {
-          await db.transaction('rw', [db.songs, db.playlists, db.customChords, db.karaokes, db.karaokePlaylists, db.karaokeFiles], async () => {
-            const idMapping = new Map<number, number>(); // oldId -> newId
-            const existingSongs = await db.songs.toArray();
-            const songsByCloudId = new Map(existingSongs.filter(song => song.cloudId).map(song => [song.cloudId, song.id!]));
-
-            for (const s of restoredSongs) {
-              const oldId = s.id;
-              const existingId = s.cloudId ? songsByCloudId.get(s.cloudId) : undefined;
-              const newId = existingId || await db.songs.add(withoutLocalId(s)) as number;
-              if (oldId) idMapping.set(oldId, newId);
-            }
-
-            for (const p of playlists) {
-              const existing = p.cloudId ? await db.playlists.where('cloudId').equals(p.cloudId).first() : undefined;
-              if (existing) continue;
-              await db.playlists.add({ ...withoutLocalId(p), songIds: p.songIds.map(oldId => idMapping.get(oldId)).filter((id): id is number => typeof id === 'number') });
-            }
-
-            const existingChords = await db.customChords.toArray();
-            const chordCloudIds = new Set(existingChords.map(chord => chord.cloudId).filter(Boolean));
-            for (const c of customChords) {
-              if (!c.cloudId || !chordCloudIds.has(c.cloudId)) await db.customChords.add(withoutLocalId(c));
-            }
-
-            const kIdMapping = new Map<number, number>();
-            const existingKaraokes = await db.karaokes.toArray();
-            const karaokesByCloudId = new Map(existingKaraokes.filter(karaoke => karaoke.cloudId).map(karaoke => [karaoke.cloudId, karaoke.id!]));
-            for (const k of karaokes) {
-              const oldId = k.id;
-              const existingId = k.cloudId ? karaokesByCloudId.get(k.cloudId) : undefined;
-              const newId = existingId || await db.karaokes.add(withoutLocalId(k)) as number;
-              if (oldId) kIdMapping.set(oldId, newId);
-            }
-
-            for (const p of karaokePlaylists) {
-              const existing = p.cloudId ? await db.karaokePlaylists.where('cloudId').equals(p.cloudId).first() : undefined;
-              if (existing) continue;
-              await db.karaokePlaylists.add({ ...withoutLocalId(p), karaokeIds: p.karaokeIds.map(oldId => kIdMapping.get(oldId)).filter((id): id is number => typeof id === 'number') });
-            }
-
-            for (const f of restoredKaraokeFiles) {
-              const karaokeId = kIdMapping.get(f.karaokeId);
-              if (karaokeId) await db.karaokeFiles.put({ ...f, karaokeId });
-            }
-          });
-        }
-      } finally {
-        syncAwareWindow.__isSyncing = false;
-      }
-
-      localStorage.removeItem(SYNC_CURSOR_KEY);
-      Object.entries(safeSettings).forEach(([key, value]) => localStorage.setItem(key, value));
+      await restoreLibraryBackup(backup, result.isConfirmed ? 'replace' : 'merge');
 
       await MySwal.fire({
         title: 'Importación Exitosa',
@@ -330,7 +114,7 @@ export const SettingsView = ({
       setTimeout(() => window.location.reload(), 500);
     } catch (e) {
       console.error(e);
-      const belongsToAnotherAccount = e instanceof Error && e.message === 'Este respaldo pertenece a otra cuenta';
+      const belongsToAnotherAccount = e instanceof BackupAccountMismatchError;
       MySwal.fire({
         title: 'Error de Importación',
         text: belongsToAnotherAccount
