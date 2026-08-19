@@ -74,6 +74,10 @@ const fullFileUrl = (url: string) => /^https?:\/\//.test(url) ? url : `${API_BAS
 
 const downloadBinary = async (file: RemoteFile) => {
   const response = await fetch(fullFileUrl(file.url), { cache: 'no-store' });
+  if (response.status === 404) {
+    console.warn(`Remote file is unavailable and will be skipped: ${file.url}`);
+    return undefined;
+  }
   if (!response.ok) throw new Error(`File download failed: ${response.status}`);
   return new Uint8Array(await response.arrayBuffer());
 };
@@ -117,9 +121,12 @@ const applySong = async (change: SyncChange) => {
   const file = change.data.file as RemoteFile | undefined;
   let binaryData = existing?.data;
   let fileApplied = !file || existing?.fileVersion === file.version;
+  let remoteFileUnavailable = false;
 
   if (file && !fileApplied) {
-    binaryData = await downloadBinary(file);
+    const downloadedData = await downloadBinary(file);
+    if (downloadedData) binaryData = downloadedData;
+    else remoteFileUnavailable = true;
     fileApplied = true;
   }
 
@@ -132,7 +139,7 @@ const applySong = async (change: SyncChange) => {
     createdAt: change.createdAt,
     updatedAt: change.updatedAt,
     deletedAt: change.deletedAt,
-    cloudUrl: file?.url,
+    cloudUrl: remoteFileUnavailable ? undefined : file?.url,
     fileVersion: fileApplied ? file?.version : existing?.fileVersion,
     fileHash: fileApplied ? file?.hash : existing?.fileHash,
     fileSize: fileApplied ? file?.size : existing?.fileSize,
@@ -152,6 +159,13 @@ const applyKaraoke = async (change: SyncChange) => {
   const file = change.data.file as RemoteFile | undefined;
   const data = { ...change.data };
   delete data.file;
+  const localFile = existing?.id ? await db.karaokeFiles.get(existing.id) : undefined;
+  let binaryData: Uint8Array | undefined;
+  let remoteFileUnavailable = false;
+  if (file && (!localFile?.data || existing?.fileVersion !== file.version) && !existing?.localFileDirty) {
+    binaryData = await downloadBinary(file);
+    remoteFileUnavailable = !binaryData;
+  }
   const values = {
     ...data,
     cloudId: change.entityId,
@@ -159,7 +173,8 @@ const applyKaraoke = async (change: SyncChange) => {
     createdAt: change.createdAt,
     updatedAt: change.updatedAt,
     deletedAt: change.deletedAt,
-    cloudUrl: file?.url,
+    cloudUrl: remoteFileUnavailable ? undefined : file?.url,
+    hasLocalAudio: remoteFileUnavailable ? !!localFile?.data : data.hasLocalAudio,
     fileVersion: file?.version,
     fileHash: file?.hash,
     fileSize: file?.size,
@@ -167,11 +182,6 @@ const applyKaraoke = async (change: SyncChange) => {
     localFileDirty: existing?.localFileDirty || false,
     syncDirty: false
   };
-  const localFile = existing?.id ? await db.karaokeFiles.get(existing.id) : undefined;
-  let binaryData: Uint8Array | undefined;
-  if (file && (!localFile?.data || existing?.fileVersion !== file.version) && !existing?.localFileDirty) {
-    binaryData = await downloadBinary(file);
-  }
   await runRemoteWrite(async () => {
     const localId = existing?.id || await db.karaokes.add(values as any) as number;
     if (existing) await db.karaokes.update(localId, values);
@@ -334,8 +344,10 @@ const applyUiStorage = (value: string) => {
 const syncSettings = async (headers: Record<string, string>) => {
   const localValue = localStorage.getItem('ui-storage') || '';
   const localSnapshot = JSON.stringify({ 'ui-storage': localValue });
-  const lastSnapshot = localStorage.getItem('lastSyncedUiStorage');
   const authUser = useAuthStore.getState().user as any;
+  if (!authUser?.id) return;
+  const snapshotKey = `lastSyncedUiStorage:${authUser.id}`;
+  const lastSnapshot = localStorage.getItem(snapshotKey);
 
   let remoteSettings: Record<string, string> = {};
   if (authUser?.uiStorage) {
@@ -351,12 +363,12 @@ const syncSettings = async (headers: Record<string, string>) => {
 
   if (lastSnapshot === null && remoteValue) {
     applyUiStorage(remoteValue);
-    localStorage.setItem('lastSyncedUiStorage', JSON.stringify({ 'ui-storage': remoteValue }));
+    localStorage.setItem(snapshotKey, JSON.stringify({ 'ui-storage': remoteValue }));
     return;
   }
   if (lastSnapshot !== null && localSnapshot === lastSnapshot && remoteValue && remoteValue !== localValue) {
     applyUiStorage(remoteValue);
-    localStorage.setItem('lastSyncedUiStorage', JSON.stringify({ 'ui-storage': remoteValue }));
+    localStorage.setItem(snapshotKey, JSON.stringify({ 'ui-storage': remoteValue }));
     return;
   }
   if (localSnapshot !== lastSnapshot) {
@@ -366,7 +378,7 @@ const syncSettings = async (headers: Record<string, string>) => {
       body: JSON.stringify({ uiStorage: { 'ui-storage': localValue } })
     });
     ensureSyncResponse(response, 'Settings upload failed');
-    localStorage.setItem('lastSyncedUiStorage', localSnapshot);
+    localStorage.setItem(snapshotKey, localSnapshot);
   }
 };
 

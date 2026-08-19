@@ -18,6 +18,14 @@ type SyncAwareWindow = typeof window & {
   __isSyncing?: boolean;
 };
 
+export const applyThemeClass = (theme: string) => {
+  const html = document.documentElement;
+  html.classList.forEach(className => {
+    if (className.startsWith('theme-')) html.classList.remove(className);
+  });
+  if (theme !== 'amber') html.classList.add(`theme-${theme}`);
+};
+
 export const useUiStore = create<UiState>()(
   persist(
     (set) => ({
@@ -51,19 +59,7 @@ export const useUiStore = create<UiState>()(
       }),
       theme: 'amber',
       setTheme: (theme) => set((state) => {
-        // Remove existing theme classes from html
-        const html = document.documentElement;
-        html.classList.forEach(className => {
-          if (className.startsWith('theme-')) {
-            html.classList.remove(className);
-          }
-        });
-        
-        // Add new theme class if not default (amber doesn't need class as it's the root default, but we can add theme-amber for consistency if needed, wait, root default is fine without class, but let's just add it if it's not amber)
-        if (theme !== 'amber') {
-          html.classList.add(`theme-${theme}`);
-        }
-        
+        applyThemeClass(theme);
         if (state.theme !== theme && !(window as SyncAwareWindow).__isSyncing) {
           setTimeout(() => window.dispatchEvent(new Event('trigger-auto-sync')), 100);
         }

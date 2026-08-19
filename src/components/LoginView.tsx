@@ -25,10 +25,6 @@ export const LoginView = () => {
     setLoading(true);
     try {
       await signIn(email, password, isSignup, name);
-      // Hard reload to avoid Chrome extensions (Google Translate, etc.) corrupting
-      // the React DOM tree during the login → app transition, which causes a black screen.
-      // The token is already in localStorage so the app will boot authenticated.
-      window.location.reload();
     } catch (error: unknown) {
       Toast.fire({ icon: 'error', title: error instanceof Error ? error.message : 'Hubo un error al iniciar sesión' });
       setLoading(false);

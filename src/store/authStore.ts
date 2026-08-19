@@ -57,7 +57,15 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
       localStorage.setItem('riff_token', data.token);
       cacheUser(data.user);
-      set({ user: data.user, token: data.token });
+      set({ user: data.user, token: data.token, loading: true });
+      try {
+        const { SyncService } = await import('../services/syncService');
+        await SyncService.performAutoSync();
+      } catch (error) {
+        console.error('Error auto-syncing after login', error);
+      } finally {
+        set({ loading: false });
+      }
   },
 
   logOut: async () => {
@@ -128,7 +136,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       if (res.ok) {
         const data = await res.json();
         cacheUser(data.user);
-        set({ user: data.user, loading: false });
+        set({ user: data.user });
         
         // Auto sync incremental changes when opening the app
         try {
@@ -136,6 +144,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
           await SyncService.performAutoSync();
         } catch (err) {
           console.error("Error auto-syncing on app load", err);
+        } finally {
+          set({ loading: false });
         }
       } else if (res.status === 401 || res.status === 403) {
         throw new Error('Token inválido');
